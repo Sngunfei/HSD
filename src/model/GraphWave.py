@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import pygsp
 from tqdm import tqdm
+import pandas as pd
 
 class GraphWave:
 
@@ -131,7 +132,7 @@ class GraphWave:
         return multi_embeddings
 
 
-    def _dev_coeff_research(self, scale):
+    def dev_coeff_research(self, scale):
         """
         The method is used to analyse wavelet coefficients.
         :param scale: parameter : heat coefficient
@@ -152,6 +153,86 @@ class GraphWave:
             path_average_coeff[_len] = np.mean(np.array(_coeffs))
 
         return path_average_coeff, path_average_coeff
+
+
+    def dev_wavlet_KL(self, data_name, scale, save=False, fig=False, top=True):
+        """
+        研究不同节点的小波系数数组，分析其KL散度，找出分布相似的节点。
+        :param data_name: 数据集名字
+        :param scale: 嵌入尺度
+        :param save: KL散度是否存下来
+        :param fig: KL散度分布图是否存下来
+        :param top: 找出前几个分布最接近的，即KL散度最小的那些点。
+        :return:
+        """
+
+        coeffs = []
+        for node_idx in tqdm(range(self.n_nodes)):
+            wavelet_coeff = self._calculate_node_coefficients(node_idx, scale)
+            coeffs.append(np.sort(wavelet_coeff))
+
+        # 计算完小波系数后，排序后计算KL散度
+        _KL = np.zeros(shape=(self.n_nodes, self.n_nodes), dtype=float)
+        for _idx1 in range(self.n_nodes):
+            for _idx2 in range(self.n_nodes):
+                _KL[_idx1, _idx2] = np.sum(coeffs[_idx1] * np.log((coeffs[_idx1]+ 2.0**(-15)) / (coeffs[_idx2] + 2.0**(-15))))
+                # print(self.nodes[_idx1], self.nodes[_idx2], _KL[_idx1, _idx2])
+        # 对称KL散度
+        _symm_KL = np.zeros(shape=(self.n_nodes, self.n_nodes), dtype=float)
+        for _idx1 in range(self.n_nodes):
+            for _idx2 in range(_idx1 + 1, self.n_nodes):
+                _symm_KL[_idx1, _idx2] = _symm_KL[_idx2, _idx1] = (_KL[_idx1, _idx2] + _KL[_idx2, _idx1])/2.0
+
+        if save:
+            # 以csv格式输出
+            df = pd.DataFrame(_KL, index=self.nodes, columns=self.nodes)
+            df.to_csv("G:\pyworkspace\graph-embedding\out\\bell_KL.csv", mode="w+")
+
+        if fig:
+            self.__save_data_figure(_KL, data_name, scale)
+
+        if top:
+            fout = open("../../out/{}-{}-top.txt".format(data_name, scale), mode="w+", encoding="utf-8")
+            for _idx1 in range(self.n_nodes):
+                t = []
+                for _idx2 in range(self.n_nodes):
+                    t.append((self.nodes[_idx2], _KL[_idx1, _idx2]))
+                t.sort(key=lambda a:a[1])
+                res = [t[i][0]+" "+str(t[i][1]) for i in range(10)]
+                fout.write(self.nodes[_idx1] + ":" + ", ".join(res) + "\n")
+            fout.close()
+
+
+
+
+    def __save_data_figure(self, data, data_name, scale):
+        import matplotlib.pyplot as plt
+
+        plt.rcParams['font.family'] = ['sans-serif']
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+
+        xs = [i for i in range(self.n_nodes)]
+        for _idx1 in range(self.n_nodes):
+            plt.figure()
+            _name = self.nodes[_idx1]
+            plt.title("节点{}KL散度图".format(_name))
+            plt.xlabel("nodes")
+            plt.ylabel("KL-divergence")
+            plt.scatter(xs, data[_idx1, :])
+            for _idx2 in range(self.n_nodes):
+                plt.text(_idx2, data[_idx1, _idx2], self.nodes[_idx2], ha='center', va='bottom', fontsize=7)
+            plt.savefig(u"G:\KL散度分布图\{}\s{}\{}.png".format(data_name, scale, _name))
+            plt.close()
+        return
+
+
+
+
+
+
+
+
+
 
 
 
