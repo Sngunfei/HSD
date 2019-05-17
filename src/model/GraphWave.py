@@ -3,6 +3,7 @@ import numpy as np
 import pygsp
 from tqdm import tqdm
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class GraphWave:
 
@@ -91,7 +92,6 @@ class GraphWave:
         :param mode: characteristic function, moment generating function, moment
         :return:
         """
-
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
 
@@ -122,7 +122,6 @@ class GraphWave:
         :param mode:  embedding mode.
         :return:
         """
-
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
 
@@ -131,6 +130,13 @@ class GraphWave:
             multi_embeddings[scales[i]] = self.single_scale_embedding(scales[i], mode)
         return multi_embeddings
 
+    def dev_cal_all_wavelet_coeffs(self, scale):
+        coeffs = []
+        for node_idx in range(self.n_nodes):
+            _coeff = self._calculate_node_coefficients(node_idx, scale)
+            coeffs.append(_coeff)
+        return np.array(coeffs, dtype=np.float32)
+
 
     def dev_coeff_research(self, scale):
         """
@@ -138,7 +144,6 @@ class GraphWave:
         :param scale: parameter : heat coefficient
         :return:
         """
-
         coeffs = []
         for node_idx in range(self.n_nodes):
             _coeff = self._calculate_node_coefficients(node_idx, scale)
@@ -203,8 +208,6 @@ class GraphWave:
             fout.close()
 
 
-
-
     def __save_data_figure(self, data, data_name, scale):
         import matplotlib.pyplot as plt
 
@@ -224,6 +227,153 @@ class GraphWave:
             plt.savefig(u"G:\KL散度分布图\{}\s{}\{}.png".format(data_name, scale, _name))
             plt.close()
         return
+
+    """
+    def dev_coeff_autoencoder(self, scale):
+        import tensorflow as tf
+
+        coeffs = np.zeros(shape=(self.n_nodes, self.n_nodes))
+        for _idx in range(self.n_nodes):
+            coeffs[_idx] = self._calculate_node_coefficients(_idx, scale)
+
+        n_inputs = self.n_nodes
+        n_hidden1 = 256
+        n_hidden2 = 128
+
+        X = tf.placeholder(tf.float32, shape=[None, n_inputs])
+
+        weights = {
+            'encoder_h1': tf.Variable(tf.random_normal([n_inputs, n_hidden1])),
+            'encoder_h2': tf.Variable(tf.random_normal([n_hidden1, n_hidden2])),
+            'decoder_h1': tf.Variable(tf.random_normal([n_hidden2, n_hidden1])),
+            'decoder_h2': tf.Variable(tf.random_normal([n_hidden1, n_inputs])),
+        }
+        biases = {
+            'encoder_b1': tf.Variable(tf.random_normal([n_hidden1])),
+            'encoder_b2': tf.Variable(tf.random_normal([n_hidden2])),
+            'decoder_b1': tf.Variable(tf.random_normal([n_hidden1])),
+            'decoder_b2': tf.Variable(tf.random_normal([n_inputs])),
+        }
+
+        def encoder(X, weights, biases):
+            layer1 = tf.nn.sigmoid(tf.add(tf.matmul(X, weights['encoder_h1']), biases['encoder_b1']))
+            layer2 = tf.nn.sigmoid(tf.add(tf.matmul(layer1, weights['encoder_h2']), biases['encoder_b2']))
+            return layer2
+
+        def decoder(X, weights, biases):
+            layer1 = tf.nn.sigmoid(tf.add(tf.matmul(X, weights['decoder_h1']), biases['decoder_b1']))
+            layer2 = tf.nn.sigmoid(tf.add(tf.matmul(layer1, weights['decoder_h2']), biases['decoder_b2']))
+            return layer2
+
+        encoder_op = encoder(X, weights, biases)
+        decoder_op = decoder(encoder_op, weights, biases)
+
+        output = decoder_op
+        input = X
+        order_1 = tf.constant()
+
+        moment1 = tf.reduce_mean
+
+        learning_rate = 0.01
+        batch_size = 300
+        n_epochs = 10
+
+        cost = tf.reduce_mean(tf.pow(calculate_moment(input, 10) - calculate_moment(output, 10), 2))
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+        init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init)
+            for epoch in range(n_epochs):
+                if epoch % 10 == 0:
+                    print("Epoch", epoch, "Cost=", cost.eval())
+                sess.run([optimizer, cost], feed_dict={X:coeffs})
+    """
+
+    def dist_measure(self, scale, method="L1"):
+        from collections import defaultdict
+        np.set_printoptions(suppress=True, precision=5)
+        """
+        计算小波系数的相似性，按照hop数，以源节点为中心的多重环，每个环上都有一些节点。
+        两个不同的源节点，计算各层环的相似性，然后累加和，最后作为整体的相似性。
+        环上的节点个数可能不同，需要对齐，用0填充。
+        计算距离时，可以有多种选择：绝对值距离，欧式距离，Wasserstein距离等等，多多尝试一下。
+        :param scale:
+        :param mode:
+        :return:
+        """
+        coef = self.dev_cal_all_wavelet_coeffs(scale)
+
+        """
+        每个节点都有一个dict，{k-hop: [coef]}
+        搞个数组，存起来这些dict。
+        """
+        dict_list = []
+        for node1 in range(self.n_nodes):
+            rings = defaultdict(list)
+            for node2 in range(self.n_nodes):
+                dist = nx.dijkstra_path_length(self.graph, self.nodes[node1], self.nodes[node2])
+                rings[dist] += [coef[node1, node2]]
+            dict_list.append(rings)
+
+        """
+        距离
+        """
+        dists = np.ones((self.n_nodes, self.n_nodes), dtype=float)
+        for idx1 in range(self.n_nodes):
+            for idx2 in range(idx1+1, self.n_nodes):
+                rings1, rings2 = dict_list[idx1], dict_list[idx2]
+                maxHop = max(len(rings1), len(rings2))
+                res = 0.0
+                for hop in range(1, maxHop+1):
+                    t1, t2 = rings1[hop], rings2[hop]
+                    if not t1 and not t2:
+                        break
+                    length = max(len(t1), len(t2))
+                    t1 = np.sort(np.array(t1 + [0.0] * (length - len(t1))))
+                    t2 = np.sort(np.array(t2 + [0.0] * (length - len(t2))))
+                    if method == "L1":
+                        res += np.sum(np.abs(t1 - t2))
+                    elif method == "L2":
+                        res += np.sum((t1 - t2) ** 2)
+                    elif method == "wgan":
+                        res += 5
+
+                dists[idx1, idx2] = dists[idx2, idx1] = res
+        for i in range(self.n_nodes):
+            print(dists[i, :])
+
+
+
+    def save_coeff_fig(self, dataset, scale, num):
+        coeff = self.dev_cal_all_wavelet_coeffs(scale)
+        plt.rcParams['font.family'] = ['sans-serif']
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        xs = [i for i in range(num)]
+        for i in tqdm(range(len(coeff))):
+            _coeff = np.array(coeff[i])
+            moment2 = np.mean(_coeff ** 2)
+            moment3 = np.mean(_coeff ** 3)
+            moment4 = np.mean(_coeff ** 4)
+            moment5 = np.mean(_coeff ** 5)
+            moment6 = np.mean(_coeff ** 6)
+            plt.figure()
+            plt.xlabel("node")
+            plt.ylabel("coefficient value")
+            plt.title("{} 小波系数分布".format(self.nodes[i]))
+            x = np.argsort(-_coeff)[:num]
+            ys = -np.sort(-_coeff)[:num]
+            plt.plot(xs, ys)
+            plt.text(len(ys), ys[0], "m-2 : %.3e \n\n m-3 : %.3e \n\n m-4 : %.3e \n\n m-5 : %.3e \n\n m-6 : %.3e " % (moment2, moment3, moment4, moment5, moment6),
+                     fontsize=10, verticalalignment="top", horizontalalignment="right")
+            for _x, _y in zip(xs, ys):
+                plt.text(_x, _y, self.nodes[x[_x]] + "\n" + str(round(_y, 5)), ha='center', va='bottom', fontsize=7)
+            #plt.savefig(u"G:\小波系数分布图\{}\\noweight\s{}\\{}.png".format(dataset, scale, self.nodes[i]))
+            plt.savefig(u"G:\小波系数分布图\{}\s{}\\{}.png".format(dataset, scale, self.nodes[i]))
+            plt.close()
+
+
+
+
 
 
 
