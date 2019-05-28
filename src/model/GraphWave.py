@@ -4,6 +4,8 @@ import pygsp
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import math
 
 class GraphWave:
 
@@ -96,7 +98,7 @@ class GraphWave:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
 
         sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
-        self.embeddings = dict()
+        self.embeddings = []
         for node_idx in tqdm(range(self.n_nodes)):
             node_coeff = self._calculate_node_coefficients(node_idx, heat_coefficient)
             embedding = []
@@ -111,8 +113,23 @@ class GraphWave:
                 elif mode == "mo":
                     value = np.mean(node_coeff ** t)
                     embedding.append(value)
-            self.embeddings[self.nodes[node_idx]] = np.array(embedding)
-        return self.embeddings
+            #self.embeddings[node_idx] = np.array(embedding)
+            embedding = np.array(embedding)
+            embedding = (embedding - np.min(embedding)) / (np.max(embedding) - np.min(embedding))
+            self.embeddings.append(np.array(embedding))
+        return np.array(self.embeddings)
+
+
+    def embedding_similarity(self, dataset, scale):
+        embedding = self.single_scale_embedding(scale)
+        fout = open("G:\pyworkspace\graph-embedding\out\\{}_{}_graphwave.txt".format(dataset, scale), mode="w+", encoding="utf-8")
+        for idx1 in range(self.n_nodes):
+            e1 = np.array(embedding[idx1])
+            for idx2 in range(self.n_nodes):
+                e2 = np.array(embedding[idx2])
+                s = np.sqrt(np.sum((e1 - e2)**2))
+                fout.write("{} {} {}\n".format(self.nodes[idx1], self.nodes[idx2], s))
+        fout.close()
 
 
     def multi_scale_embedding(self, scales, mode="cha"):
@@ -129,6 +146,7 @@ class GraphWave:
         for i in tqdm(range(len(scales))):
             multi_embeddings[scales[i]] = self.single_scale_embedding(scales[i], mode)
         return multi_embeddings
+
 
     def dev_cal_all_wavelet_coeffs(self, scale):
         coeffs = []
@@ -289,60 +307,6 @@ class GraphWave:
                 sess.run([optimizer, cost], feed_dict={X:coeffs})
     """
 
-    def dist_measure(self, scale, method="L1"):
-        from collections import defaultdict
-        np.set_printoptions(suppress=True, precision=5)
-        """
-        计算小波系数的相似性，按照hop数，以源节点为中心的多重环，每个环上都有一些节点。
-        两个不同的源节点，计算各层环的相似性，然后累加和，最后作为整体的相似性。
-        环上的节点个数可能不同，需要对齐，用0填充。
-        计算距离时，可以有多种选择：绝对值距离，欧式距离，Wasserstein距离等等，多多尝试一下。
-        :param scale:
-        :param mode:
-        :return:
-        """
-        coef = self.dev_cal_all_wavelet_coeffs(scale)
-
-        """
-        每个节点都有一个dict，{k-hop: [coef]}
-        搞个数组，存起来这些dict。
-        """
-        dict_list = []
-        for node1 in range(self.n_nodes):
-            rings = defaultdict(list)
-            for node2 in range(self.n_nodes):
-                dist = nx.dijkstra_path_length(self.graph, self.nodes[node1], self.nodes[node2])
-                rings[dist] += [coef[node1, node2]]
-            dict_list.append(rings)
-
-        """
-        距离
-        """
-        dists = np.ones((self.n_nodes, self.n_nodes), dtype=float)
-        for idx1 in range(self.n_nodes):
-            for idx2 in range(idx1+1, self.n_nodes):
-                rings1, rings2 = dict_list[idx1], dict_list[idx2]
-                maxHop = max(len(rings1), len(rings2))
-                res = 0.0
-                for hop in range(1, maxHop+1):
-                    t1, t2 = rings1[hop], rings2[hop]
-                    if not t1 and not t2:
-                        break
-                    length = max(len(t1), len(t2))
-                    t1 = np.sort(np.array(t1 + [0.0] * (length - len(t1))))
-                    t2 = np.sort(np.array(t2 + [0.0] * (length - len(t2))))
-                    if method == "L1":
-                        res += np.sum(np.abs(t1 - t2))
-                    elif method == "L2":
-                        res += np.sum((t1 - t2) ** 2)
-                    elif method == "wgan":
-                        res += 5
-
-                dists[idx1, idx2] = dists[idx2, idx1] = res
-        for i in range(self.n_nodes):
-            print(dists[i, :])
-
-
 
     def save_coeff_fig(self, dataset, scale, num):
         coeff = self.dev_cal_all_wavelet_coeffs(scale)
@@ -370,6 +334,130 @@ class GraphWave:
             #plt.savefig(u"G:\小波系数分布图\{}\\noweight\s{}\\{}.png".format(dataset, scale, self.nodes[i]))
             plt.savefig(u"G:\小波系数分布图\{}\s{}\\{}.png".format(dataset, scale, self.nodes[i]))
             plt.close()
+
+
+    def dist_measure(self, scale, method="L1", save_path = None):
+
+        np.set_printoptions(suppress=True, precision=5)
+        """
+        计算小波系数的相似性，按照hop数，以源节点为中心的多重环，每个环上都有一些节点。
+        两个不同的源节点，计算各层环的相似性，然后累加和，最后作为整体的相似性。
+        环上的节点个数可能不同，需要对齐，用0填充。
+        计算距离时，可以有多种选择：绝对值距离，欧式距离，Wasserstein距离等等，多多尝试一下。
+        :param scale:
+        :param mode:
+        :return:
+        """
+        coef = self.dev_cal_all_wavelet_coeffs(scale)
+
+        """
+        每个节点都有一个dict，{k-hop: [coef]}
+        搞个数组，存起来这些dict。
+        """
+        dict_list = []
+        for node1 in range(self.n_nodes):
+            rings = defaultdict(list)
+            for node2 in range(self.n_nodes):
+                dist = nx.dijkstra_path_length(self.graph, self.nodes[node1], self.nodes[node2])
+                rings[dist] += [coef[node1, node2]]
+            dict_list.append(rings)
+
+        """
+        距离
+        """
+        dists = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        for idx1 in tqdm(range(self.n_nodes)):
+            for idx2 in tqdm(range(idx1+1, self.n_nodes)):
+                rings1, rings2 = dict_list[idx1], dict_list[idx2]
+                maxHop = min(max(len(rings1), len(rings2)), 5)
+                res = 0.0
+                for hop in range(1, maxHop+1):
+                    t1, t2 = rings1[hop], rings2[hop]
+                    if not t1 and not t2:
+                        break
+
+                    if method == "guass":
+                        # 高斯分布不需要对齐
+                        res += self._gauss_distance(t1, t2)
+                    else:
+                        # 对齐
+                        length = max(len(t1), len(t2))
+                        t1 = np.sort(np.array(t1 + [0.0] * (length - len(t1))))
+                        t2 = np.sort(np.array(t2 + [0.0] * (length - len(t2))))
+
+                        if method == "L1":
+                            res += np.sum(np.abs(t1 - t2))
+                        elif method == "L2":
+                            res += np.sum((t1 - t2) ** 2)
+                        elif method == "wasserstein":
+                            res += self._wasserstein_distance(t1, t2, dual=False)
+
+                if res < math.exp(-10):
+                    res = 0.0
+                dists[idx1, idx2] = dists[idx2, idx1] = 1 - res
+
+        if save_path:
+            fout = open(save_path, mode="w+", encoding="utf8")
+            for i in range(len(dists)):
+                for j in range(i+1, len(dists)):
+                    fout.write("{} {} {}\n".format(self.nodes[i], self.nodes[j], dists[i, j]))
+        return dists
+
+
+    def _gauss_distance(self, p, q):
+        p, q = np.array(p), np.array(q)
+        u1 = np.mean(p)
+        u2 = np.mean(q)
+
+        sigma1 = np.sqrt(np.mean((p-u1)**2))
+        sigma2 = np.sqrt(np.mean((q-u2)**2))
+
+        d = (u1 - u2) ** 2 + (sigma1 + sigma2 - 2 * np.sqrt(sigma1 * sigma2))
+        print(p, q, d)
+        return d
+
+
+    def _wasserstein_distance(self, p, q, dual=False):
+        from scipy.optimize import linprog
+        """
+        计算两个不等长分布之间的wasserstein距离，用0补齐
+        :param p:
+        :param q:
+        :return:
+        """
+        length = len(p)
+        D = np.zeros((length, length))  # d(x, y)
+
+        for i in range(length):
+            for j in range(length):
+                D[i, j] = np.abs(p[i] - q[j])
+
+        A_r = np.zeros((length, length, length))
+        A_t = np.zeros((length, length, length))
+
+        for i in range(length):
+            for j in range(length):
+                A_r[i, i, j] = 1
+                A_t[i, j, i] = 1
+
+        A = np.concatenate((A_r.reshape((length, length**2)), A_t.reshape((length, length**2))), axis=0)
+        b = np.concatenate((p, q), axis=0)
+        c = D.reshape((length**2))
+        if dual:
+            opt_res = linprog(-b, A.transpose(), c, bounds=(None, None))
+            emd = -opt_res.fun
+        else:
+            opt_res = linprog(c, A_eq=A, b_eq=b)
+            emd = opt_res.fun
+        return emd
+
+
+
+
+
+
+
+
 
 
 
