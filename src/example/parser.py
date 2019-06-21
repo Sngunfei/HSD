@@ -24,7 +24,7 @@ def parameter_parser():
 
     parser.add_argument('--heat-coefficient',
                         type = float,
-                        default = 10,
+                        default = 5,
 	                help = 'Heat kernel exponent. Default is 1000.0.')
 
     parser.add_argument('--moment',
@@ -35,7 +35,7 @@ def parameter_parser():
 
     parser.add_argument('--sample-number',
                         type = int,
-                        default = 64,
+                        default = 50,
 	                help = 'Number of characteristic function sample points. Default is 50.')
 
     parser.add_argument('--approximation',
@@ -45,7 +45,7 @@ def parameter_parser():
 
     parser.add_argument('--step-size',
                         type = int,
-                        default = 20,
+                        default = 10,
 	                help = 'Number of steps. Default is 20.')
 
     parser.add_argument('--switch',

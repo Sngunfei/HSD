@@ -56,34 +56,58 @@ def plot_ts(ts_df, plot_title, eventDates, eventLabels=None, save_file_name=None
     if show:
         fig.show()
 
-def plot_embeddings(nodes, embeddings, label=False, labels=None, method="pca", node_name=None):
+
+def plot_embeddings(nodes, embeddings, label=False, labels=None, method="pca"):
     plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.family'] = ['sans-serif']
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+
     if method == 'pca':
         model = PCA(n_components=2, whiten=True)
     else:
-        model = TSNE(n_components=2,  random_state=42, n_iter=5000)
+        model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=15, init="pca")
 
     node_pos = model.fit_transform(embeddings)
-
-    plt.rcParams['font.family'] = ['sans-serif']
-    plt.rcParams['font.sans-serif'] = ['SimHei']
 
     if not label:
         dic = dict()
         for i in range(len(node_pos)):
             x, y = node_pos[i, 0], node_pos[i, 1]
-            plt.scatter(x, y)
+            plt.scatter(x, y, s=88)
             x = round(x, 2)
             y = round(y, 2)
             dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
         for k, v in dic.items():
             x, y = k.split(" ")
-            plt.text(float(x), float(y), " ".join(v))
 
+            #x = max(float(x) - len(v) * 0.02,-2)
+            plt.text(float(x), float(y), " ".join(v))
         plt.show()
         return
 
+
     markers = ['<', '8', 's', '*', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+    color_idx = {}
+    for i in range(len(nodes)):
+        color_idx.setdefault(labels[i], [])
+        color_idx[labels[i]].append(i)
+    for c, idx in color_idx.items():
+        #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
+        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)%16])#, s=area[idx])
+
+    plt.legend()
+    plt.show()
+
+
+def plot_subway_embedding(nodes, embeddings, labels=None):
+    plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.family'] = ['sans-serif']
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+
+    model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=15, init="pca")
+    node_pos = model.fit_transform(embeddings)
+
+    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
     color_idx = {}
     for i in range(len(nodes)):
         color_idx.setdefault(labels[i], [])
@@ -91,14 +115,16 @@ def plot_embeddings(nodes, embeddings, label=False, labels=None, method="pca", n
 
     for c, idx in color_idx.items():
         #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-        #plt.text(node_pos[idx, 0], node_pos[idx, 1], idx)
+        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=(c-1)%3, s=30, marker=markers[(c-1) // 3 + 1])#, s=area[idx])
 
-    #for i in range(len(nodes)):
-    #    plt.text(node_pos[i, 0], node_pos[i, 1], str(nodes[i]))
-
-    plt.legend()
+    """
+    for i in range(len(nodes)):
+        plt.text(node_pos[i, 0], node_pos[i, 1], nodes[i])
+    """
+    plt.xlabel("t-SNE 1")
+    plt.ylabel("t-SNE 2")
     plt.show()
+
 
 def laplacian_norm(a):
     np.set_printoptions(precision=5)
