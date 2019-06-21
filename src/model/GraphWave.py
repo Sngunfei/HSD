@@ -18,9 +18,9 @@ class GraphWave:
 
         self.G = pygsp.graphs.Graph(nx.adjacency_matrix(graph))
         self.G.compute_fourier_basis()
-
+        np.set_printoptions(suppress=True, precision=5)
         self.eigenvectors = self.G.U
-        self.eigenvalues = self.G.e
+        self.eigenvalues = self.G.e / max(self.G.e)
 
         self.sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
 
@@ -96,11 +96,12 @@ class GraphWave:
         """
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
-
+        #print(heat_coefficient, mode)
         sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
         self.embeddings = []
         for node_idx in tqdm(range(self.n_nodes)):
             node_coeff = self._calculate_node_coefficients(node_idx, heat_coefficient)
+            #print(node_idx, self.nodes[node_idx], node_coeff)
             embedding = []
             for t in sample_points:
                 if mode == "cha":
@@ -115,7 +116,6 @@ class GraphWave:
                     embedding.append(value)
             #self.embeddings[node_idx] = np.array(embedding)
             embedding = np.array(embedding)
-            embedding = (embedding - np.min(embedding)) / (np.max(embedding) - np.min(embedding))
             self.embeddings.append(np.array(embedding))
         return np.array(self.embeddings)
 
@@ -336,7 +336,7 @@ class GraphWave:
             plt.close()
 
 
-    def dist_measure(self, scale, method="L1", save_path = None):
+    def dist_measure(self, scale, method="L1", save_path=None):
 
         np.set_printoptions(suppress=True, precision=5)
         """
@@ -382,15 +382,19 @@ class GraphWave:
                     else:
                         # 对齐
                         length = max(len(t1), len(t2))
-                        t1 = np.sort(np.array(t1 + [0.0] * (length - len(t1))))
-                        t2 = np.sort(np.array(t2 + [0.0] * (length - len(t2))))
-
-                        if method == "L1":
+                        if method == "L3":
+                            t1 = np.sort(np.array(t1 + [-0.5] * (length - len(t1))))
+                            t2 = np.sort(np.array(t2 + [-0.5] * (length - len(t2))))
                             res += np.sum(np.abs(t1 - t2))
-                        elif method == "L2":
-                            res += np.sum((t1 - t2) ** 2)
-                        elif method == "wasserstein":
-                            res += self._wasserstein_distance(t1, t2, dual=False)
+                        else:
+                            t1 = np.sort(np.array(t1 + [0.0] * (length - len(t1))))
+                            t2 = np.sort(np.array(t2 + [0.0] * (length - len(t2))))
+                            if method == "L1":
+                                res += np.sum(np.abs(t1 - t2))
+                            elif method == "L2":
+                                res += np.sum((t1 - t2) ** 2)
+                            elif method == "wasserstein":
+                                res += self._wasserstein_distance(t1, t2, dual=False)
 
                 if res < math.exp(-10):
                     res = 0.0
@@ -415,6 +419,64 @@ class GraphWave:
         d = (u1 - u2) ** 2 + (sigma1 + sigma2 - 2 * np.sqrt(sigma1 * sigma2))
         print(p, q, d)
         return d
+
+
+    def fb1_dist(self, scale):
+        np.set_printoptions(suppress=True, precision=5)
+        plt.rcParams['font.family'] = ['sans-serif']
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+
+        def f(node1, node2, k):
+            """
+            得到两节点的k层环上的对齐向量
+            """
+            t1, t2 = node1[k], node2[k]
+            length = max(len(t1), len(t2))
+            res1 = -np.sort(-np.array(t1 + [0.0] * (length - len(t1))))
+            res2 = -np.sort(-np.array(t2 + [0.0] * (length - len(t2))))
+            return list(res1), list(res2)
+
+        coef = self.dev_cal_all_wavelet_coeffs(scale)
+        dict_rings = dict()
+        for node1 in range(self.n_nodes):
+            rings = defaultdict(list)
+            for node2 in range(self.n_nodes):
+                dist = nx.dijkstra_path_length(self.graph, self.nodes[node1], self.nodes[node2])
+                if dist > 3:
+                    continue
+                rings[dist] += [coef[node1, node2]]
+            dict_rings[self.nodes[node1]] = rings
+
+        node1 = dict_rings['13']
+        node2 = dict_rings['14']
+        maxHop = min(max(len(node1), len(node2)), 5)
+        print(maxHop)
+        print(node1)
+        print(node2)
+        ring1, ring2 = [], []
+        for hop in range(1, maxHop):
+            tmp1, tmp2 = f(node1, node2, hop)
+            ring1.extend(tmp1)
+            ring2.extend(tmp2)
+        fig, ax = plt.subplots()
+        x = [i for i in range(len(ring1))]
+        y1, y2 = np.array(ring1), np.array(ring2)
+        rects1 = plt.bar(left=[i - 0.2 for i in x], height=[round(i, 3) for i in y1], width=0.4, alpha=0.8, color='#DC5712', label="node13")
+        rects2 = plt.bar(left=[i + 0.2 for i in x], height=[round(i, 3) for i in y2], width=0.4, color='#87CEEB', label="node14")
+        plt.xticks(range(0, len(x), 1))
+        ax.set_xticklabels(('1', '1', '2', '2', '3','3','3'))
+        #ax.set_xticklabels(('1', '1', '2', '2', '2','2','2','2','2', '3','3','3','3','3','3'))
+
+        plt.ylim(0, 0.2)  # y轴取值范围
+        plt.ylabel("小波系数")
+        plt.legend()
+        for rect in rects1:
+            height = rect.get_height()
+            #plt.text(rect.get_x() + rect.get_width() / 2, height, str(height), ha="center", va="bottom")
+        for rect in rects2:
+            height = rect.get_height()
+            #plt.text(rect.get_x() + rect.get_width() / 2, height, str(height), ha="center", va="bottom")
+        plt.show()
 
 
     def _wasserstein_distance(self, p, q, dual=False):

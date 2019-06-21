@@ -9,7 +9,8 @@ from sklearn.preprocessing import normalize
 from time import time
 import pdb
 from sklearn.decomposition import PCA
-from utils.plt import plot_embeddings, plot_embedding2D
+from utils.plt import plot_embeddings, plot_embedding2D, plot_subway_embedding
+from utils.util import read_label
 
 
 
@@ -64,14 +65,33 @@ def sklearn_LLE(data_path):
     plt.show()
 
 
-if __name__ == '__main__':
-    data_path = 'G:\pyworkspace\graph-embedding\out\\fb1_5_L1.txt'
-    #sklearn_LLE(data_path)
+
+def LLE_plt_subway(dataset, scale, method):
+    data_path = 'G:\pyworkspace\graph-embedding\out\\{}_{}_{}.txt'.format(dataset, scale, method)
 
     graph = nx.read_edgelist(path=data_path, create_using=nx.Graph, edgetype=float, data=[('weight', float)])
     model = LocallyLinearEmbedding(graph)
-    embeddings = np.array(model.create_embedding(5))
-    plot_embeddings(model.nodes, embeddings, method="tsne")
+    embeddings = np.array(model.create_embedding(10))
+
+    label_dict = read_label("G:\pyworkspace\graph-embedding\out\{}_label_2.txt".format(dataset))
+    labels = []
+    for node in model.nodes:
+        labels.append(int(label_dict[node]))
+
+    plot_subway_embedding(model.nodes, embeddings, labels=labels)
     plt.show()
 
+def LLE_plt(dataset, scale, method):
+    data_path = 'G:\pyworkspace\graph-embedding\out\\{}_{}_{}.txt'.format(dataset, scale, method)
+
+    graph = nx.read_edgelist(path=data_path, create_using=nx.Graph, edgetype=float, data=[('weight', float)])
+    model = LocallyLinearEmbedding(graph)
+    embeddings = np.array(model.create_embedding(10))
+
+    plot_embeddings(model.nodes, embeddings, label=False, method="tsne")
+    plt.show()
+
+
+if __name__ == '__main__':
+    LLE_plt_subway("subway", 20, "L3")
 
