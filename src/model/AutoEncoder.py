@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import numpy as np
 import math
+from torch import optim
 
 class MomentLoss(nn.Module):
 
@@ -78,12 +79,7 @@ def create_embedding(wavelet_coefficients, d_in, d_out=64, n_moment=10):
 
 
 if __name__ == '__main__':
-    x = torch.ones(3, requires_grad=True)
-    y = torch.tensor([2, 2, 2], dtype=torch.float32, requires_grad=True)
-    loss = MomentLoss(5)
-    out = loss(x, y)
-    out.backward()
-    print(x.grad)
-    print(y.grad)
+    a = torch.randn(5, 5)
+
 
 
