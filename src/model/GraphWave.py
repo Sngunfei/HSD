@@ -1,20 +1,19 @@
 import networkx as nx
-import numpy as np
 import pygsp
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import math
+import logging
+import numpy as np
+np.set_printoptions(suppress=True, precision=5)
 
 
 def wasserstein_distance(p, q, dual=False):
     from scipy.optimize import linprog
     """
-    计算两个不等长分布之间的wasserstein距离，用0补齐
-    :param p:
-    :param q:
-    :return:
+    优化求解两个分布之间的2阶wasserstein距离
     """
     length = len(p)
     D = np.zeros((length, length))  # d(x, y)
@@ -106,7 +105,7 @@ def JS_divergence(p, q):
     js = (KL_divergence(p, m, False) + KL_divergence(q, m, False)) / 2.0
     return js
 
-def L1_2_distance(p, q, order):
+def L_1_2_distance(p, q, order):
     """
     计算两个分布之间的 L1 or L2 距离。
     """
@@ -129,7 +128,7 @@ def calc_distance(p, q, metric=None):
         raise NotImplementedError("The {} metric is not supported yet.".format(metric))
     metric = str.lower(metric)
     if metric == 'l1':
-        return L1_2_distance(p, q, 1)
+        return L_1_2_distance(p, q, 1)
     elif metric == 'l2':
         return L1_2_distance(p, q, 2)
     elif metric == 'kl':
@@ -147,27 +146,26 @@ def calc_distance(p, q, metric=None):
 class GraphWave:
 
     def __init__(self, graph, settings):
-
         self.settings = settings
         self.graph = graph
         self.n_nodes = nx.number_of_nodes(graph)
         self.nodes = list(nx.nodes(graph))
-
         self.G = pygsp.graphs.Graph(nx.adjacency_matrix(graph))
         self.G.compute_fourier_basis()
-        np.set_printoptions(suppress=True, precision=5)
+        # Laplacian Matrix，邻接矩阵怎么就突然变成Laplacian了呢？
         self.eigenvectors = self.G.U
+        # 特征值为什么要缩小呢？
         self.eigenvalues = self.G.e / max(self.G.e)
-
         self.sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
-
+        self.embeddings = None
 
     def _exact_embedding(self):
         pass
 
-    def _approx_embedding(self, mode="cha"):
+    def approx_embedding(self, mode="cha"):
         """
         Given the Chebyshev polynomial, graph the approximate embedding is calculated.
+        利用切比雪夫多项式来近似计算嵌入向量。
         """
         self.G.estimate_lmax()
         self.heat_filter = pygsp.filters.Heat(self.G, tau=[self.settings.heat_coefficient])
@@ -183,35 +181,47 @@ class GraphWave:
 
 
     def _check_node(self, node_idx):
-        if node_idx < 0 or node_idx > self.n_nodes:
+        """
+        检验节点标号是否有效
+        """
+        if node_idx < 0 or node_idx >= self.n_nodes:
             raise ValueError("node_idx is not valid: node_idx{}".format(node_idx))
 
 
     def _check_wavelet_coefficients(self, coefficients):
+        """
+        检验小波系数是否有效
+        """
         if len(coefficients) != self.n_nodes:
             raise TypeError("The number of coefficients should be {}, error:{}".format(self.n_nodes, len(coefficients)))
 
 
-    def _calculate_node_coefficients(self, node_idx, scale):
-        impulse = np.zeros(shape=(self.n_nodes))
+    def _calc_node_coefficients(self, node_idx, scale):
+        """
+        计算单个节点的小波系数
+        :param node_idx: 节点标号，int
+        :param scale: 热系数，即尺度，float
+        :return: 该尺度下的该节点对应的小波系数，ndarray(n, 1)
+        """
+        impulse = np.zeros(self.n_nodes)
         impulse[node_idx] = 1
         coefficients = np.dot(np.dot(np.dot(self.eigenvectors, np.diag(np.exp(-scale * self.eigenvalues))),
                              np.transpose(self.eigenvectors)), impulse)
         return coefficients
 
 
-    def _cal_embedding(self, wavelet_coefficients, mode="cha"):
+    def _calc_embedding(self, wavelet_coefficients, mode="cha"):
         """
-        用小波系数去计算嵌入。
-        :param wavelet_coefficients:
-        :param sample_points:
-        :param mode:
-        :return:
+        利用单个节点的小波系数去计算嵌入向量。
+        :param wavelet_coefficients: 小波系数
+        :param mode: 计算模式，特征函数 or 矩母函数 or k阶矩(和采样点个数有关)
+        :return: 嵌入向量，ndarray
         """
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
+
         embedding = []
-        for t in self.sample_points:
+        for i, t in enumerate(self.sample_points):
             if mode == "cha":
                 value = np.mean(np.exp(1j * wavelet_coefficients * t))
                 embedding.append(value.real)
@@ -220,53 +230,60 @@ class GraphWave:
                 value = np.mean(np.exp(wavelet_coefficients * t))
                 embedding.append(value)
             elif mode == "mo":
-                value = np.mean(wavelet_coefficients ** t)
+                # 计算小波系数的第i阶矩，不过其和为1，高阶矩会逼近0，失去效果。
+                value = np.mean(wavelet_coefficients ** i)
                 embedding.append(value)
-        return embedding
+        return np.array(embedding)
 
 
-    def single_scale_embedding(self, heat_coefficient, mode="cha"):
+    def single_scale_embedding(self, heat_coefficient=None, mode="cha"):
         """
-        :param heat_coefficient:  parameter scale.
+        在单一尺度下计算嵌入向量。
+        :param heat_coefficient: 热系数，即尺度，float类型，默认为热系数参数值，但仍可以临时指定。
         :param mode: characteristic function, moment generating function, moment
-        :return:
+        :return: 该尺度下的所有节点对应的嵌入向量。
         """
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
-        #print(heat_coefficient, mode)
-        sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
+        if not heat_coefficient:
+            heat_coefficient = self.settings.heat_coefficient
+
+        logging.info("Start calculate single scale={} embedding， mode={}".format(heat_coefficient, mode))
         self.embeddings = []
         for node_idx in tqdm(range(self.n_nodes)):
-            node_coeff = self._calculate_node_coefficients(node_idx, heat_coefficient)
-            #print(node_idx, self.nodes[node_idx], node_coeff)
-            embedding = []
-            for t in sample_points:
-                if mode == "cha":
-                    value = np.mean(np.exp(1j * node_coeff * t))
-                    embedding.append(value.real)
-                    embedding.append(value.imag)
-                elif mode == "mog":
-                    value = np.mean(np.exp(node_coeff * t))
-                    embedding.append(value)
-                elif mode == "mo":
-                    value = np.mean(node_coeff ** t)
-                    embedding.append(value)
-            #self.embeddings[node_idx] = np.array(embedding)
-            embedding = np.array(embedding)
-            self.embeddings.append(np.array(embedding))
+            node_wave_coeff = self._calc_node_coefficients(node_idx, heat_coefficient)
+            node_embedding = self._calc_embedding(node_wave_coeff, mode)
+            self.embeddings.append(node_embedding)
         return np.array(self.embeddings)
 
 
-    def embedding_similarity(self, dataset, scale):
-        embedding = self.single_scale_embedding(scale)
-        fout = open("G:\pyworkspace\graph-embedding\out\\{}_{}_graphwave.txt".format(dataset, scale), mode="w+", encoding="utf-8")
+    def _cal_embeddings_distance(self, heat_coefficient=None, mode="cha", sample_points=None):
+        """
+        在嵌入空间中计算各节点对应的embeddings之间的欧式距离，这也是wavelet文中提到的相似度衡量方法。
+        :param heat_coefficient: 热系数，即尺度，默认为model中的热系数，可临时指定。float
+        :param mode: 求嵌入向量时使用的函数, str
+        :param sample_points: 采样点，默认为model中的采样数组，可临时指定，array like。
+        :return: 返回各节点在嵌入空间中的欧式距离， ndarray, (n, n)
+        """
+        """
+        为了能够灵活的重复多次的距离计算过程，函数中可以指定不同的参数，每次都重新计算。
+        if self.embeddings is not None:
+            return self.embeddings
+        """
+        if not heat_coefficient:
+            heat_coefficient = self.settings.heat_coefficient
+        if not sample_points:
+            sample_points = self.sample_points
+
+        embeddings = self.single_scale_embedding(heat_coefficient, mode)
+        distance_matrix = np.empty(self.n_nodes, self.n_nodes)
         for idx1 in range(self.n_nodes):
-            e1 = np.array(embedding[idx1])
-            for idx2 in range(self.n_nodes):
-                e2 = np.array(embedding[idx2])
-                s = np.sqrt(np.sum((e1 - e2)**2))
-                fout.write("{} {} {}\n".format(self.nodes[idx1], self.nodes[idx2], s))
-        fout.close()
+            vector1 = embeddings[idx1]
+            for idx2 in range(idx1, self.n_nodes):
+                vector2 = embeddings[idx2]
+                l2 = np.sqrt(np.sum((vector1 - vector2) ** 2))
+                distance_matrix[idx1, idx2] = distance_matrix[idx2, idx1] = l2
+        return distance_matrix
 
 
     def multi_scale_embedding(self, scales, mode="cha"):
@@ -274,21 +291,18 @@ class GraphWave:
         多尺度嵌入
         :param scales: [scale_1, scale_2, ...]
         :param mode:  embedding mode.
-        :return:
+        :return: 每个尺度对应着一组嵌入向量， dict
         """
-        if mode not in ["cha", "mog", "mo"]:
-            raise ValueError("The embedding mode:{} is not supported.".format(mode))
-
         multi_embeddings = dict()
         for i in tqdm(range(len(scales))):
             multi_embeddings[scales[i]] = self.single_scale_embedding(scales[i], mode)
         return multi_embeddings
 
 
-    def dev_cal_all_wavelet_coeffs(self, scale):
+    def _cal_all_wavelet_coeffs(self, scale):
         coeffs = []
         for node_idx in range(self.n_nodes):
-            _coeff = self._calculate_node_coefficients(node_idx, scale)
+            _coeff = self._calc_node_coefficients(node_idx, scale)
             coeffs.append(_coeff)
         return np.array(coeffs, dtype=np.float32)
 
@@ -383,67 +397,6 @@ class GraphWave:
             plt.close()
         return
 
-    """
-    def dev_coeff_autoencoder(self, scale):
-        import tensorflow as tf
-
-        coeffs = np.zeros(shape=(self.n_nodes, self.n_nodes))
-        for _idx in range(self.n_nodes):
-            coeffs[_idx] = self._calculate_node_coefficients(_idx, scale)
-
-        n_inputs = self.n_nodes
-        n_hidden1 = 256
-        n_hidden2 = 128
-
-        X = tf.placeholder(tf.float32, shape=[None, n_inputs])
-
-        weights = {
-            'encoder_h1': tf.Variable(tf.random_normal([n_inputs, n_hidden1])),
-            'encoder_h2': tf.Variable(tf.random_normal([n_hidden1, n_hidden2])),
-            'decoder_h1': tf.Variable(tf.random_normal([n_hidden2, n_hidden1])),
-            'decoder_h2': tf.Variable(tf.random_normal([n_hidden1, n_inputs])),
-        }
-        biases = {
-            'encoder_b1': tf.Variable(tf.random_normal([n_hidden1])),
-            'encoder_b2': tf.Variable(tf.random_normal([n_hidden2])),
-            'decoder_b1': tf.Variable(tf.random_normal([n_hidden1])),
-            'decoder_b2': tf.Variable(tf.random_normal([n_inputs])),
-        }
-
-        def encoder(X, weights, biases):
-            layer1 = tf.nn.sigmoid(tf.add(tf.matmul(X, weights['encoder_h1']), biases['encoder_b1']))
-            layer2 = tf.nn.sigmoid(tf.add(tf.matmul(layer1, weights['encoder_h2']), biases['encoder_b2']))
-            return layer2
-
-        def decoder(X, weights, biases):
-            layer1 = tf.nn.sigmoid(tf.add(tf.matmul(X, weights['decoder_h1']), biases['decoder_b1']))
-            layer2 = tf.nn.sigmoid(tf.add(tf.matmul(layer1, weights['decoder_h2']), biases['decoder_b2']))
-            return layer2
-
-        encoder_op = encoder(X, weights, biases)
-        decoder_op = decoder(encoder_op, weights, biases)
-
-        output = decoder_op
-        input = X
-        order_1 = tf.constant()
-
-        moment1 = tf.reduce_mean
-
-        learning_rate = 0.01
-        batch_size = 300
-        n_epochs = 10
-
-        cost = tf.reduce_mean(tf.pow(calculate_moment(input, 10) - calculate_moment(output, 10), 2))
-        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
-        init = tf.global_variables_initializer()
-        with tf.Session() as sess:
-            sess.run(init)
-            for epoch in range(n_epochs):
-                if epoch % 10 == 0:
-                    print("Epoch", epoch, "Cost=", cost.eval())
-                sess.run([optimizer, cost], feed_dict={X:coeffs})
-    """
-
 
     def save_coeff_fig(self, dataset, scale, num):
         coeff = self.dev_cal_all_wavelet_coeffs(scale)
@@ -474,18 +427,11 @@ class GraphWave:
 
 
     def dist_measure(self, scale, method="L1", save_path=None):
-
-        np.set_printoptions(suppress=True, precision=5)
         """
-        计算小波系数的相似性，按照hop数，以源节点为中心的多重环，每个环上都有一些节点。
-        两个不同的源节点，计算各层环的相似性，然后累加和，最后作为整体的相似性。
-        环上的节点个数可能不同，需要对齐，用0填充。
-        计算距离时，可以有多种选择：绝对值距离，欧式距离，Wasserstein距离等等，多多尝试一下。
-        :param scale:
-        :param mode:
-        :return:
+            计算小波系数的相似性，按照hop数，以源节点为中心的多重环，每个环上都有一些节点，
+            环上的节点个数可能不同，需要对齐，用0填充。计算各层环的相似性，然后累加求和，作为整体的相似性。
         """
-        coef = self.dev_cal_all_wavelet_coeffs(scale)
+        coef = self._cal_all_wavelet_coeffs(scale)
 
         """
         每个节点都有一个dict，{k-hop: [coef]}
@@ -545,19 +491,7 @@ class GraphWave:
         return dists
 
 
-    def _gauss_distance(self, p, q):
-        p, q = np.array(p), np.array(q)
-        u1 = np.mean(p)
-        u2 = np.mean(q)
-
-        sigma1 = np.sqrt(np.mean((p-u1)**2))
-        sigma2 = np.sqrt(np.mean((q-u2)**2))
-
-        d = (u1 - u2) ** 2 + (sigma1 + sigma2 - 2 * np.sqrt(sigma1 * sigma2))
-        print(p, q, d)
-        return d
-
-
+    """
     def fb1_dist(self, scale):
         np.set_printoptions(suppress=True, precision=5)
         plt.rcParams['font.family'] = ['sans-serif']
@@ -565,7 +499,7 @@ class GraphWave:
 
         def f(node1, node2, k):
             """
-            得到两节点的k层环上的对齐向量
+            #得到两节点的k层环上的对齐向量
             """
             t1, t2 = node1[k], node2[k]
             length = max(len(t1), len(t2))
@@ -614,6 +548,7 @@ class GraphWave:
             height = rect.get_height()
             #plt.text(rect.get_x() + rect.get_width() / 2, height, str(height), ha="center", va="bottom")
         plt.show()
+    """
 
 
 
