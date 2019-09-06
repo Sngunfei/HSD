@@ -13,7 +13,7 @@ import logging
 
 class Node2Vec:
     """
-        实现Node2vec嵌入算法，DeepWalk的进阶版，当p=q的时候，退化为DW
+        实现Node2vec嵌入算法，DeepWalk的进阶版，当p=q的时候，退化为deepwalk。
     """
     def __init__(self, graph, walk_length, num_walks, p=1.0, q=1.0, workers=1):
         """

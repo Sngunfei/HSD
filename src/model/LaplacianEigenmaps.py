@@ -5,7 +5,7 @@ import numpy as np
 import scipy.io as sio
 import scipy.sparse as sp
 import scipy.sparse.linalg as lg
-from utils.plt import plot_embeddings
+from utils.visualize import plot_embeddings
 
 
 class LaplacianEigenmaps:
