@@ -3,7 +3,7 @@ from model.GraphWave import GraphWave
 from model import AutoEncoder
 from example import datasets
 import networkx as nx
-from utils.plt import plot_embeddings, plot_subway_embedding
+from utils.visualize import plot_embeddings, plot_subway_embedding
 from utils.util import read_label
 import numpy as np
 

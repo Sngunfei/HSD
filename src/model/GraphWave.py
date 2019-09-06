@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import linprog
+from scipy import sparse
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
@@ -22,12 +23,15 @@ class GraphWave:
         self.n_nodes = nx.number_of_nodes(graph)
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
-        self.G = pygsp.graphs.Graph(nx.adjacency_matrix(graph))
+        self.L = laplacian(self.A)
+
+        self._e, self._u = np.linalg.eigh(self.L.toarray())
+        """
+        self.G = pygsp.graphs.Graph(self.L)
         self.G.compute_fourier_basis()
-        # Laplacian Matrix，邻接矩阵怎么就突然变成Laplacian了呢？
         self.eigenvectors = self.G.U
-        # 特征值为什么要缩小呢？
         self.eigenvalues = self.G.e / max(self.G.e)
+        """
         self.sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
         self.embeddings = None
 
@@ -35,12 +39,12 @@ class GraphWave:
     def exact_embedding(self):
         pass
 
-
+    """
     def approx_embedding(self, mode="cha"):
-        """
+        
         Given the Chebyshev polynomial, graph the approximate embedding is calculated.
         利用切比雪夫多项式来近似计算嵌入向量。
-        """
+        
         self.G.estimate_lmax()
         self.heat_filter = pygsp.filters.Heat(self.G, tau=[self.settings.heat_coefficient])
         self.chebyshev = pygsp.filters.approximations.compute_cheby_coeff(self.heat_filter, m=self.settings.approximation)
@@ -52,7 +56,7 @@ class GraphWave:
             wavelet_coefficietns = pygsp.filters.approximations.cheby_op(self.G, self.chebyshev, impulse)
             self.embeddings[self.nodes[node_idx]] = self._calc_embedding(wavelet_coefficietns, mode)
         return self.embeddings
-
+    """
 
     def _check_node(self, node_idx):
         """
@@ -79,8 +83,8 @@ class GraphWave:
         """
         impulse = np.zeros(self.n_nodes)
         impulse[node_idx] = 1
-        coefficients = np.dot(np.dot(np.dot(self.eigenvectors, np.diag(np.exp(-scale * self.eigenvalues))),
-                             np.transpose(self.eigenvectors)), impulse)
+        coefficients = np.dot(np.dot(np.dot(self._u, np.diag(np.exp(-scale * self._e))),
+                             np.transpose(self._u)), impulse)
         return coefficients
 
 
@@ -173,7 +177,7 @@ class GraphWave:
         return multi_embeddings
 
 
-    def _cal_all_wavelet_coeffs(self, scale):
+    def cal_all_wavelet_coeffs(self, scale):
         """
         计算某尺度下的小波系数，以供后续针对小波系数本身进行研究。
         :param scale: 尺度参数，即heat coefficient, float
@@ -227,7 +231,7 @@ class GraphWave:
         return res
 
 
-    def _calc_pq_distance(self, p, q, metric="L1", normalized=False):
+    def _calc_pq_distance(self, p, q, metric="l1", normalized=False):
         """
             计算两个分布之间的相似性，p和q分别为两个节点，在同一层环上的小波系数分布，可能并不等长，为了突出节点度数
         对于节点结构性质的重要性，我们用 0 将分布对齐。
@@ -248,7 +252,7 @@ class GraphWave:
         return calc_distance(p, q, metric)
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="L1", weigth=None, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", weigth=None, save_path=None):
         """
             计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
@@ -276,12 +280,20 @@ class GraphWave:
                         break
                     dist += self._calc_pq_distance(p, q, method, normalized=True)
 
-                # 求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数。
-                similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(1.0 / dist, math.e)
-
+                #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
+                #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
+                similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
         if save_path:
+            """
             df = pd.DataFrame(data=similarity_mat, index=self.nodes, columns=self.nodes)
-            df.to_csv(save_path)
+            df.to_csv(save_path, mode="w+")
+            """
+            with open(save_path, mode='w+') as fout:
+                for idx1 in range(self.n_nodes):
+                    node1 = self.nodes[idx1]
+                    for idx2 in range(idx1 + 1, self.n_nodes):
+                        node2 = self.nodes[idx2]
+                        fout.write("{} {} {}\n".format(node1, node2, similarity_mat[idx1, idx2]))
 
         return similarity_mat
 
@@ -324,10 +336,11 @@ def _check_prob_distri(p, q):
     if (not isinstance(p, list) and not isinstance(p, np.ndarray)) \
         or (not isinstance(q, list) and not isinstance(q, np.ndarray)):
         raise TypeError("The probability distribution type must be list or ndarray")
-    assert len(p) != len(q), "Length of p({}) must be equal to length of q({})".format(len(p), len(q))
+    assert len(p) == len(q), "Length of p({}) must be equal to length of q({})".format(len(p), len(q))
+    """
     if not math.isclose(sum(p), 1.0) or not math.isclose(sum(q), 1.0):
         raise ArithmeticError("The sum of probability distribution function is not 1.0")
-
+    """
 
 def wasserstein_guass(p, q):
     """
@@ -349,6 +362,7 @@ def wasserstein_guass(p, q):
     dist = (m1 - m2) ** 2 + sigma1 + sigma2 - 2 * (sigma1 * sigma2) ** 0.5
     return dist
 
+
 def KL_divergence(p, q, symmetric=False):
     """
     计算两个分布之间的Kullback–Leibler散度，公式如下：
@@ -366,6 +380,7 @@ def KL_divergence(p, q, symmetric=False):
         return (kl_pq + kl_qp) / 2.0
     return kl_pq
 
+
 def JS_divergence(p, q):
     """
     计算两个分布之间的Jensen–Shannon散度，定义如下：
@@ -380,6 +395,7 @@ def JS_divergence(p, q):
     js = (KL_divergence(p, m, False) + KL_divergence(q, m, False)) / 2.0
     return js
 
+
 def L_1_2_distance(p, q, order):
     """
     计算两个分布之间的 L1 or L2 距离。
@@ -389,6 +405,7 @@ def L_1_2_distance(p, q, order):
         return np.sum(np.abs(p - q))
     elif order == 2:
         return np.sum(np.square(p - q))
+
 
 def calc_distance(p, q, metric=None):
     """
@@ -405,7 +422,7 @@ def calc_distance(p, q, metric=None):
     if metric == 'l1':
         return L_1_2_distance(p, q, 1)
     elif metric == 'l2':
-        return L1_2_distance(p, q, 2)
+        return L_1_2_distance(p, q, 2)
     elif metric == 'kl':
         return KL_divergence(p, q)
     elif metric == 'skl':
@@ -418,19 +435,29 @@ def calc_distance(p, q, metric=None):
         return wasserstein_distance(p, q)
 
 
+def laplacian(adj):
+    """
+    正则化拉普拉斯矩阵
+    :param adj: 邻接矩阵
+    :return: 正则拉普拉斯矩阵
+    """
+    n, _ = adj.shape
+    posinv = np.vectorize(lambda x: float(1.0) / np.sqrt(x) if x > 1e-10 else 0.0)
+    diag = sparse.diags(np.array(posinv(adj.sum(0))).reshape([-1, ]), 0)
+    lap = sparse.eye(n) - diag.dot(adj.dot(diag))
+    return lap
+
 
 if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/subway.edgelist", create_using=nx.Graph, nodetype=str,
+    graph = nx.read_edgelist("../../data/fb1.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
-    wavelet = GraphWave(graph, settings)
-    res = wavelet.get_nodes_layers()
-    for node, layers in res.items():
-        for dist, layer in layers.items():
-            print("node1: {}, node2: {}, distacne: {}\n".format(node, str(layer), dist))
-    wavelet.single_scale_embedding()
-    print(wavelet.embeddings)
+    wave_machine = GraphWave(graph, settings)
+    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(2.5)
+    logging.info("start")
+    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../output/fb1.csv")
+
 
 
 

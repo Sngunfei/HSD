@@ -1,16 +1,20 @@
 
 
 def read_label(path):
-    fin = open(path, mode="r", encoding="utf-8")
-    labels = dict()
-    while True:
-        line = fin.readline()
-        if not line:
-            break
-        node, label = line.strip().split(" ")
-        labels[node] = label
+    """
+    读取节点的标签信息, 返回字典。
+    """
+    with open(path, mode="r", encoding="utf-8") as fin:
+        labels = dict()
+        while True:
+            line = fin.readline()
+            if not line:
+                break
+            node, label = line.strip().split(" ")
+            labels[node] = label
 
     return labels
+
 
 def write_label(data_path):
     import networkx as nx

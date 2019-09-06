@@ -6,6 +6,10 @@ import networkx as nx
 import sys
 import matplotlib
 import random
+plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['font.family'] = ['sans-serif']
+plt.rcParams['font.sans-serif'] = ['SimHei']
+
 
 def get_node_color(node_community):
     cnames = [item[0] for item in matplotlib.colors.cnames.iteritems()]
@@ -36,6 +40,7 @@ def plot(x_s, y_s, fig_n, x_lab, y_lab, file_save_path, title, legendLabels=None
     if show:
         plt.show()
 
+
 def plot_ts(ts_df, plot_title, eventDates, eventLabels=None, save_file_name=None, xLabel=None, yLabel=None, show=False):
     ax = ts_df.plot(title=plot_title, marker = '*', markerfacecolor='red', markersize=10, linestyle = 'solid')
     colors = ['r', 'g', 'c', 'm', 'y', 'b', 'k']
@@ -57,45 +62,60 @@ def plot_ts(ts_df, plot_title, eventDates, eventLabels=None, save_file_name=None
         fig.show()
 
 
-def plot_embeddings(nodes, embeddings, label=False, labels=None, method="pca"):
-    plt.rcParams['axes.unicode_minus'] = False
-    plt.rcParams['font.family'] = ['sans-serif']
-    plt.rcParams['font.sans-serif'] = ['SimHei']
+
+def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=42, perplexity=5):
+    """
+    降维可视化计算得到的嵌入向量
+    :param nodes: 节点名称
+    :param embeddings: 对应的嵌入向量
+    :param labels: 节点的标签信息
+    :param method: 降维方法，PCA or TSNE
+    :param random_state: 随机种子
+    :param perplexity:　困惑度，用于TSNE方法中。
+    :return:
+    """
+    if method not in ['pca', 'tsne']:
+        raise NotImplementedError("The visualize method {} is not implemented.".format(method))
 
     if method == 'pca':
-        model = PCA(n_components=2, whiten=True)
+        model = PCA(n_components=2, whiten=True, random_state=random_state)
     else:
-        model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=15, init="pca")
+        """
+        perplexity是用来刻画近邻点数量的，如果近邻点多，那么就设置大一点，否则就设置小一点。
+        在bell数据集中，有稀疏对称点，数量只有一对，还有稠密对称点，数量有四五对，
+        有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
+        """
+        model = TSNE(n_components=2,  random_state=random_state, n_iter=5000, perplexity=perplexity, init="pca")
 
-    node_pos = model.fit_transform(embeddings)
+    node_pos = np.array(model.fit_transform(embeddings))
 
-    if not label:
-        dic = dict()
-        for i in range(len(node_pos)):
-            x, y = node_pos[i, 0], node_pos[i, 1]
+    # 没有标签
+    dic = dict()
+    for i in range(len(node_pos)):
+        x, y = node_pos[i, 0], node_pos[i, 1]
+        if not labels:
             plt.scatter(x, y, s=88)
-            x = round(x, 2)
-            y = round(y, 2)
-            dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
-        for k, v in dic.items():
-            x, y = k.split(" ")
+        x = round(x, 2)
+        y = round(y, 2)
+        dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
+    for k, v in dic.items():
+        x, y = k.split(" ")
+        #x = max(float(x) - len(v) * 0.02,-2)
+        plt.text(float(x), float(y), " ".join(v))
 
-            #x = max(float(x) - len(v) * 0.02,-2)
-            plt.text(float(x), float(y), " ".join(v))
-        plt.show()
-        return
+    if labels:
+        # 带标签
+        markers = ['<', '8', 's', '*', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+        color_idx = {}
+        for idx, node in enumerate(nodes):
+            color_idx.setdefault(labels[node], [])
+            color_idx[labels[node]].append(idx)
 
+        for c, idx in color_idx.items():
+            #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
+            plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)%16])#, s=area[idx])
 
-    markers = ['<', '8', 's', '*', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
-    color_idx = {}
-    for i in range(len(nodes)):
-        color_idx.setdefault(labels[i], [])
-        color_idx[labels[i]].append(i)
-    for c, idx in color_idx.items():
-        #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)%16])#, s=area[idx])
-
-    plt.legend()
+    #plt.legend()
     plt.show()
 
 
