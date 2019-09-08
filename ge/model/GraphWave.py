@@ -451,7 +451,7 @@ def laplacian(adj):
 if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/fb1.edgelist", create_using=nx.Graph, nodetype=str,
+    graph = nx.read_edgelist("../../data/bell.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     wave_machine = GraphWave(graph, settings)
     wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(2.5)
