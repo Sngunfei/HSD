@@ -9,8 +9,8 @@ from sklearn.preprocessing import normalize
 from time import time
 import pdb
 from sklearn.decomposition import PCA
-from utils.visualize import plot_embeddings, plot_embedding2D, plot_subway_embedding
-from utils.util import read_label
+from ge.utils.visualize import plot_embeddings, plot_embedding2D, plot_subway_embedding
+from ge.utils.util import read_label
 from sklearn.manifold import LocallyLinearEmbedding as LLE
 
 

@@ -7,5 +7,6 @@ setup(
     author='Yunfei Song',
     author_email='syfnico@foxmail.com',
     packages=['ge'],
-    install_requires=['sklearn', 'torch']
+    install_requires=['torch', 'numpy', 'gensim', 'networkx', 'tqdm', 'joblib', 'matplotlib', 'scikit-learn',
+                      'scipy']
 )
