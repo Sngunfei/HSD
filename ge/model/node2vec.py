@@ -24,19 +24,24 @@ class Node2Vec:
         :param q: 离开概率，越小越容易向外，深搜策略
         :param workers:
         """
-        edges = graph.edges()
-        inv_edges = []
-        for edge in edges:
-            u, v = edge[0], edge[1]
-            inv_edges.append((v, u, {'weight': graph[u][v]['weight']}))
-        graph.add_edges_from(inv_edges)
+
         self.graph = graph
+        self._add_inverse_edges()
         self.embeddings = {}
         self.walker = RandomWalker(graph, p=p, q=q)
 
         logging.info("Preprocess transition probs...")
         self.walker.preprocess_transition_probs()
         self.sentences = self.walker.simulate_walks(num_walks=num_walks, walk_length=walk_length, workers=workers, verbose=1)
+
+
+    def _add_inverse_edges(self):
+        edges = self.graph.edges()
+        inv_edges = []
+        for edge in edges:
+            u, v = edge[0], edge[1]
+            inv_edges.append((v, u, {'weight': graph[u][v]['weight']}))
+        self.graph.add_edges_from(inv_edges)
 
 
     def train(self, embed_size=128, window_size=5, workers=3, iter=5, **kwargs):
