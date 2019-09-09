@@ -12,20 +12,23 @@ class LaplacianEigenmaps:
 
     def __init__(self, graph):
         self.graph = graph
-        self.n_node = nx.number_of_nodes(graph)
-        self.nodes = nx.nodes(graph)
+        self.n_nodes = graph.number_of_nodes()
+        self.nodes = list(graph.nodes())
+        self.embeddings = {}
 
 
     def create_embedding(self, d):
         L_sym = nx.normalized_laplacian_matrix(graph)
-
         w, v = lg.eigs(L_sym, k=d + 1, which='SM')
         self._X = v[:, 1:]
-
         p_d_p_t = np.dot(v, np.dot(np.diag(w), v.T))
         eig_err = np.linalg.norm(p_d_p_t - L_sym)
         print('Laplacian matrix recon. error (low rank): %f' % eig_err)
-        return self._X
+
+        for idx, node in enumerate(self.nodes):
+            embedding = self._X[idx, :]
+            self.embeddings[node] = np.real(embedding)
+        return self.embeddings
 
     def get_embedding(self):
         return self._X
@@ -51,10 +54,18 @@ class LaplacianEigenmaps:
 
 
 if __name__ == '__main__':
-    data_path = 'G:\pyworkspace\graph-embedding\out\\subway_dist_L1.txt'
-    graph = nx.read_edgelist(path=data_path, create_using=nx.Graph, edgetype=float, data=[('weight', float)])
+
+    from ge.utils.visualize import plot_embeddings
+    from ge.utils.util import read_label
+
+    graph = nx.read_edgelist(path="../../output/test.csv", create_using=nx.Graph, edgetype=float,
+                             data=[('weight', float)])
+    labels = read_label(path='../../data/bell.label')
+
     model = LaplacianEigenmaps(graph)
-    embeddings = np.array(model.create_embedding(5))
-    print(embeddings.shape)
-    plot_embeddings(model.nodes, embeddings, method="pca")
-    plt.show()
+    embeddings_dict = model.create_embedding(10)
+    nodes = model.nodes
+    embeddings = []
+    for _, node in enumerate(nodes):
+        embeddings.append(embeddings_dict[node])
+    plot_embeddings(nodes, np.array(embeddings), labels=labels, method="tsne")

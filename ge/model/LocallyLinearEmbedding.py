@@ -9,8 +9,6 @@ from sklearn.preprocessing import normalize
 from time import time
 import pdb
 from sklearn.decomposition import PCA
-from ge.utils.visualize import plot_embeddings, plot_embedding2D, plot_subway_embedding
-from ge.utils.util import read_label
 from sklearn.manifold import LocallyLinearEmbedding as LLE
 
 
@@ -58,6 +56,9 @@ class LocallyLinearEmbedding:
 
 
 if __name__ == '__main__':
+
+    from ge.utils.visualize import plot_embeddings
+    from ge.utils.util import read_label
 
     graph = nx.read_edgelist(path="../../output/test.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
     labels = read_label(path='../../data/bell.label')
