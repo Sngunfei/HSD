@@ -200,7 +200,7 @@ class GraphWave:
         :param scale: 尺度参数，即热扩散系数。
         :return: dict，key = distance，value = [wavelet coefficient mean, variance]
         """
-        coeff_mat = self._cal_all_wavelet_coeffs(scale)
+        coeff_mat = self.cal_all_wavelet_coeffs(scale)
         dist_coeff = dict()
         for idx1 in range(self.n_nodes):
             for idx2 in range(self.n_nodes):
@@ -233,7 +233,7 @@ class GraphWave:
 
     def _calc_pq_distance(self, p, q, metric="l1", normalized=False):
         """
-            计算两个分布之间的相似性，p和q分别为两个节点，在同一层环上的小波系数分布，可能并不等长，为了突出节点度数
+        计算两个分布之间的相似性，p和q分别为两个节点，在同一层环上的小波系数分布，可能并不等长，为了突出节点度数
         对于节点结构性质的重要性，我们用 0 将分布对齐。
         :param metric: 相似性度量标准，默认为L1
         :param normalized: 是否将p，q放缩成正常的概率分布，因为p，q分别求和后的结果不一定相等。
@@ -246,8 +246,8 @@ class GraphWave:
         q = np.sort(q)
 
         if normalized:
-            p = 1.0 * p / np.sum(p)
-            q = 1.0 * q / np.sum(q)
+            p = 1.0 * p / np.sum(p) if np.sum(p) > 0.0 else p
+            q = 1.0 * q / np.sum(q) if np.sum(q) > 0.0 else q
 
         return calc_distance(p, q, metric)
 
@@ -451,12 +451,11 @@ def laplacian(adj):
 if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/bell.edgelist", create_using=nx.Graph, nodetype=str,
+    graph = nx.read_edgelist("../../data/mkarate.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     wave_machine = GraphWave(graph, settings)
-    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(2.5)
-    logging.info("start")
-    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../output/fb1.csv")
+    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(3)
+    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='wasser', save_path="../../similarity/mkarate_3_wasser.csv")
 
 
 

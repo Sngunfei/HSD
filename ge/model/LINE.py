@@ -83,7 +83,7 @@ class _LINE(object):
 
         if self.order == 1:
             self.loss = self.first_loss
-        else:
+        elif self.order == 2:
             self.loss = self.second_loss
 
         optimizer = tf.train.AdamOptimizer(0.001)
@@ -273,7 +273,7 @@ if __name__ == '__main__':
     from utils import util
     from utils.visualize import plot_embeddings
 
-    graph = nx.read_edgelist(path="../../output/test.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
+    graph = nx.read_edgelist(path="../../similarity/mkarate_3_L1.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
     model = LINE(graph, d=64, epoch=200, order=3)
     embeddings_dict = model.get_embeddings()
 
@@ -284,4 +284,4 @@ if __name__ == '__main__':
         nodes.append(node)
         embeddings.append(embedding)
 
-    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=3)
+    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=5)
