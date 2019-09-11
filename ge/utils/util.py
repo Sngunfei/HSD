@@ -1,3 +1,7 @@
+from sklearn.cluster import AgglomerativeClustering
+from sklearn import metrics
+import numpy as np
+from sklearn.manifold import TSNE
 
 
 def read_label(path):
@@ -43,6 +47,35 @@ def write_label(data_path):
         fout.write("{} {}\n".format(node, label))
 
     fout.close()
+
+
+
+def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
+    """
+        Unsupervised setting: We assess the ability of each method to embed close together nodes
+        with the same ground-truth structural role. We use agglomerative clustering (with single linkage)
+        to cluster embeddings learned by each method and evaluate the clustering quality via:
+            (1) homogeneity, conditional entropy of ground-truth structural roles given the predicted clustering;
+            (2) completeness, a measure of how many nodes with the same ground-truth structural role are assigned to the same cluster;
+            (3) silhouette score, a measure of intra-cluster distance vs. inter-cluster distance.
+
+        Supervised setting: We assess the performance of learned embeddings for node classifcation.
+        Using 10-fold cross validation, we predict the structural role (label) of each node in the test set
+        based on its 4-nearest neighbors in the training set as determined by the embedding space.
+        The reported score is then the average accuracy and F1-score over 25 trials.
+    """
+    model = TSNE(n_components=2, random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
+    embeddings = model.fit_transform(embeddings)
+    clusters = AgglomerativeClustering(n_clusters=class_num, linkage='single').fit_predict(embeddings)
+    h, c, v = metrics.homogeneity_completeness_v_measure(labels, clusters)
+    s = metrics.silhouette_score(embeddings, clusters)
+    print("cluster:", clusters, "labels:", labels)
+    print("homogeneity: ", h)
+    print("completeness: ", c)
+    print("v-score: ", v)
+    print("silhouette: ", s)
+
+    return h, c, v, s
 
 
 if __name__ == '__main__':

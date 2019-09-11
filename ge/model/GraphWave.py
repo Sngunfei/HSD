@@ -23,8 +23,8 @@ class GraphWave:
         self.n_nodes = nx.number_of_nodes(graph)
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
-        self.L = laplacian(self.A)
-
+        #self.L = laplacian(self.A)
+        self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
         """
         self.G = pygsp.graphs.Graph(self.L)
@@ -288,7 +288,7 @@ class GraphWave:
             df = pd.DataFrame(data=similarity_mat, index=self.nodes, columns=self.nodes)
             df.to_csv(save_path, mode="w+")
             """
-            with open(save_path, mode='w+') as fout:
+            with open(save_path, mode='w+', encoding='utf-8') as fout:
                 for idx1 in range(self.n_nodes):
                     node1 = self.nodes[idx1]
                     for idx2 in range(idx1 + 1, self.n_nodes):
@@ -451,11 +451,11 @@ def laplacian(adj):
 if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/mkarate.edgelist", create_using=nx.Graph, nodetype=str,
+    graph = nx.read_edgelist("../../data/subway.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     wave_machine = GraphWave(graph, settings)
-    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(3)
-    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='wasser', save_path="../../similarity/mkarate_3_wasser.csv")
+    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(5)
+    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_5_L1.csv")
 
 
 
