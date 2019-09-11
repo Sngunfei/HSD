@@ -64,18 +64,22 @@ class LaplacianEigenmaps:
 
 if __name__ == '__main__':
 
-    from ge.utils.visualize import plot_embeddings
-    from ge.utils.util import read_label
+    from ge.utils.visualize import plot_embeddings, plot_subway_embedding
+    from ge.utils.util import read_label, cluster_evaluate
 
-    graph = nx.read_edgelist(path="../../similarity/mkarate_3_wasser.csv", create_using=nx.Graph, edgetype=float,
+    graph = nx.read_edgelist(path="../../similarity/subway_10_L1.csv", create_using=nx.Graph, edgetype=float,
                              data=[('weight', float)])
-    labels = read_label(path='../../data/mkarate.label')
+    labels = read_label(path='../../data/subway.label')
 
     model = LaplacianEigenmaps(graph)
-    embeddings_dict = model.create_embedding(10)
+    embeddings_dict = model.create_embedding(16)
     #model.save_embedding('../../output/LE_marate_3_L1.csv')
     nodes = model.nodes
     embeddings = []
+    L = []
     for _, node in enumerate(nodes):
         embeddings.append(embeddings_dict[node])
-    plot_embeddings(nodes, np.array(embeddings), labels=labels, method="tsne", perplexity=10)
+        L.append(labels[node])
+    cluster_evaluate(embeddings, L, class_num=12, perplexity=15)
+    #plot_embeddings(nodes, np.array(embeddings), labels=labels, method="tsne", perplexity=5)
+    plot_subway_embedding(nodes, np.array(embeddings), L, perplexity=15)
