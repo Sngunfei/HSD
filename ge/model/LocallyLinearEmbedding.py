@@ -43,10 +43,10 @@ class LocallyLinearEmbedding:
         return self.embeddings
 
 
-    def sklearn_lle(self, n_neighbors, n_components, random_state):
+    def sklearn_lle(self, n_neighbors, dim, random_state):
         A = self.adj
         A = A.todense()
-        model = LLE(n_neighbors=n_neighbors, n_components=n_components, random_state=random_state)
+        model = LLE(n_neighbors=n_neighbors, n_components=dim, random_state=random_state)
         X = np.array(model.fit_transform(A))
         self.embeddings = {}
         for idx, node in enumerate(self.nodes):
@@ -57,18 +57,22 @@ class LocallyLinearEmbedding:
 
 if __name__ == '__main__':
 
-    from ge.utils.visualize import plot_embeddings
-    from ge.utils.util import read_label
+    from ge.utils.visualize import plot_embeddings, plot_subway_embedding
+    from ge.utils.util import read_label, cluster_evaluate
 
-    graph = nx.read_edgelist(path="../../output/test.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
-    labels = read_label(path='../../data/bell.label')
+    graph = nx.read_edgelist(path="../../similarity/subway_5_L1.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
+    labels = read_label(path='../../data/subway.label')
 
     model = LocallyLinearEmbedding(graph)
-    embeddings = model.create_embedding(10)
+    #embeddings = model.create_embedding(10)
+    embeddings = model.sklearn_lle(10, 32, 42)
     nodes = model.nodes
     embedd = []
+    L = []
     for node in nodes:
         embedd.append(embeddings[node])
+        L.append(labels[node])
     embedd = np.array(embedd)
-    plot_embeddings(nodes, embedd, labels=labels, method="tsne")
-
+    cluster_evaluate(embedd, L, class_num=12, perplexity=15)
+    #plot_embeddings(nodes, embedd, labels=labels, method="tsne", perplexity=5)
+    plot_subway_embedding(nodes, embedd, L, perplexity=15)

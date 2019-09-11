@@ -2,9 +2,7 @@ from __future__ import print_function
 import random
 import math
 import numpy as np
-from sklearn.linear_model import LogisticRegression
 import tensorflow as tf
-import torch
 import networkx as nx
 
 
@@ -24,7 +22,7 @@ class _LINE(object):
         self._add_inverse_edges()
         self._build_lookup_table()
         self._create_sampling_table()
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
         cur_seed = random.getrandbits(32)
         initializer = tf.initializers.glorot_normal(seed=cur_seed)
         with tf.variable_scope("model", reuse=None, initializer=initializer):
@@ -273,15 +271,15 @@ if __name__ == '__main__':
     from utils import util
     from utils.visualize import plot_embeddings
 
-    graph = nx.read_edgelist(path="../../similarity/mkarate_3_L1.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
-    model = LINE(graph, d=64, epoch=200, order=3)
+    graph = nx.read_edgelist(path="../../similarity/subway_10_L1.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
+    model = LINE(graph, d=64, epoch=25, order=1)
     embeddings_dict = model.get_embeddings()
 
-    labels = util.read_label("../../data/bell.label")
+    labels = util.read_label("../../data/subway.label")
     nodes = []
     embeddings = []
     for node, embedding in embeddings_dict.items():
         nodes.append(node)
         embeddings.append(embedding)
 
-    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=5)
+    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=10)

@@ -101,7 +101,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
     for k, v in dic.items():
         x, y = k.split(" ")
         #x = max(float(x) - len(v) * 0.02,-2)
-        plt.text(float(x), float(y), " ".join(v))
+        #plt.text(float(x), float(y), " ".join(v))
 
     if labels:
         # 带标签
@@ -119,12 +119,8 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
     plt.show()
 
 
-def plot_subway_embedding(nodes, embeddings, labels=None):
-    plt.rcParams['axes.unicode_minus'] = False
-    plt.rcParams['font.family'] = ['sans-serif']
-    plt.rcParams['font.sans-serif'] = ['SimHei']
-
-    model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=15, init="pca")
+def plot_subway_embedding(nodes=None, embeddings=None, labels=None, perplexity=5):
+    model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
     node_pos = model.fit_transform(embeddings)
 
     markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
@@ -134,7 +130,8 @@ def plot_subway_embedding(nodes, embeddings, labels=None):
         color_idx[labels[i]].append(i)
 
     for c, idx in color_idx.items():
-        #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
+        #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])\
+        c = int(c)
         plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=(c-1)%3, s=30, marker=markers[(c-1) // 3 + 1])#, s=area[idx])
 
     """
