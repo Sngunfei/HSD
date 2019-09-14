@@ -49,6 +49,23 @@ def write_label(data_path):
     fout.close()
 
 
+def preprocess_nxgraph(graph):
+    """
+    建立图节点与标号之间的映射关系，方便采样。
+    :param graph:
+    :return:
+    """
+    node2idx = {}
+    idx2node = []
+    node_size = 0
+    for node in graph.nodes():
+        node2idx[node] = node_size
+        idx2node.append(node)
+        node_size += 1
+    return idx2node, node2idx
+
+
+
 
 def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
     """

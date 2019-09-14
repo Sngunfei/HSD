@@ -8,5 +8,5 @@ setup(
     author_email='syfnico@foxmail.com',
     packages=['ge'],
     install_requires=['torch', 'numpy', 'gensim', 'networkx', 'tqdm', 'joblib', 'matplotlib', 'scikit-learn',
-                      'scipy', 'tensorflow', 'keras']
+                      'scipy', 'tensorflow', 'keras', 'pandas', 'fastdtw']
 )

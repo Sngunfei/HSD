@@ -60,12 +60,12 @@ if __name__ == '__main__':
     from ge.utils.visualize import plot_embeddings, plot_subway_embedding
     from ge.utils.util import read_label, cluster_evaluate
 
-    graph = nx.read_edgelist(path="../../similarity/subway_5_L1.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
+    graph = nx.read_edgelist(path="../../similarity/subway_10_L1.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
     labels = read_label(path='../../data/subway.label')
 
     model = LocallyLinearEmbedding(graph)
-    #embeddings = model.create_embedding(10)
-    embeddings = model.sklearn_lle(10, 32, 42)
+    embeddings = model.create_embedding(32)
+    #embeddings = model.sklearn_lle(10, 32, 666)
     nodes = model.nodes
     embedd = []
     L = []
@@ -73,6 +73,6 @@ if __name__ == '__main__':
         embedd.append(embeddings[node])
         L.append(labels[node])
     embedd = np.array(embedd)
-    cluster_evaluate(embedd, L, class_num=12, perplexity=15)
+    #cluster_evaluate(embedd, L, class_num=12, perplexity=5)
     #plot_embeddings(nodes, embedd, labels=labels, method="tsne", perplexity=5)
-    plot_subway_embedding(nodes, embedd, L, perplexity=15)
+    plot_subway_embedding(nodes, embedd, L, perplexity=10)
