@@ -4,7 +4,6 @@ if 'DISPLAY' not in os.environ:
     disp_avlbl = False
     import matplotlib
     matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -20,7 +19,6 @@ sys.path.append(os.path.realpath(__file__))
 
 
 class HOPE:
-
     def __init__(self, *hyper_dict, **kwargs):
         """ Initialize the HOPE class
         Args:
@@ -66,11 +64,14 @@ class HOPE:
         print('SVD error (low rank): %f' % eig_err)
         return self._X, (t2 - t1)
 
+
     def get_embedding(self):
         return self._X
 
+
     def get_edge_weight(self, i, j):
         return np.dot(self._X[i, :self._d // 2], self._X[j, self._d // 2:])
+
 
     def get_reconstructed_adj(self, X=None, node_l=None):
         if X is not None:

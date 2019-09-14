@@ -1,9 +1,15 @@
 from __future__ import print_function
 import random
 import math
+
 import numpy as np
 import tensorflow as tf
 import networkx as nx
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from ..utils.alias_sample import create_alias_table, alias_sample
 
 
 class _LINE(object):
@@ -26,7 +32,7 @@ class _LINE(object):
         cur_seed = random.getrandbits(32)
         initializer = tf.initializers.glorot_normal(seed=cur_seed)
         with tf.variable_scope("model", reuse=None, initializer=initializer):
-            self.build_graph()
+            self.build_tensorflow_graph()
         self.sess.run(tf.global_variables_initializer())
 
 
@@ -51,7 +57,14 @@ class _LINE(object):
         self.graph.add_edges_from(inv_edges)
 
 
-    def build_graph(self):
+    def build_torch_graph(self):
+        self.embeddings = nn.Embedding.from_pretrained(torch.randn(self.n_nodes, self.dim))
+
+
+
+
+
+    def build_tensorflow_graph(self):
         self.h = tf.placeholder(tf.int32, [None])
         self.t = tf.placeholder(tf.int32, [None])
         self.sign = tf.placeholder(tf.float32, [None])
@@ -175,31 +188,9 @@ class _LINE(object):
         # 边的别名采样
         self.edge_alias = np.zeros(self.n_edges, dtype=np.int32)
         self.edge_prob = np.zeros(self.n_edges, dtype=np.float32)
-        small, large = [], []
         total_sum = sum([self.graph[edge[0]][edge[1]]["weight"] for edge in self.graph.edges()])
         norm_prob = [self.graph[edge[0]][edge[1]]["weight"] * self.n_edges / total_sum for edge in self.graph.edges()]
-        for k in range(self.n_edges-1, -1, -1):
-            if norm_prob[k] < 1.0:
-                small.append(k)
-            else:
-                large.append(k)
-
-        while small and large:
-            cur_small, cur_large = small.pop(), large.pop()
-            self.edge_prob[cur_small] = norm_prob[cur_small]
-            self.edge_alias[cur_small] = cur_large
-            norm_prob[cur_large] -= (1 - norm_prob[cur_small])
-            if norm_prob[cur_large] < 1.0:
-                small.append(cur_large)
-            else:
-                large.append(cur_large)
-
-        while large:
-            cur_large = large.pop()
-            self.edge_prob[cur_large] = 1
-        while small:
-            cur_small = small.pop()
-            self.edge_prob[cur_small] = 1
+        self.edge_prob, self.edge_alias = create_alias_table(norm_prob)
 
 
     def get_embeddings(self):
@@ -211,6 +202,7 @@ class _LINE(object):
         for idx, embedding in enumerate(embeddings):
             vectors[self.nodes[idx]] = embedding
         return vectors
+
 
 
 class LINE(object):
