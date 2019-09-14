@@ -24,7 +24,7 @@ class GraphWave:
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
         #self.L = laplacian(self.A)
-        self.L = nx.laplacian_matrix(self.graph)
+        self.L = nx.normalized_laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
         """
         self.G = pygsp.graphs.Graph(self.L)
@@ -454,8 +454,8 @@ if __name__ == "__main__":
     graph = nx.read_edgelist("../../data/subway.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     wave_machine = GraphWave(graph, settings)
-    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(5)
-    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_5_L1.csv")
+    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
+    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
 
 
 

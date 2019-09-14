@@ -101,7 +101,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
     for k, v in dic.items():
         x, y = k.split(" ")
         #x = max(float(x) - len(v) * 0.02,-2)
-        #plt.text(float(x), float(y), " ".join(v))
+        plt.text(float(x), float(y), " ".join(v))
 
     if labels:
         # 带标签
@@ -120,7 +120,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
 
 
 def plot_subway_embedding(nodes=None, embeddings=None, labels=None, perplexity=5):
-    model = TSNE(n_components=2,  random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
+    model = TSNE(n_components=2, random_state=42, n_iter=10000, perplexity=perplexity, init="pca")
     node_pos = model.fit_transform(embeddings)
 
     markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
