@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt

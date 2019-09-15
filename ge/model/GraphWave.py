@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import networkx as nx
 import pygsp
 from tqdm import tqdm
@@ -405,6 +406,16 @@ def L_1_2_distance(p, q, order):
         return np.sum(np.abs(p - q))
     elif order == 2:
         return np.sum(np.square(p - q))
+
+
+def Dynamic_Time_Warping(p, q):
+    """
+    动态时间规整，DTW
+    :param p:
+    :param q:
+    :return:
+    """
+    raise NotImplementedError("Dynamic_Time_Warping is not implemented yet.")
 
 
 def calc_distance(p, q, metric=None):

@@ -10,9 +10,9 @@ from fastdtw import fastdtw
 from gensim.models import Word2Vec
 from joblib import Parallel, delayed
 
-from ..utils.util import preprocess_nxgraph
-from ..utils.walker import BiasedWalker
-from ..utils.alias_sample import create_alias_table, alias_sample
+from ge.utils.util import preprocess_nxgraph, partition_dict
+from ge.utils.walker import BiasedWalker
+from ge.utils.alias_sample import create_alias_table, alias_sample
 
 
 class Struc2Vec:
@@ -423,3 +423,28 @@ def compute_dtw_dist(part_list, degreeList, dist_func):
                     lists_v1[layer], lists_v2[layer], radius=1, dist=dist_func)
                 dtw_dist[v1, v2][layer] = dist
     return dtw_dist
+
+
+if __name__ == '__main__':
+    from utils import util
+    from utils.visualize import plot_embeddings, plot_subway_embedding
+    import networkx as nx
+
+    graph = nx.read_edgelist(path="../../data/subway.edgelist", create_using=nx.Graph, nodetype=str,
+                             data=[('weight', float)])
+    model = Struc2Vec(graph, walk_length=10, num_walks=80)
+    model.train(embed_size=64, window_size=10)
+    embeddings_dict = model.get_embeddings()
+
+    L = util.read_label("../../data/subway.label")
+    nodes = []
+    embeddings = []
+    labels = []
+    for node, embedding in embeddings_dict.items():
+        nodes.append(node)
+        embeddings.append(embedding)
+        labels.append(L[node])
+
+    util.cluster_evaluate(embeddings, labels, class_num=12, perplexity=10)
+    #plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=10)
+    plot_subway_embedding(nodes, embeddings, labels, perplexity=10)

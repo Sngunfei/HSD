@@ -13,14 +13,14 @@ from .alias_sample import create_alias_table, alias_sample
 
 class RandomWalker:
     """
-        Ëæ»úÓÎ×ß
+        éšæœºæ¸¸èµ°
     """
 
     def __init__(self, graph, p=1, q=1):
         """
         :param graph: graph
         :param p: Return parameter, controls the likelihood of immediately revisiting a node in the walk.
-        :param q: In-out parameter, allows the search to differentiate between ¡°inward¡± and ¡°outward¡± nodes
+        :param q: In-out parameter, allows the search to differentiate between â€œinwardâ€ and â€œoutwardâ€ nodes
         """
         self.G = graph
         self.p = p
@@ -29,7 +29,7 @@ class RandomWalker:
 
     def deepwalk_walk(self, walk_length, start_node):
         """
-        ´¿Ëæ»úÓÎ×ß£¬Ò²²»¿¼ÂÇ±ßÈ¨ÖØ¡£
+        çº¯éšæœºæ¸¸èµ°ï¼Œä¹Ÿä¸è€ƒè™‘è¾¹æƒé‡ã€‚
         """
         walk = [start_node]
         while len(walk) < walk_length:
@@ -44,7 +44,7 @@ class RandomWalker:
 
     def node2vec_walk(self, walk_length, start_node):
         """
-        ´øÓĞÇãÏòĞÔµÄÓÎ×ß£¬BFS or DFS£¬BFSÀûÓÚ²¶»ñ½ÚµãµÄ¾Ö²¿½á¹¹ĞÔÖÊ¡£
+        å¸¦æœ‰å€¾å‘æ€§çš„æ¸¸èµ°ï¼ŒBFS or DFSï¼ŒBFSåˆ©äºæ•è·èŠ‚ç‚¹çš„å±€éƒ¨ç»“æ„æ€§è´¨ã€‚
         """
         G = self.G
         alias_nodes = self.alias_nodes
@@ -55,7 +55,7 @@ class RandomWalker:
             cur = walk[-1]
             cur_nbrs = list(G.neighbors(cur))
             if len(cur_nbrs) > 0:
-                if len(walk) == 1: # ÆğÊ¼µã£¬»¹Ã»ÓĞÇ°Çıµã
+                if len(walk) == 1: # èµ·å§‹ç‚¹ï¼Œè¿˜æ²¡æœ‰å‰é©±ç‚¹
                     walk.append(cur_nbrs[alias_sample(alias_nodes[cur][0], alias_nodes[cur][1])])
                 else:
                     prev = walk[-2]

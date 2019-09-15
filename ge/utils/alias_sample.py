@@ -1,13 +1,12 @@
-"""
-    ÊµÏÖ±ğÃû²ÉÑù¹ı³Ì¡£
-"""
+# -*- coding:utf-8 -*-
+
 import numpy as np
 import math
 
 
 def create_alias_table(probs):
     """
-    ¼ÆËã±ğÃû²ÉÑù±í¡£
+    è®¡ç®—åˆ«åé‡‡æ ·è¡¨ã€‚
     :param probs: sum(area_ratio)= 1 or N
     :return: accept, alias
     """
@@ -16,9 +15,9 @@ def create_alias_table(probs):
     probs = np.asarray(probs)
     N = len(probs)
     probs_sum = probs.sum()
-    if math.isclose(probs_sum, 1.0, 1e-8):
+    if math.isclose(probs_sum, 1.0):
         probs *= N
-    elif math.isclose(probs_sum, N, 1e-8):
+    elif math.isclose(probs_sum, N):
         pass
     else:
         raise ValueError("The probs sum must be 1.0 (normalized) or N (for alias), get{}.".format(probs_sum))
@@ -55,9 +54,9 @@ def create_alias_table(probs):
 
 def alias_sample(accept, alias):
     """
-    ²ÉÑù¹ı³Ì
-    :param accept: ¸ÅÂÊ±í
-    :param alias: ±ğÃû±í
+    é‡‡æ ·è¿‡ç¨‹
+    :param accept: æ¦‚ç‡è¡¨
+    :param alias: åˆ«åè¡¨
     :return: sample index
     """
     N = len(accept)
