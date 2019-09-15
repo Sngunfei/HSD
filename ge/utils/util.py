@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
@@ -63,6 +65,22 @@ def preprocess_nxgraph(graph):
         idx2node.append(node)
         node_size += 1
     return idx2node, node2idx
+
+
+def partition_dict(vertices, workers):
+    batch_size = (len(vertices) - 1) // workers + 1
+    part_list = []
+    part = []
+    count = 0
+    for v1, nbs in vertices.items():
+        part.append((v1, nbs))
+        count += 1
+        if count % batch_size == 0:
+            part_list.append(part)
+            part = []
+    if len(part) > 0:
+        part_list.append(part)
+    return part_list
 
 
 

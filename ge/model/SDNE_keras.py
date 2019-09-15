@@ -1,3 +1,5 @@
+# -*- coding:utf-8 -*-
+
 disp_avlbl = True
 import os
 if 'DISPLAY' not in os.environ:

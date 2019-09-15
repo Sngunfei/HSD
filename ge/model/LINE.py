@@ -61,9 +61,6 @@ class _LINE(object):
         self.embeddings = nn.Embedding.from_pretrained(torch.randn(self.n_nodes, self.dim))
 
 
-
-
-
     def build_tensorflow_graph(self):
         self.h = tf.placeholder(tf.int32, [None])
         self.t = tf.placeholder(tf.int32, [None])
