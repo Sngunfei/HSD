@@ -7,7 +7,7 @@ import random
 import networkx as nx
 from rbm import *
 
-
+# todo
 class SDNE:
     def __init__(self, config):
 

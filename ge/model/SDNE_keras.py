@@ -29,7 +29,7 @@ from keras import backend as KBack
 
 from time import time
 
-
+# todo
 class SDNE(StaticGraphEmbedding):
 
     def __init__(self, *hyper_dict, **kwargs):

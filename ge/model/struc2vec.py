@@ -426,25 +426,23 @@ def compute_dtw_dist(part_list, degreeList, dist_func):
 
 
 if __name__ == '__main__':
-    from utils.util import dataloader
+    from utils.util import dataloader, cluster_evaluate, evaluate_accuracy
     from utils.visualize import plot_embeddings, plot_subway_embedding
-    import networkx as nx
 
-    graph = nx.read_edgelist(path="../../data/mkarate.edgelist", create_using=nx.Graph, nodetype=str,
-                             data=[('weight', float)])
-    model = Struc2Vec(graph, walk_length=15, num_walks=5)
-    model.train(embed_size=64, window_size=3)
+    graph, label_dict, n_class = dataloader(name="subway", directed=False)
+    model = Struc2Vec(graph, walk_length=15, num_walks=10)
+    model.train(embed_size=64, window_size=5)
     embeddings_dict = model.get_embeddings()
 
-    L = util.read_label("../../data/mkarate.label")
     nodes = []
     embeddings = []
     labels = []
     for node, embedding in embeddings_dict.items():
         nodes.append(node)
         embeddings.append(embedding)
-        labels.append(L[node])
+        labels.append(label_dict[node])
 
-    util.cluster_evaluate(embeddings, labels, class_num=34, perplexity=10)
-    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=10)
-    #plot_subway_embedding(nodes, embeddings, labels, perplexity=10)
+    evaluate_accuracy(embeddings, labels)
+    cluster_evaluate(embeddings, labels, class_num=n_class, perplexity=10)
+    #plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=10)
+    plot_subway_embedding(nodes, embeddings, labels, perplexity=10)

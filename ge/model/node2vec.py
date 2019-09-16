@@ -11,7 +11,7 @@ from joblib import Parallel, delayed
 import logging
 import networkx as nx
 
-from ..utils.walker import RandomWalker
+from ge.utils.walker import RandomWalker
 
 
 class Node2Vec:
@@ -87,20 +87,23 @@ class Node2Vec:
 
 
 if __name__ == '__main__':
-    from utils import util
+    from utils.util import dataloader, evaluate_accuracy, cluster_evaluate
     from utils.visualize import plot_embeddings
-    G = nx.read_edgelist(path="../../output/test.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
-    model = Node2Vec(G, walk_length=15, num_walks=80, p=0.5, q=2.0, workers=1)
-    model.train(window_size=7, iter=500)
 
+    graph, label_dict, n_class = dataloader("subway", directed=True)
+
+    model = Node2Vec(graph, walk_length=15, num_walks=20, p=1.0, q=2.0, workers=1)
+    model.train(window_size=10, iter=500)
     embeddings_dict = model.get_embeddings()
-    labels = util.read_label("../../data/bell.label")
     nodes = []
     embeddings = []
+    labels = []
     for node, embedding in embeddings_dict.items():
         nodes.append(node)
         embeddings.append(embedding)
+        labels.append(label_dict[node])
 
+    evaluate_accuracy(embeddings, labels, random_state=42)
     plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=3)
 
 
