@@ -1,15 +1,16 @@
 # -*- coding:utf-8 -*-
-import networkx as nx
-import pygsp
-from tqdm import tqdm
-import pandas as pd
 from collections import defaultdict
-import math
 import logging
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import linprog
 from scipy import sparse
+import networkx as nx
+from tqdm import tqdm
+import pygsp
+
+from ge.utils.util import compute_cheb_coeff_basis
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
@@ -25,7 +26,8 @@ class GraphWave:
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
         #self.L = laplacian(self.A)
-        self.L = nx.normalized_laplacian_matrix(self.graph)
+        #self.L = nx.normalized_laplacian_matrix(self.graph) # 正则拉普拉斯矩阵
+        self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
         """
         self.G = pygsp.graphs.Graph(self.L)
@@ -40,24 +42,41 @@ class GraphWave:
     def exact_embedding(self):
         pass
 
-    """
-    def approx_embedding(self, mode="cha"):
-        
-        Given the Chebyshev polynomial, graph the approximate embedding is calculated.
-        利用切比雪夫多项式来近似计算嵌入向量。
-        
-        self.G.estimate_lmax()
-        self.heat_filter = pygsp.filters.Heat(self.G, tau=[self.settings.heat_coefficient])
-        self.chebyshev = pygsp.filters.approximations.compute_cheby_coeff(self.heat_filter, m=self.settings.approximation)
 
-        self.embeddings = dict()
-        for node_idx in tqdm(range(self.n_nodes)):
-            impulse = np.zeros(self.n_nodes, dtype=np.float)
-            impulse[node_idx] = 1.0
-            wavelet_coefficietns = pygsp.filters.approximations.cheby_op(self.G, self.chebyshev, impulse)
-            self.embeddings[self.nodes[node_idx]] = self._calc_embedding(wavelet_coefficietns, mode)
-        return self.embeddings
     """
+    heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
+        monome = {0: sc.sparse.eye(n_nodes), 1: lap - sc.sparse.eye(n_nodes)}
+        for k in range(2, order + 1):
+             monome[k] = 2 * (lap - sc.sparse.eye(n_nodes)).dot(monome[k-1]) - monome[k - 2]
+        for i in range(n_filters):
+            coeffs = compute_cheb_coeff_basis(taus[i], order)
+            heat[i] = sc.sum([ coeffs[k] * monome[k] for k in range(0, order + 1)])
+            temp = thres(heat[i].A) # cleans up the small coefficients
+            heat[i] = sc.sparse.csc_matrix(temp)"""
+
+
+    def calc_wavelet_coeff_chebyshev(self, scale, order):
+        """
+        Given the Chebyshev polynomial, graph the approximate wavelet coefficients is calculated.
+        :param scale:
+        :param order:  the order of chebyshev polynomials.
+        :return:
+        """
+        G = pygsp.graphs.Graph(self.A)
+        G.estimate_lmax()
+        heat_filter = pygsp.filters.Heat(G, tau=[scale])
+        chebyshev = pygsp.filters.approximations.compute_cheby_coeff(heat_filter, m=order)
+
+        wavelet_coeffs = []
+        for idx in tqdm(range(self.n_nodes)):
+            impulse = np.zeros(self.n_nodes, dtype=np.float)
+            impulse[idx] = 1.0
+            coeff = pygsp.filters.approximations.cheby_op(G, chebyshev, impulse)
+        #    self.embeddings[self.nodes[node_idx]] = self._calc_embedding(wavelet_coefficietns, mode)
+            wavelet_coeffs.append(coeff)
+
+        return wavelet_coeffs
+
 
     def _check_node(self, node_idx):
         """
@@ -462,11 +481,19 @@ def laplacian(adj):
 if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/subway.edgelist", create_using=nx.Graph, nodetype=str,
+    graph = nx.read_edgelist("../../data/mkarate.edgelist", create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     wave_machine = GraphWave(graph, settings)
-    wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
-    wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
+    #wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
+    #wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
+    approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
+    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(100))
+
+    diff = np.abs(approx_wavelet_coeffs - exact_wavelet_coeffs)
+    print(diff)
+    res = np.sum(np.sum(diff, 1))
+    print(res)
+
 
 
 

@@ -110,8 +110,8 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         markers = ['<', '8', 's', '*', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
         color_idx = {}
         for idx, node in enumerate(nodes):
-            color_idx.setdefault(labels[node], [])
-            color_idx[labels[node]].append(idx)
+            color_idx.setdefault(labels[idx], [])
+            color_idx[labels[idx]].append(idx)
 
         for c, idx in color_idx.items():
             #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])

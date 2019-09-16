@@ -260,8 +260,8 @@ if __name__ == '__main__':
     from utils import util
     from utils.visualize import plot_embeddings
 
-    graph = nx.read_edgelist(path="../../similarity/subway_10_L1.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
-    model = LINE(graph, d=64, epoch=25, order=1)
+    graph = nx.read_edgelist(path="../../similarity/mkarate_10_L1.csv", create_using=nx.DiGraph, nodetype=str, data=[('weight', float)])
+    model = LINE(graph, d=64, epoch=50, order=3)
     embeddings_dict = model.get_embeddings()
 
     labels = util.read_label("../../data/subway.label")
