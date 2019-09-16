@@ -6,20 +6,48 @@ import numpy as np
 from sklearn.manifold import TSNE
 
 
+def dataloader(name="", directed=False):
+    """
+    Loda graph data by dataset name.
+    :param name: dataset name, str
+    :param directed: bool, if True, return directed graph.
+    :return: graph, node labels, number of node classes.
+    """
+    import networkx as nx
+    edge_path = "../../data/{}.edgelist".format(name)
+    label_path = "../../data/{}.label".format(name)
+
+    if directed:
+        graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
+                                 edgetype=float, data=[('weight', float)])
+    else:
+        graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
+                                 edgetype=float, data=[('weight', float)])
+
+    label_dict, num_class = read_label(label_path)
+
+    return graph, label_dict, num_class
+
+
+
 def read_label(path):
     """
-    读取节点的标签信息, 返回字典。
+    Get graph nodes' label.
+    :param path: label file path.
+    :return: return dict-type, {node:label}, number of class.
     """
+    label_set = set()
     with open(path, mode="r", encoding="utf-8") as fin:
-        labels = dict()
+        label_dict = dict()
         while True:
             line = fin.readline()
             if not line:
                 break
             node, label = line.strip().split(" ")
-            labels[node] = label
+            label_dict[node] = label
+            label_set.add(label)
 
-    return labels
+    return label_dict, len(label_set)
 
 
 def write_label(data_path):
@@ -83,6 +111,18 @@ def partition_dict(vertices, workers):
     return part_list
 
 
+def compute_cheb_coeff_basis(scale, order):
+    xx = np.array([np.cos((2 * i - 1) * 1.0 / (2 * order) * math.pi)
+                   for i in range(1, order + 1)])
+    basis = [np.ones((1, order)), np.array(xx)]
+    for k in range(order + 1 - 2):
+        basis.append(2 * np.multiply(xx, basis[-1]) - basis[-2])
+    basis = np.vstack(basis)
+    f = np.exp(-scale * (xx + 1))
+    products = np.einsum("j,ij->ij", f, basis)
+    coeffs = 2.0 / order * products.sum(1)
+    coeffs[0] = coeffs[0] / 2
+    return list(coeffs)
 
 
 def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
@@ -99,8 +139,8 @@ def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
         based on its 4-nearest neighbors in the training set as determined by the embedding space.
         The reported score is then the average accuracy and F1-score over 25 trials.
     """
-    model = TSNE(n_components=2, random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
-    embeddings = model.fit_transform(embeddings)
+    #model = TSNE(n_components=2, random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
+    #embeddings = model.fit_transform(embeddings)
     clusters = AgglomerativeClustering(n_clusters=class_num, linkage='single').fit_predict(embeddings)
     h, c, v = metrics.homogeneity_completeness_v_measure(labels, clusters)
     s = metrics.silhouette_score(embeddings, clusters)

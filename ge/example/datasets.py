@@ -2,7 +2,7 @@
 #　数据集的一些固定信息
 
 edgelist = {"bell": "G:\pyworkspace\graph-embedding\data\\bell.edgelist",
-            "bell2": "G:\pyworkspace\graph-embedding\data\\bell2.edgelist",
+            "bell2": "G:\pyworkspace\graph-embedding\data\\bell.edgelist",
             "subway-weighted": "../../data/subway-weighted.edgelist",
             "subway": "../../data/subway.edgelist",
             "mkarate": "../../data/mkarate.edgelist",

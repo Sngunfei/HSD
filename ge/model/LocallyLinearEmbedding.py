@@ -59,21 +59,20 @@ class LocallyLinearEmbedding:
 if __name__ == '__main__':
 
     from ge.utils.visualize import plot_embeddings, plot_subway_embedding
-    from ge.utils.util import read_label, cluster_evaluate
+    from ge.utils.util import cluster_evaluate, dataloader
 
-    graph = nx.read_edgelist(path="../../similarity/subway_10_L1.csv", create_using=nx.Graph, edgetype=float, data=[('weight', float)])
-    labels = read_label(path='../../data/subway.label')
-
+    graph, label_dict, n_class = dataloader("mkarate")
     model = LocallyLinearEmbedding(graph)
-    embeddings = model.create_embedding(32)
-    #embeddings = model.sklearn_lle(10, 32, 666)
-    nodes = model.nodes
-    embedd = []
-    L = []
-    for node in nodes:
-        embedd.append(embeddings[node])
-        L.append(labels[node])
-    embedd = np.array(embedd)
-    #cluster_evaluate(embedd, L, class_num=12, perplexity=5)
+    embeddings_dict = model.create_embedding(32)
+
+    embeddings = []
+    nodes = []
+    labels = []
+    for node, embedd in embeddings_dict.items():
+        embeddings.append(embedd)
+        nodes.append(node)
+        labels.append(label_dict[node])
+
+    cluster_evaluate(embeddings, labels, class_num=n_class, perplexity=5)
     #plot_embeddings(nodes, embedd, labels=labels, method="tsne", perplexity=5)
-    plot_subway_embedding(nodes, embedd, L, perplexity=10)
+    plot_subway_embedding(nodes, embeddings, label_dict, perplexity=10)
