@@ -18,16 +18,39 @@ def dataloader(name="", directed=False):
     label_path = "../../data/{}.label".format(name)
 
     if directed:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
+        graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
                                  edgetype=float, data=[('weight', float)])
     else:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
+        graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
                                  edgetype=float, data=[('weight', float)])
 
     label_dict, num_class = read_label(label_path)
 
     return graph, label_dict, num_class
 
+
+def evaluate_accuracy(embeddings=None, labels=None, random_state=42):
+    """
+    Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
+
+    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
+    :param labels: nodes' label for classification.
+    :param random_state: random seed.
+    :return: Accuracy score, float.
+    """
+    from sklearn.linear_model import LogisticRegressionCV
+    from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV
+    from sklearn.metrics import accuracy_score
+    #from sklearn.multiclass import OneVsRestClassifier
+
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2, random_state=random_state, shuffle=True)
+
+    lrc = LogisticRegressionCV(cv=10, penalty='l2', max_iter=500, verbose=0, multi_class='ovr')
+    lrc.fit(xtrain, ytrain)
+    preds = lrc.predict(xtest)
+    score = accuracy_score(preds, ytest)
+
+    print("logistic regression(ovr) accuracy score:{}.".format(score))
 
 
 def read_label(path):
