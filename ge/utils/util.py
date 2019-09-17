@@ -6,16 +6,25 @@ import numpy as np
 from sklearn.manifold import TSNE
 
 
-def dataloader(name="", directed=False):
+def dataloader(name="", directed=False, similarity=False, scale=None, metric=None):
     """
     Loda graph data by dataset name.
     :param name: dataset name, str
     :param directed: bool, if True, return directed graph.
+    :param similarity: similarity data or edgelist.
+    :param scale: i.e. head coefficient, int
+    :param metric: similarity metric, like L1 and L2, etc.
     :return: graph, node labels, number of node classes.
     """
     import networkx as nx
-    edge_path = "../../data/{}.edgelist".format(name)
+
     label_path = "../../data/{}.label".format(name)
+    if not similarity:
+        edge_path = "../../data/{}.edgelist".format(name)
+    else:
+        metric = str.lower(metric)
+        edge_path = "../../similarity/{}_{}_{}.csv".format(name, scale, metric)
+        directed = False # similarity can't be directed.
 
     if directed:
         graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
@@ -29,7 +38,8 @@ def dataloader(name="", directed=False):
     return graph, label_dict, num_class
 
 
-def evaluate_accuracy(embeddings=None, labels=None, random_state=42):
+
+def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
     """
     Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
 
@@ -39,18 +49,37 @@ def evaluate_accuracy(embeddings=None, labels=None, random_state=42):
     :return: Accuracy score, float.
     """
     from sklearn.linear_model import LogisticRegressionCV
-    from sklearn.model_selection import StratifiedKFold, train_test_split, GridSearchCV
-    from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import train_test_split, GridSearchCV
+    from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
     #from sklearn.multiclass import OneVsRestClassifier
 
-    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2, random_state=random_state, shuffle=True)
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+                                                    random_state=random_state, shuffle=True)
 
-    lrc = LogisticRegressionCV(cv=10, penalty='l2', max_iter=500, verbose=0, multi_class='ovr')
+    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
     score = accuracy_score(preds, ytest)
-
+    balanced_score = balanced_accuracy_score(ytest, preds)
+    reprot = classification_report(ytest, preds)
     print("logistic regression(ovr) accuracy score:{}.".format(score))
+    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_score))
+
+    print("classification report: ")
+    print(reprot)
+
+
+# todo
+def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
+    """
+    Evaluate embedding effect using support vector classifier. Mode = One vs Rest (OVR)
+
+    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
+    :param labels: nodes' label for classification.
+    :param random_state: random seed.
+    :return: Accuracy score, float.
+    """
+    raise NotImplementedError("The svc for node embedding classification is not implented yet.")
 
 
 def read_label(path):
@@ -181,6 +210,6 @@ if __name__ == '__main__':
     a = [1, 2, 3]
     c, d, e = a
     print(c, d, e)
-
+    np.linspace()
 
 

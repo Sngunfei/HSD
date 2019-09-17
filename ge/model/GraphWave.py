@@ -272,7 +272,7 @@ class GraphWave:
         return calc_distance(p, q, metric)
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="l1", weigth=None, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", weight=None, save_path=None):
         """
             计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
@@ -281,7 +281,7 @@ class GraphWave:
         :return: 相似度矩阵
         """
         nodes_layers = self.get_nodes_layers()
-
+        method = str.lower(method)
         similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
         for idx1 in tqdm(range(self.n_nodes)):
             for idx2 in tqdm(range(idx1, self.n_nodes)):
@@ -479,20 +479,21 @@ def laplacian(adj):
 
 
 if __name__ == "__main__":
+    from utils.util import dataloader
     from example import parser
     settings = parser.parameter_parser()
-    graph = nx.read_edgelist("../../data/mkarate.edgelist", create_using=nx.Graph, nodetype=str,
-                             edgetype=float, data=[('weight', float)])
+
+    dataset = "brazil"
+    scale = 20
+    metric = 'L1'
+
+    graph, _, _ = dataloader(dataset, directed=False)
     wave_machine = GraphWave(graph, settings)
     #wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
     #wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
-    approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
-    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(100))
-
-    diff = np.abs(approx_wavelet_coeffs - exact_wavelet_coeffs)
-    print(diff)
-    res = np.sum(np.sum(diff, 1))
-    print(res)
+    #approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
+    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
+    wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
 
 
 
