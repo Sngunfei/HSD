@@ -4,6 +4,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
 from sklearn.manifold import TSNE
+import networkx as nx
 
 
 def dataloader(name="", directed=False, similarity=False, scale=None, metric=None):
@@ -16,7 +17,6 @@ def dataloader(name="", directed=False, similarity=False, scale=None, metric=Non
     :param metric: similarity metric, like L1 and L2, etc.
     :return: graph, node labels, number of node classes.
     """
-    import networkx as nx
 
     label_path = "../../data/{}.label".format(name)
     if not similarity:
@@ -205,11 +205,57 @@ def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
     return h, c, v, s
 
 
+
+# todo
+"""
+对度数的研究。考虑1，2,3阶。最好能够很好的展示出来。
+"""
+def flight_data_analyze():
+    import matplotlib.pyplot as plt
+
+    flights = ['brazil', 'europe', 'usa']
+    graphs, label_dicts, n_classes = [], [], []
+    for name in flights:
+        graph, label_dict, n_class = dataloader(name=name)
+        graphs.append(graph)
+        label_dicts.append(label_dict)
+        n_classes.append(n_class)
+
+
+    def get_degree_info(graph, label_dict):
+        """
+        Get nodes degree information.
+        :return: dict{label: [degrees]}
+        """
+        class_degree = dict()
+        nodes = list(nx.nodes(graph))
+        for node in nodes:
+            label = label_dict[node]
+            degree = nx.degree(graph, node)
+            class_degree[label] = class_degree.get(label, []) + [degree]
+
+        return class_degree
+
+    color = ['r', 'g', 'b', 'y']
+    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    plt.figure()
+    for idx, data in enumerate(flights):
+        plt.subplot(221 + idx)
+        class_degree = get_degree_info(graphs[idx], label_dicts[idx])
+        i = 0
+        for label, degrees in class_degree.items():
+            x = list(range(len(degrees)))
+            avg_degree = np.mean(degrees)
+            plt.scatter(x, degrees, c=color[i], marker=markers[i])
+            plt.plot(x, [avg_degree] * len(x), c=color[i])
+            i += 1
+        plt.xlabel(data)
+        plt.ylabel("degree")
+    plt.show()
+
+
 if __name__ == '__main__':
     #write_label("G:\pyworkspace\graph-embedding\data\subway.edgelist")
-    a = [1, 2, 3]
-    c, d, e = a
-    print(c, d, e)
-    np.linspace()
-
+    flight_data_analyze()
 
