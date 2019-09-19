@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.manifold import TSNE
 import networkx as nx
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
 
 
 def dataloader(name="", directed=False, similarity=False, scale=None, metric=None):
@@ -19,7 +21,7 @@ def dataloader(name="", directed=False, similarity=False, scale=None, metric=Non
     :return: graph, node labels, number of node classes.
     """
 
-    label_path = "../../data/{}.label".format(name)
+    label_path = "../../data/{}_auto.label".format(name)
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
     else:
@@ -39,76 +41,33 @@ def dataloader(name="", directed=False, similarity=False, scale=None, metric=Non
     return graph, label_dict, num_class
 
 
-
-def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
-    """
-    Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
-
-    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
-    :param labels: nodes' label for classification.
-    :param random_state: random seed.
-    :return: Accuracy score, float.
-    """
-    from sklearn.linear_model import LogisticRegressionCV
-    from sklearn.model_selection import train_test_split, GridSearchCV
-    from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
-    #from sklearn.multiclass import OneVsRestClassifier
-
-    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
-                                                    random_state=random_state, shuffle=True)
-
-    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
-    lrc.fit(xtrain, ytrain)
-    preds = lrc.predict(xtest)
-    score = accuracy_score(preds, ytest)
-    balanced_score = balanced_accuracy_score(ytest, preds)
-    reprot = classification_report(ytest, preds)
-    print("logistic regression(ovr) accuracy score:{}.".format(score))
-    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_score))
-
-    print("classification report: ")
-    print(reprot)
-
-
-# todo
-def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
-    """
-    Evaluate embedding effect using support vector classifier. Mode = One vs Rest (OVR)
-
-    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
-    :param labels: nodes' label for classification.
-    :param random_state: random seed.
-    :return: Accuracy score, float.
-    """
-    raise NotImplementedError("The svc for node embedding classification is not implented yet.")
-
-
 def read_label(path):
     """
     Get graph nodes' label.
     :param path: label file path.
     :return: return dict-type, {node:label}, number of class.
     """
-    label_set = set()
-    with open(path, mode="r", encoding="utf-8") as fin:
-        label_dict = dict()
-        while True:
-            line = fin.readline()
-            if not line:
-                break
-            node, label = line.strip().split(" ")
-            label_dict[node] = label
-            label_set.add(label)
+    try:
+        label_set = set()
+        with open(path, mode="r", encoding="utf-8") as fin:
+            label_dict = dict()
+            while True:
+                line = fin.readline()
+                if not line:
+                    break
+                node, label = line.strip().split(" ")
+                label_dict[node] = label
+                label_set.add(label)
+        return label_dict, len(label_set)
 
-    return label_dict, len(label_set)
+    except FileNotFoundError:
+        print("Warning: Label file: {} not found.".format(path))
+        return None, 0
 
 
-def write_label(data_path):
-    import networkx as nx
+def write_subway_label(data_path):
     graph = nx.read_edgelist(path=data_path, create_using=nx.Graph, nodetype=str, edgetype=float, data=[('weight', float)])
-
     fout = open("G:\pyworkspace\graph-embedding\out\subway_label_2.txt", mode="w+", encoding="utf-8")
-
     nodes = list(nx.nodes(graph))
     rings = dict()
     for node1 in nodes:
@@ -132,7 +91,61 @@ def write_label(data_path):
     fout.close()
 
 
-def preprocess_nxgraph(graph):
+def write_label(name="", max_hop=5, hops_weight=None, percentiles=None):
+    """
+    给节点贴标签
+    :param name:
+    :param max_hop: 最多考虑多少层
+    :param hops_weight: 每层的权重
+    :param percentiles: 贴标签的百分位数
+    :return:
+    """
+    graph, _, _ = dataloader(name=name)
+    if not hops_weight:
+        hops_weight = np.array([1.0 / hop for hop in range(1, max_hop + 2)])
+    if not percentiles:
+        percentiles = np.array([20, 40, 60, 80], dtype=np.float)
+
+    idx2node, node2idx = build_node_idx_map(graph)
+    scores = np.zeros_like(idx2node, dtype=np.float)
+
+    for idx, node in enumerate(idx2node):
+        degrees = np.zeros(max_hop + 1)
+        queue = [node]
+        visited = [node]
+        hop = 0
+        while queue and hop <= max_hop:
+            n_cur_nodes = len(queue)
+            for _ in range(n_cur_nodes):
+                _node = queue.pop(0)
+                degrees[hop] += nx.degree(graph, _node)
+                next_hop_neighbors = list(nx.neighbors(graph, _node))
+                for _neighbor in next_hop_neighbors:
+                    if _neighbor not in visited:
+                        queue.append(_neighbor)
+                        visited.append(_neighbor)
+            hop += 1
+        score = np.dot(degrees, hops_weight)
+        scores[idx] = score
+    labels = np.zeros_like(scores)
+    percentiles_value = np.percentile(scores, percentiles)
+    print(percentiles_value)
+    n_class = len(percentiles)
+    labels[scores < percentiles_value[0]] = 0
+    labels[scores > percentiles_value[-1]] = n_class
+    for i in range(1, n_class):
+        idxs1 = scores >= percentiles_value[i-1]
+        idxs2 = scores < percentiles_value[i]
+        idxs = np.bitwise_and(idxs1, idxs2)
+        labels[idxs] = i
+    labels = labels.astype(np.int)
+    with open("../../data/{}_auto.label".format(name), mode='w+', encoding='utf8') as f:
+        for idx, node in enumerate(idx2node):
+            f.write("{} {}\n".format(node, labels[idx]))
+    return labels
+
+
+def build_node_idx_map(graph):
     """
     建立图节点与标号之间的映射关系，方便采样。
     :param graph:
@@ -178,7 +191,7 @@ def compute_cheb_coeff_basis(scale, order):
     return list(coeffs)
 
 
-def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
+def cluster_evaluate(embeddings=None, labels=None, class_num=None):
     """
         Unsupervised setting: We assess the ability of each method to embed close together nodes
         with the same ground-truth structural role. We use agglomerative clustering (with single linkage)
@@ -192,8 +205,6 @@ def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
         based on its 4-nearest neighbors in the training set as determined by the embedding space.
         The reported score is then the average accuracy and F1-score over 25 trials.
     """
-    #model = TSNE(n_components=2, random_state=42, n_iter=5000, perplexity=perplexity, init="pca")
-    #embeddings = model.fit_transform(embeddings)
     clusters = AgglomerativeClustering(n_clusters=class_num, linkage='single').fit_predict(embeddings)
     h, c, v = metrics.homogeneity_completeness_v_measure(labels, clusters)
     s = metrics.silhouette_score(embeddings, clusters)
@@ -206,79 +217,64 @@ def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
     return h, c, v, s
 
 
+def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
+    """
+    Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
 
-# todo
-"""
-对度数的研究。考虑1，2,3阶。最好能够很好的展示出来。
-"""
-def flight_data_analyze():
+    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
+    :param labels: nodes' label for classification.
+    :param random_state: random seed.
+    :return: Accuracy score, float.
+    """
+    from sklearn.linear_model import LogisticRegressionCV
+    #from sklearn.multiclass import OneVsRestClassifier
 
-    flights = ['brazil', 'europe', 'usa']
-    graphs, label_dicts, n_classes = [], [], []
-    for name in flights:
-        graph, label_dict, n_class = dataloader(name=name)
-        graphs.append(graph)
-        label_dicts.append(label_dict)
-        n_classes.append(n_class)
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+                                                    random_state=random_state, shuffle=True)
 
+    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
+    lrc.fit(xtrain, ytrain)
+    preds = lrc.predict(xtest)
+    score = accuracy_score(preds, ytest)
+    balanced_score = balanced_accuracy_score(ytest, preds)
+    report = classification_report(ytest, preds)
+    print("logistic regression(ovr) accuracy score:{}.".format(score))
+    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_score))
 
-    def get_degree_info(graph, label_dict):
-        """
-        Get nodes degree information.
-        :return: dict{label: [degrees]}
-        """
-        class_degree = dict()
-        nodes = list(nx.nodes(graph))
-        for node in nodes:
-            label = label_dict[node]
-            degree = nx.degree(graph, node)
-            class_degree[label] = class_degree.get(label, []) + [degree]
-
-        return class_degree
-
-    color = ['r', 'g', 'b', 'y']
-    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
-
-    plt.figure()
-    for idx, data in enumerate(flights):
-        plt.subplot(221 + idx)
-        class_degree = get_degree_info(graphs[idx], label_dicts[idx])
-        i = 0
-        for label, degrees in class_degree.items():
-            x = list(range(len(degrees)))
-            avg_degree = np.mean(degrees)
-            plt.scatter(x, degrees, c=color[i], marker=markers[i])
-            plt.plot(x, [avg_degree] * len(x), c=color[i])
-            i += 1
-        plt.xlabel(data)
-        plt.ylabel("degree")
-    #plt.show()
-    plt.savefig("../../image/test.png")
+    print("classification report: ")
+    print(report)
 
 
-def subway_data_analyze():
-    graph, label_dict, _ = dataloader("subway")
-    class_degree = dict()
-    for node, label in label_dict.items():
-        degree = nx.degree(graph, node)
-        class_degree[label] = class_degree.get(label, []) + [degree]
-    color = ['r', 'g', 'b', 'y', 'c', 'm', 'k', 'b', 'b', 'b']
-    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
+    """
+    Evaluate embedding effect using support vector classifier. Mode = One vs Rest (OVR)
 
-    plt.figure()
-    i = 1
-    for label, degrees in class_degree.items():
-        x = list(range(len(degrees)))
-        avg_degree = np.mean(degrees)
-        plt.scatter(x, degrees, c=color[i], marker=markers[i])
-        plt.plot(x, [avg_degree] * len(x), c=color[i])
-        i += 1
-    plt.xlabel("subway")
-    plt.ylabel("degree")
-    plt.show()
-    plt.savefig("../../image/subway_degree.png")
+    :param embeddings: learned representation vectors. shape=(n_samples, n_dim)
+    :param labels: nodes' label for classification.
+    :param random_state: random seed.
+    :return: Accuracy score, float.
+    """
+    from sklearn import svm
+    from sklearn.multiclass import OneVsRestClassifier as OVRC
+
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+                                                    random_state=random_state, shuffle=True)
+
+    #model = OVRC(estimator=svm.SVC(C=10.0), n_jobs=-1)
+    model = svm.SVC(decision_function_shape="ovr")
+    model.fit(xtrain, ytrain)
+    print(model.decision_function(np.reshape(xtest[0], newshape=(1, -1))))
+    preds = model.predict(xtest)
+    score = accuracy_score(ytest, preds)
+    balanced_score = balanced_accuracy_score(ytest, preds)
+    report = classification_report(ytest, preds)
+
+    print("SVC(ovr) accuracy score:{}.".format(score))
+    print("SVC(ovr) balanced accuracy score:{}.".format(balanced_score))
+    print("classification report: ")
+    print(report)
 
 
 if __name__ == '__main__':
     #write_label("G:\pyworkspace\graph-embedding\data\subway.edgelist")
-    subway_data_analyze()
+    write_label(name="usa")

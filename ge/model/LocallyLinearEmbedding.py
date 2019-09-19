@@ -59,10 +59,10 @@ class LocallyLinearEmbedding:
 if __name__ == '__main__':
 
     from ge.utils.visualize import plot_embeddings, plot_subway_embedding
-    from ge.utils.util import cluster_evaluate, dataloader, evaluate_LR_accuracy
+    from ge.utils.util import cluster_evaluate, dataloader, evaluate_LR_accuracy, evaluate_SVC_accuracy
 
-    dataset = 'europe'
-    scale = 20
+    dataset = 'brazil'
+    scale = 10
     metric = 'L1'
 
     graph, label_dict, n_class = dataloader(name=dataset, similarity=True, scale=scale, metric=metric)
@@ -77,6 +77,7 @@ if __name__ == '__main__':
         nodes.append(node)
         labels.append(label_dict[node])
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_SVC_accuracy(embeddings, labels, random_state=42)
     #cluster_evaluate(embeddings, labels, class_num=n_class, perplexity=5)
     #plot_embeddings(nodes, embedd, labels=labels, method="tsne", perplexity=5)
-    plot_subway_embedding(nodes, embeddings, labels, perplexity=5)
+    #plot_subway_embedding(nodes, embeddings, labels, perplexity=5)
