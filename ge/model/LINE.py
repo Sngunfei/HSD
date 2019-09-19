@@ -53,7 +53,7 @@ class _LINE(object):
         inv_edges = []
         for edge in edges:
             u, v = edge[0], edge[1]
-            inv_edges.append((v, u, {'weight': graph[u][v]['weight']}))
+            inv_edges.append((v, u, {'weight': self.graph[u][v]['weight']}))
         self.graph.add_edges_from(inv_edges)
 
 

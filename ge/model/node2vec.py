@@ -42,7 +42,7 @@ class Node2Vec:
         inv_edges = []
         for edge in edges:
             u, v = edge[0], edge[1]
-            inv_edges.append((v, u, {'weight': graph[u][v]['weight']}))
+            inv_edges.append((v, u))
         self.graph.add_edges_from(inv_edges)
 
 
@@ -87,13 +87,13 @@ class Node2Vec:
 
 
 if __name__ == '__main__':
-    from utils.util import dataloader, evaluate_accuracy, cluster_evaluate
+    from utils.util import dataloader, evaluate_LR_accuracy, cluster_evaluate, evaluate_SVC_accuracy
     from utils.visualize import plot_embeddings
 
-    graph, label_dict, n_class = dataloader("subway", directed=True)
+    graph, label_dict, n_class = dataloader("brazil", directed=True)
 
-    model = Node2Vec(graph, walk_length=15, num_walks=20, p=1.0, q=2.0, workers=1)
-    model.train(window_size=10, iter=500)
+    model = Node2Vec(graph, walk_length=15, num_walks=20, p=0.8, q=2.0, workers=1)
+    model.train(window_size=15, iter=1000)
     embeddings_dict = model.get_embeddings()
     nodes = []
     embeddings = []
@@ -103,8 +103,9 @@ if __name__ == '__main__':
         embeddings.append(embedding)
         labels.append(label_dict[node])
 
-    evaluate_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=3)
+    evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_SVC_accuracy(embeddings, labels, random_state=42)
+    #plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=3)
 
 
 

@@ -10,7 +10,7 @@ import networkx as nx
 from tqdm import tqdm
 import pygsp
 
-from ge.utils.util import compute_cheb_coeff_basis, preprocess_nxgraph
+from ge.utils.util import compute_cheb_coeff_basis, build_node_idx_map
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
@@ -29,7 +29,7 @@ class GraphWave:
         #self.L = nx.normalized_laplacian_matrix(self.graph) # 正则拉普拉斯矩阵
         self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
-        _, self.node2idx = preprocess_nxgraph(self.graph)
+        _, self.node2idx = build_node_idx_map(self.graph)
         """
         self.G = pygsp.graphs.Graph(self.L)
         self.G.compute_fourier_basis()
@@ -148,12 +148,12 @@ class GraphWave:
             heat_coefficient = self.settings.heat_coefficient
 
         logging.info("Start calculate single scale={} embedding， mode={}".format(heat_coefficient, mode))
-        self.embeddings = []
+        self.embeddings = {}
         for node_idx in tqdm(range(self.n_nodes)):
             node_wave_coeff = self._calc_node_coefficients(node_idx, heat_coefficient)
             node_embedding = self._calc_embedding(node_wave_coeff, mode)
-            self.embeddings.append(node_embedding)
-        return np.array(self.embeddings)
+            self.embeddings[self.nodes[node_idx]] = node_embedding
+        return self.embeddings
 
 
     def _cal_embeddings_distance(self, heat_coefficient=None, mode="cha", sample_points=None):
@@ -272,7 +272,7 @@ class GraphWave:
             while queue and hop < max_hop:
                 cur_layer_nodes = len(queue)
                 for _ in range(cur_layer_nodes):
-                    _node = queue.pop()
+                    _node = queue.pop(0)
                     rings[hop].append(self.node2idx[_node])
                     next_hop_neibors = list(nx.neighbors(graph, _node))
                     for _neibor in next_hop_neibors:
@@ -514,21 +514,31 @@ def laplacian(adj):
 
 
 if __name__ == "__main__":
-    from utils.util import dataloader
+    from utils.util import dataloader, evaluate_SVC_accuracy, evaluate_LR_accuracy
     from example import parser
     settings = parser.parameter_parser()
 
     dataset = "europe"
-    scale = 20
+    scale = 15
     metric = 'L1'
 
-    graph, _, _ = dataloader(dataset, directed=False)
+    graph, label_dict, n_class = dataloader(dataset, directed=False)
     wave_machine = GraphWave(graph, settings)
     #wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
     #wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
     #approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
-    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
-    wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
+    #exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
+    #wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
+    embeddings_dict = wave_machine.single_scale_embedding(scale)
+    embeddings = []
+    nodes = []
+    labels = []
+    for node, embedd in embeddings_dict.items():
+        embeddings.append(embedd)
+        nodes.append(node)
+        labels.append(label_dict[node])
+    evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_SVC_accuracy(embeddings, labels, random_state=42)
 
 
 

@@ -16,6 +16,8 @@ plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
+from ge.utils.util import dataloader
+
 
 def get_node_color(node_community):
     cnames = [item[0] for item in matplotlib.colors.cnames.iteritems()]
@@ -192,10 +194,78 @@ def effectscatter_splitline() -> EffectScatter:
     return c
 
 
+# todo
+"""
+对度数的研究。考虑1，2,3阶。最好能够很好的展示出来。
+"""
+def flight_data_analyze(flights=None):
+
+    if not flights:
+        flights = ['brazil', 'europe', 'usa']
+    graphs, label_dicts, n_classes = [], [], []
+    for name in flights:
+        graph, label_dict, n_class = dataloader(name=name)
+        graphs.append(graph)
+        label_dicts.append(label_dict)
+        n_classes.append(n_class)
+
+
+    def get_degree_info(graph, label_dict):
+        """
+        Get nodes degree information.
+        :return: dict{label: [degrees]}
+        """
+        class_degree = dict()
+        nodes = list(nx.nodes(graph))
+        for node in nodes:
+            label = label_dict[node]
+            degree = nx.degree(graph, node)
+            class_degree[label] = class_degree.get(label, []) + [degree]
+
+        return class_degree
+
+    color = ['r', 'g', 'b', 'y', 'm', 'k']
+    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    plt.figure()
+    for idx, data in enumerate(flights):
+        plt.subplot(221 + idx)
+        class_degree = get_degree_info(graphs[idx], label_dicts[idx])
+        i = 0
+        for label, degrees in class_degree.items():
+            x = list(range(len(degrees)))
+            avg_degree = np.mean(degrees)
+            plt.scatter(x, degrees, c=color[i], marker=markers[i])
+            plt.plot(x, [avg_degree] * len(x), c=color[i])
+            i += 1
+        plt.xlabel(data)
+        plt.ylabel("degree")
+    #plt.show()
+    plt.savefig("../../image/flight.png")
+
+
+def subway_data_analyze():
+    graph, label_dict, _ = dataloader("subway")
+    class_degree = dict()
+    for node, label in label_dict.items():
+        degree = nx.degree(graph, node)
+        class_degree[label] = class_degree.get(label, []) + [degree]
+    color = ['r', 'g', 'b', 'y', 'c', 'm', 'k', 'b', 'b', 'b']
+    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    plt.figure()
+    i = 1
+    for label, degrees in class_degree.items():
+        x = list(range(len(degrees)))
+        avg_degree = np.mean(degrees)
+        plt.scatter(x, degrees, c=color[i], marker=markers[i])
+        plt.plot(x, [avg_degree] * len(x), c=color[i])
+        i += 1
+    plt.xlabel("subway")
+    plt.ylabel("degree")
+    plt.show()
+    plt.savefig("../../image/subway_degree.png")
+
 
 if __name__ == '__main__':
-    a = [1, 2, 3]
-    b = list(a)
-    b[1] = 555
-    print(a)
-    print(b)
+    flight_data_analyze(['brazil'])

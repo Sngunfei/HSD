@@ -10,7 +10,7 @@ from fastdtw import fastdtw
 from gensim.models import Word2Vec
 from joblib import Parallel, delayed
 
-from ge.utils.util import preprocess_nxgraph, partition_dict
+from ge.utils.util import build_node_idx_map, partition_dict
 from ge.utils.walker import BiasedWalker
 from ge.utils.alias_sample import create_alias_table, alias_sample
 
@@ -21,7 +21,7 @@ class Struc2Vec:
                  temp_path='./temp_struc2vec/', reuse=False):
 
         self.graph = graph
-        self.idx2node, self.node2idx = preprocess_nxgraph(graph)
+        self.idx2node, self.node2idx = build_node_idx_map(graph)
         self.idx = list(range(len(self.idx2node)))
 
         self.opt1_reduce_len = opt1_reduce_len
@@ -98,8 +98,8 @@ class Struc2Vec:
         sentences = self.sentences
 
         print("Learning representation...")
-        model = Word2Vec(sentences, size=embed_size, window=window_size, min_count=0, hs=1, sg=1, workers=workers,
-                         iter=iter)
+        model = Word2Vec(sentences, size=embed_size, window=window_size, min_count=0,
+                         hs=1, sg=1, workers=workers, iter=iter)
         print("Learning representation done!")
         self.w2v_model = model
 
@@ -426,12 +426,12 @@ def compute_dtw_dist(part_list, degreeList, dist_func):
 
 
 if __name__ == '__main__':
-    from utils.util import dataloader, cluster_evaluate, evaluate_LR_accuracy
+    from utils.util import dataloader, cluster_evaluate, evaluate_LR_accuracy, evaluate_SVC_accuracy
     from utils.visualize import plot_embeddings, plot_subway_embedding
 
-    graph, label_dict, n_class = dataloader(name="europe", directed=False)
-    model = Struc2Vec(graph, walk_length=20, num_walks=15)
-    model.train(embed_size=32, window_size=15)
+    graph, label_dict, n_class = dataloader(name="usa", directed=False)
+    model = Struc2Vec(graph, walk_length=15, num_walks=10, stay_prob=0.3)
+    model.train(embed_size=32, window_size=10)
     embeddings_dict = model.get_embeddings()
 
     nodes = []
@@ -443,6 +443,7 @@ if __name__ == '__main__':
         labels.append(label_dict[node])
 
     evaluate_LR_accuracy(embeddings, labels)
-    #cluster_evaluate(embeddings, labels, class_num=n_class, perplexity=10)
+    evaluate_SVC_accuracy(embeddings, labels)
+    #cluster_evaluate(embeddings, labels, class_num=n_class)
     #plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=5)
-    plot_subway_embedding(nodes, embeddings, labels, perplexity=20)
+    #plot_subway_embedding(nodes, embeddings, labels, perplexity=20)
