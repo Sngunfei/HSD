@@ -10,7 +10,7 @@ import networkx as nx
 from tqdm import tqdm
 import pygsp
 
-from ge.utils.util import compute_cheb_coeff_basis
+from ge.utils.util import compute_cheb_coeff_basis, preprocess_nxgraph
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
@@ -29,6 +29,7 @@ class GraphWave:
         #self.L = nx.normalized_laplacian_matrix(self.graph) # 正则拉普拉斯矩阵
         self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
+        _, self.node2idx = preprocess_nxgraph(self.graph)
         """
         self.G = pygsp.graphs.Graph(self.L)
         self.G.compute_fourier_basis()
@@ -203,19 +204,21 @@ class GraphWave:
         :param scale: 尺度参数，即heat coefficient, float
         :return: 小波系数矩阵，shape=(n, n), ndarray
         """
+        print("Start calculate wavelet coefficients.\n")
         coeff_mat = []
         for node_idx in tqdm(range(self.n_nodes)):
             coeff = self._calc_node_coefficients(node_idx, scale)
             coeff_mat.append(coeff)
+        print("calculate wavelet coefficients done. \n")
         return np.array(coeff_mat, dtype=np.float32)
 
 
     def dist_coeff_analyse(self, scale):
         """
-            分析小波系数和节点间距离的关系，求最短路径，然后取小波系数均值，直观认为是负相关，距离越远，系数越小。
+        分析小波系数和节点间距离的关系，求最短路径，然后取小波系数均值，直观认为是负相关，距离越远，系数越小。
         但是最短路径只能影响系数大小，不能决定。因为热扩散的路径在全图可以认为有无数条（可以循环扩散），两点间的
         小波系数虽然是刻画这两个节点间的结构特征，但还是会受周围节点的影响。
-            只取最短路径进行研究。该函数只是提供一个统计意义上的规律，某些距离较远的节点上的系数是可以比近距离的
+        只取最短路径进行研究。该函数只是提供一个统计意义上的规律，某些距离较远的节点上的系数是可以比近距离的
         系数要大，这是因为某些地方的结构比较复杂，有些比较简单。
         :param scale: 尺度参数，即热扩散系数。
         :return: dict，key = distance，value = [wavelet coefficient mean, variance]
@@ -237,7 +240,7 @@ class GraphWave:
 
     def get_nodes_layers(self):
         """
-            根据节点间的最短路径，将节点局部邻域进行层次划分，以节点为中心的嵌套环状结构，其他节点分布在对应的环上。
+        根据节点间的最短路径，将节点局部邻域进行层次划分，以节点为中心的嵌套环状结构，其他节点分布在对应的环上。
         :return: dict(dict()), 嵌套字典结构，第一册key为节点，第二层key为距离。
         """
         res = dict()
@@ -248,6 +251,37 @@ class GraphWave:
                 rings[shortest_path_length].append(idx2)
             res[idx1] = rings
 
+        return res
+
+
+    def get_nodes_layers_bfs(self, max_hop=5):
+        """
+        根据节点间的最短路径，将节点局部邻域进行层次划分，以节点为中心的嵌套环状结构，其他节点分布在对应的环上。
+        :return: dict(dict()), 嵌套字典结构，第一册key为节点，第二层key为距离。
+        """
+        print("Start compute node layers. \n")
+        res = dict()
+        for idx in tqdm(range(self.n_nodes)):
+            rings = defaultdict(list)
+            origin = self.nodes[idx]
+            visited = [origin]
+            neibors = nx.neighbors(self.graph, origin)
+            queue = list(neibors)
+            visited.extend(queue)
+            hop = 1
+            while queue and hop < max_hop:
+                cur_layer_nodes = len(queue)
+                for _ in range(cur_layer_nodes):
+                    _node = queue.pop()
+                    rings[hop].append(self.node2idx[_node])
+                    next_hop_neibors = list(nx.neighbors(graph, _node))
+                    for _neibor in next_hop_neibors:
+                        if _neibor not in visited:
+                            queue.append(_neibor)
+                            visited.append(_neibor)
+                hop += 1
+            res[idx] = rings
+        print("Compute node layers done. \n")
         return res
 
 
@@ -274,13 +308,14 @@ class GraphWave:
 
     def calc_wavelet_similarity(self, coeff_mat, method="l1", weight=None, save_path=None):
         """
-            计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
+        计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
         :param method: 相似性衡量标准
         :param save_path: 将计算得到的相似度以csv文件保存
         :return: 相似度矩阵
         """
-        nodes_layers = self.get_nodes_layers()
+        #nodes_layers = self.get_nodes_layers()
+        nodes_layers = self.get_nodes_layers_bfs(5)
         method = str.lower(method)
         similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
         for idx1 in tqdm(range(self.n_nodes)):
@@ -483,7 +518,7 @@ if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
 
-    dataset = "brazil"
+    dataset = "europe"
     scale = 20
     metric = 'L1'
 

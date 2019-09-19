@@ -5,6 +5,7 @@ from sklearn import metrics
 import numpy as np
 from sklearn.manifold import TSNE
 import networkx as nx
+import matplotlib.pyplot as plt
 
 
 def dataloader(name="", directed=False, similarity=False, scale=None, metric=None):
@@ -211,7 +212,6 @@ def cluster_evaluate(embeddings, labels, class_num=2, perplexity=5):
 对度数的研究。考虑1，2,3阶。最好能够很好的展示出来。
 """
 def flight_data_analyze():
-    import matplotlib.pyplot as plt
 
     flights = ['brazil', 'europe', 'usa']
     graphs, label_dicts, n_classes = [], [], []
@@ -252,10 +252,33 @@ def flight_data_analyze():
             i += 1
         plt.xlabel(data)
         plt.ylabel("degree")
+    #plt.show()
+    plt.savefig("../../image/test.png")
+
+
+def subway_data_analyze():
+    graph, label_dict, _ = dataloader("subway")
+    class_degree = dict()
+    for node, label in label_dict.items():
+        degree = nx.degree(graph, node)
+        class_degree[label] = class_degree.get(label, []) + [degree]
+    color = ['r', 'g', 'b', 'y', 'c', 'm', 'k', 'b', 'b', 'b']
+    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    plt.figure()
+    i = 1
+    for label, degrees in class_degree.items():
+        x = list(range(len(degrees)))
+        avg_degree = np.mean(degrees)
+        plt.scatter(x, degrees, c=color[i], marker=markers[i])
+        plt.plot(x, [avg_degree] * len(x), c=color[i])
+        i += 1
+    plt.xlabel("subway")
+    plt.ylabel("degree")
     plt.show()
+    plt.savefig("../../image/subway_degree.png")
 
 
 if __name__ == '__main__':
     #write_label("G:\pyworkspace\graph-embedding\data\subway.edgelist")
-    flight_data_analyze()
-
+    subway_data_analyze()

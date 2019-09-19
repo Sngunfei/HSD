@@ -61,13 +61,13 @@ if __name__ == '__main__':
     from ge.utils.visualize import plot_embeddings, plot_subway_embedding
     from ge.utils.util import cluster_evaluate, dataloader, evaluate_LR_accuracy
 
-    dataset = 'brazil'
+    dataset = 'europe'
     scale = 20
     metric = 'L1'
 
     graph, label_dict, n_class = dataloader(name=dataset, similarity=True, scale=scale, metric=metric)
     model = LocallyLinearEmbedding(graph)
-    embeddings_dict = model.create_embedding(10)
+    embeddings_dict = model.create_embedding(16)
 
     embeddings = []
     nodes = []

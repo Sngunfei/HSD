@@ -1,13 +1,17 @@
 # -*- coding:utf-8 -*-
 
+import sys
+import random
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
-import sys
-import matplotlib
-import random
+import pyecharts
+from pyecharts.charts import EffectScatter, Bar, Page
+from pyecharts import options as opts
+from pyecharts.faker import Collector, Faker
+from pyecharts.globals import SymbolType
+import matplotlib.pyplot as plt
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -17,6 +21,7 @@ def get_node_color(node_community):
     cnames = [item[0] for item in matplotlib.colors.cnames.iteritems()]
     node_colors = [cnames[c] for c in node_community]
     return node_colors
+
 
 def plot(x_s, y_s, fig_n, x_lab, y_lab, file_save_path, title, legendLabels=None, show=False):
     plt.rcParams.update({'font.size': 16, 'font.weight': 'bold'})
@@ -62,7 +67,6 @@ def plot_ts(ts_df, plot_title, eventDates, eventLabels=None, save_file_name=None
         fig.savefig(save_file_name, bbox_inches='tight')
     if show:
         fig.show()
-
 
 
 def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=42, perplexity=5):
@@ -145,30 +149,6 @@ def plot_subway_embedding(nodes=None, embeddings=None, labels=None, perplexity=5
     plt.show()
 
 
-def laplacian_norm(a):
-    np.set_printoptions(precision=5)
-    np.set_printoptions(suppress=True)
-    I = np.diag(np.array([1] * len(a)))
-    T = np.diag(np.diag(a) ** 0.5)
-    T_inv = np.diag(np.diag(a) ** -0.5)
-    L = np.dot(T_inv, np.dot(a, T_inv))
-    P = np.dot(T_inv, np.dot(I - L, T))
-    print(P)
-    w, v = np.linalg.eig(L)
-    w = -np.sort(-w)
-    order = -np.argsort(-w)
-    v = v[:, order]
-    print(w)
-    print(v)
-    print(a)
-    print(L)
-    w = np.diag(np.exp(-w))
-    print(w)
-    M = np.dot(v, np.dot(w, np.linalg.inv(v)))
-    print(np.sum(np.abs(M), 1))
-
-
-
 def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
     node_num, embedding_dimension = node_pos.shape
     if embedding_dimension > 2:
@@ -196,71 +176,26 @@ def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
                              alpha=0.8, font_size=12, labels=labels)
 
 
-def expVis(X, res_pre, m_summ, node_labels=None, di_graph=None):
-    print('\tGraph Visualization:')
-    if node_labels:
-        node_colors = plot_util.get_node_color(node_labels)
-    else:
-        node_colors = None
-    plot_embedding2D(X, node_colors=node_colors,
-                     di_graph=di_graph)
-    plt.savefig('%s_%s_vis.pdf' % (res_pre, m_summ), dpi=300,
-                format='pdf', bbox_inches='tight')
-    plt.figure()
 
 
+def effectscatter_splitline() -> EffectScatter:
+    c = (
+        EffectScatter()
+        .add_xaxis(Faker.choose())
+        .add_yaxis("", Faker.values())
+        .set_global_opts(
+            title_opts=opts.TitleOpts(title="EffectScatter-显示分割线"),
+            xaxis_opts=opts.AxisOpts(splitline_opts=opts.SplitLineOpts(is_show=True)),
+            yaxis_opts=opts.AxisOpts(splitline_opts=opts.SplitLineOpts(is_show=True)),
+        )
+    )
+    return c
 
-def f(a):
-    np.set_printoptions(precision=5)
-    np.set_printoptions(suppress=True)
-    w, v = np.linalg.eig(a)
-    print(w)
-    print(v)
-    print(np.sum(v, axis=0))
-    w = np.exp(-w)
-    sort_indices = np.argsort(-w)
-    w = -np.sort(-w)
-    w = np.diag(w)
-    print(w)
-    v = v[:, sort_indices]
-    print(v)
-    print(np.sum(v, axis=0))
-    print(np.sum(v, axis=1))
-    M = np.dot(v, np.dot(w, np.linalg.inv(v)))
-    print(M)
-    """
-    for i in range(1000):
-        z = np.dot(z, M)
-        print(z)
-    """
-    # 特征值0对应的特征向量是[1,1,1,1,...]，
+
 
 if __name__ == '__main__':
-    a = np.array([[2, -1, -1, 0, 0, 0, 0, 0],
-                  [-1, 3, 0, -1, -1, 0, 0, 0],
-                  [-1, 0, 2, 0, 0, -1, 0, 0],
-                  [0, -1, 0, 2, 0, 0, -1, 0],
-                  [0, -1, 0, 0, 1, 0, 0, 0],
-                  [0, 0, -1, 0, 0, 1, 0, 0],
-                  [0, 0, 0, -1, 0, 0, 2, -1],
-                  [0, 0, 0, 0, 0, 0, -1, 1]])
-    b = np.array([[2, -1, -1, 0],
-                  [-1, 2, 0, -1],
-                  [-1, 0, 1, 0],
-                  [0, -1, 0, 1]])
-
-    fin = open("G:\pyworkspace\graph-embedding\out\subway_dist_wasserstein.txt", mode="r", encoding="utf-8")
-    fout = open("G:\pyworkspace\graph-embedding\out\subway_r_wasserstein.txt", mode="w+", encoding="utf-8")
-
-    while True:
-        line = fin.readline()
-        if not line:
-            break
-        s, d, t = line.strip().split(" ")
-        t = 1.0 - float(t)
-        fout.write("{} {} {}\n".format(s, d, t))
-
-    fin.close()
-    fout.close()
-    #f(a)
-    #laplacian_norm(a)
+    a = [1, 2, 3]
+    b = list(a)
+    b[1] = 555
+    print(a)
+    print(b)
