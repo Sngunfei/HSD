@@ -178,23 +178,6 @@ def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
                              alpha=0.8, font_size=12, labels=labels)
 
 
-
-
-def effectscatter_splitline() -> EffectScatter:
-    c = (
-        EffectScatter()
-        .add_xaxis(Faker.choose())
-        .add_yaxis("", Faker.values())
-        .set_global_opts(
-            title_opts=opts.TitleOpts(title="EffectScatter-显示分割线"),
-            xaxis_opts=opts.AxisOpts(splitline_opts=opts.SplitLineOpts(is_show=True)),
-            yaxis_opts=opts.AxisOpts(splitline_opts=opts.SplitLineOpts(is_show=True)),
-        )
-    )
-    return c
-
-
-# todo
 """
 对度数的研究。考虑1，2,3阶。最好能够很好的展示出来。
 """
@@ -240,7 +223,7 @@ def flight_data_analyze(flights=None):
             i += 1
         plt.xlabel(data)
         plt.ylabel("degree")
-    #plt.show()
+    plt.show()
     plt.savefig("../../image/flight.png")
 
 
@@ -267,5 +250,19 @@ def subway_data_analyze():
     plt.savefig("../../image/subway_degree.png")
 
 
+def effectscatter_splitline() -> Bar:
+    c = (
+        Bar()
+            .add_xaxis(["Bell", "Karate", "Subway", "Brazil Flight", "Europe Flight", "USA Flight"])
+            .add_yaxis("LLE+HSE", [1, 0.93, 0.89, 0.81, 0.94, 0])
+            .add_yaxis("Node2vec", [0.86, 0.43, 0.54,  0.56, 0.54, 0.52])
+            .add_yaxis("Struc2vec", [1, 0.93, 0.61, 0.85, 0.94, 1])
+            .add_yaxis("GraphWave", [1, 0.86, 0.80, 0.19, 0.14, 0])
+            .set_global_opts(title_opts=opts.TitleOpts(title="LR Classification."))
+    )
+    return c
+
+
 if __name__ == '__main__':
-    flight_data_analyze(['brazil'])
+    #flight_data_analyze(['brazil'])
+    flight_data_analyze()

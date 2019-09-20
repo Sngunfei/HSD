@@ -90,10 +90,10 @@ if __name__ == '__main__':
     from utils.util import dataloader, evaluate_LR_accuracy, cluster_evaluate, evaluate_SVC_accuracy
     from utils.visualize import plot_embeddings
 
-    graph, label_dict, n_class = dataloader("brazil", directed=True)
+    graph, label_dict, n_class = dataloader("bell", directed=True)
 
-    model = Node2Vec(graph, walk_length=15, num_walks=20, p=0.8, q=2.0, workers=1)
-    model.train(window_size=15, iter=1000)
+    model = Node2Vec(graph, walk_length=19, num_walks=15, p=1, q=2.0, workers=1)
+    model.train(window_size=10, iter=1000)
     embeddings_dict = model.get_embeddings()
     nodes = []
     embeddings = []

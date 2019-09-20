@@ -61,7 +61,7 @@ if __name__ == '__main__':
     from ge.utils.visualize import plot_embeddings, plot_subway_embedding
     from ge.utils.util import cluster_evaluate, dataloader, evaluate_LR_accuracy, evaluate_SVC_accuracy
 
-    dataset = 'brazil'
+    dataset = 'subway'
     scale = 10
     metric = 'L1'
 
