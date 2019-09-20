@@ -518,8 +518,8 @@ if __name__ == "__main__":
     from example import parser
     settings = parser.parameter_parser()
 
-    dataset = "europe"
-    scale = 15
+    dataset = "subway"
+    scale = 10
     metric = 'L1'
 
     graph, label_dict, n_class = dataloader(dataset, directed=False)

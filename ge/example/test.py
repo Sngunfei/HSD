@@ -61,6 +61,16 @@ def graphwave(scale, dataset):
     plot_subway_embedding(wavelet_model.nodes, embeddings, labels=labels)
 
 
+
+# todo
+def nothing():
+    """
+    整合各种model
+    :return:
+    """
+    raise NotImplementedError("1")
+
+
 if __name__ == '__main__':
     np.set_printoptions(suppress=True, precision=5)
     graphwave(20, dataset="subway")
