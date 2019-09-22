@@ -11,15 +11,18 @@ from tqdm import tqdm
 import pygsp
 
 from ge.utils.util import compute_cheb_coeff_basis, build_node_idx_map
+from .EmbeddingMixin import EmbeddingMixin
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
 
-class GraphWave:
+class GraphWave(EmbeddingMixin):
 
     def __init__(self, graph, settings):
+        super().__init__()
+        self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."
         self.settings = settings
         self.graph = graph
         self.n_nodes = nx.number_of_nodes(graph)
@@ -40,9 +43,8 @@ class GraphWave:
         self.embeddings = None
 
 
-    def exact_embedding(self):
+    def train(self):
         pass
-
 
     """
     heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
@@ -76,7 +78,7 @@ class GraphWave:
         #    self.embeddings[self.nodes[node_idx]] = self._calc_embedding(wavelet_coefficietns, mode)
             wavelet_coeffs.append(coeff)
 
-        return wavelet_coeffs
+        return np.asarray(wavelet_coeffs)
 
 
     def _check_node(self, node_idx):
@@ -513,13 +515,26 @@ def laplacian(adj):
     return lap
 
 
+def t():
+    from utils.util import dataloader, evaluate_SVC_accuracy, evaluate_LR_accuracy
+    from example import parser
+    settings = parser.parameter_parser()
+
+    dataset = "usa"
+
+    graph, label_dict, n_class = dataloader(dataset, directed=False)
+    wave_machine = GraphWave(graph, settings)
+    res = wave_machine.calc_wavelet_coeff_chebyshev(10, 20)
+    print(res[0, :])
+
+
 if __name__ == "__main__":
     from utils.util import dataloader, evaluate_SVC_accuracy, evaluate_LR_accuracy
     from example import parser
     settings = parser.parameter_parser()
 
-    dataset = "subway"
-    scale = 10
+    dataset = "bell2"
+    scale = 5
     metric = 'L1'
 
     graph, label_dict, n_class = dataloader(dataset, directed=False)
@@ -527,8 +542,9 @@ if __name__ == "__main__":
     #wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
     #wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
     #approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
-    #exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
-    #wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
+    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
+    wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
+    """
     embeddings_dict = wave_machine.single_scale_embedding(scale)
     embeddings = []
     nodes = []
@@ -539,6 +555,7 @@ if __name__ == "__main__":
         labels.append(label_dict[node])
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
     evaluate_SVC_accuracy(embeddings, labels, random_state=42)
+    """
 
 
 

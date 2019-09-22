@@ -21,7 +21,7 @@ def dataloader(name="", directed=False, similarity=False, scale=None, metric=Non
     :return: graph, node labels, number of node classes.
     """
 
-    label_path = "../../data/{}_auto.label".format(name)
+    label_path = "../../data/{}.label".format(name)
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
     else:
