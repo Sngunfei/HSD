@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..utils.alias_sample import create_alias_table, alias_sample
+from ge.utils.alias_sample import create_alias_table, alias_sample
 
 
 class _LINE(object):

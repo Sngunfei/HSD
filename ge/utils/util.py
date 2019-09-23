@@ -3,11 +3,10 @@
 from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
-from sklearn.manifold import TSNE
 import networkx as nx
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
+from tqdm import tqdm
 
 
 def dataloader(name="", directed=False, similarity=False, scale=None, metric=None):
@@ -21,7 +20,7 @@ def dataloader(name="", directed=False, similarity=False, scale=None, metric=Non
     :return: graph, node labels, number of node classes.
     """
 
-    label_path = "../../data/{}.label".format(name)
+    label_path = "../../data/{}_auto.label".format(name)
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
     else:
@@ -91,7 +90,7 @@ def write_subway_label(data_path):
     fout.close()
 
 
-def write_label(name="", max_hop=5, hops_weight=None, percentiles=None):
+def write_label(name="", max_hop=10, hops_weight=None, percentiles=None):
     """
     给节点贴标签
     :param name:
@@ -109,7 +108,7 @@ def write_label(name="", max_hop=5, hops_weight=None, percentiles=None):
     idx2node, node2idx = build_node_idx_map(graph)
     scores = np.zeros_like(idx2node, dtype=np.float)
 
-    for idx, node in enumerate(idx2node):
+    for idx, node in tqdm(enumerate(idx2node)):
         degrees = np.zeros(max_hop + 1)
         queue = [node]
         visited = [node]
@@ -255,15 +254,12 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     :return: Accuracy score, float.
     """
     from sklearn import svm
-    from sklearn.multiclass import OneVsRestClassifier as OVRC
 
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
                                                     random_state=random_state, shuffle=True)
 
-    #model = OVRC(estimator=svm.SVC(C=10.0), n_jobs=-1)
-    model = svm.SVC(decision_function_shape="ovr")
+    model = svm.SVC(decision_function_shape="ovr", C=0.5)
     model.fit(xtrain, ytrain)
-    print(model.decision_function(np.reshape(xtest[0], newshape=(1, -1))))
     preds = model.predict(xtest)
     score = accuracy_score(ytest, preds)
     balanced_score = balanced_accuracy_score(ytest, preds)
@@ -277,5 +273,4 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
 
 
 if __name__ == '__main__':
-    #write_label("G:\pyworkspace\graph-embedding\data\subway.edgelist")
-    pass
+    write_label(name="europe")

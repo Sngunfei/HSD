@@ -86,27 +86,5 @@ class Node2Vec:
 
 
 
-if __name__ == '__main__':
-    from utils.util import dataloader, evaluate_LR_accuracy, cluster_evaluate, evaluate_SVC_accuracy
-    from utils.visualize import plot_embeddings
-
-    graph, label_dict, n_class = dataloader("bell", directed=True)
-
-    model = Node2Vec(graph, walk_length=19, num_walks=15, p=1, q=2.0, workers=1)
-    model.train(window_size=10, iter=1000)
-    embeddings_dict = model.get_embeddings()
-    nodes = []
-    embeddings = []
-    labels = []
-    for node, embedding in embeddings_dict.items():
-        nodes.append(node)
-        embeddings.append(embedding)
-        labels.append(label_dict[node])
-
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    evaluate_SVC_accuracy(embeddings, labels, random_state=42)
-    #plot_embeddings(nodes, np.array(embeddings), labels, method='tsne', perplexity=3)
-
-
 
 
