@@ -20,11 +20,11 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 
 class GraphWave(EmbeddingMixin):
 
-    def __init__(self, graph, settings):
+    def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=10):
         super().__init__()
         self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."
-        self.settings = settings
         self.graph = graph
+        self.heat_coefficient = heat_coefficient
         self.n_nodes = nx.number_of_nodes(graph)
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
@@ -33,13 +33,7 @@ class GraphWave(EmbeddingMixin):
         self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
         _, self.node2idx = build_node_idx_map(self.graph)
-        """
-        self.G = pygsp.graphs.Graph(self.L)
-        self.G.compute_fourier_basis()
-        self.eigenvectors = self.G.U
-        self.eigenvalues = self.G.e / max(self.G.e)
-        """
-        self.sample_points = list(map(lambda x: x * self.settings.step_size, range(0, self.settings.sample_number)))
+        self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
 
 
@@ -137,54 +131,25 @@ class GraphWave(EmbeddingMixin):
         return np.array(embedding)
 
 
-    def single_scale_embedding(self, heat_coefficient=None, mode="cha"):
+    def single_scale_embedding(self, scale=None, mode="cha"):
         """
         在单一尺度下计算嵌入向量。
-        :param heat_coefficient: 热系数，即尺度，float类型，默认为热系数参数值，但仍可以临时指定。
+        :param scale: 热系数，即尺度，float类型，默认为热系数参数值，但仍可以临时指定。
         :param mode: characteristic function, moment generating function, moment
         :return: 该尺度下的所有节点对应的嵌入向量。
         """
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
-        if not heat_coefficient:
-            heat_coefficient = self.settings.heat_coefficient
+        if not scale:
+            scale = self.heat_coefficient
 
-        logging.info("Start calculate single scale={} embedding， mode={}".format(heat_coefficient, mode))
+        logging.info("Start calculate single scale={} embedding， mode={}".format(scale, mode))
         self.embeddings = {}
         for node_idx in tqdm(range(self.n_nodes)):
-            node_wave_coeff = self._calc_node_coefficients(node_idx, heat_coefficient)
+            node_wave_coeff = self._calc_node_coefficients(node_idx, scale)
             node_embedding = self._calc_embedding(node_wave_coeff, mode)
             self.embeddings[self.nodes[node_idx]] = node_embedding
         return self.embeddings
-
-
-    def _cal_embeddings_distance(self, heat_coefficient=None, mode="cha", sample_points=None):
-        """
-        在嵌入空间中计算各节点对应的embeddings之间的欧式距离，这也是wavelet文中提到的相似度衡量方法。
-        :param heat_coefficient: 热系数，即尺度，默认为model中的热系数，可临时指定。float
-        :param mode: 求嵌入向量时使用的函数, str
-        :param sample_points: 采样点，默认为model中的采样数组，可临时指定，array like。
-        :return: 返回各节点在嵌入空间中的欧式距离， ndarray, (n, n)
-        """
-        """
-        为了能够灵活的重复多次的距离计算过程，函数中可以指定不同的参数，每次都重新计算。
-        if self.embeddings is not None:
-            return self.embeddings
-        """
-        if not heat_coefficient:
-            heat_coefficient = self.settings.heat_coefficient
-        if not sample_points:
-            sample_points = self.sample_points
-
-        embeddings = self.single_scale_embedding(heat_coefficient, mode)
-        distance_matrix = np.empty(self.n_nodes, self.n_nodes)
-        for idx1 in range(self.n_nodes):
-            vector1 = embeddings[idx1]
-            for idx2 in range(idx1, self.n_nodes):
-                vector2 = embeddings[idx2]
-                l2 = np.sqrt(np.sum((vector1 - vector2) ** 2))
-                distance_matrix[idx1, idx2] = distance_matrix[idx2, idx1] = l2
-        return distance_matrix
 
 
     def multi_scale_embedding(self, scales, mode="cha"):
@@ -213,31 +178,6 @@ class GraphWave(EmbeddingMixin):
             coeff_mat.append(coeff)
         print("calculate wavelet coefficients done. \n")
         return np.array(coeff_mat, dtype=np.float32)
-
-
-    def dist_coeff_analyse(self, scale):
-        """
-        分析小波系数和节点间距离的关系，求最短路径，然后取小波系数均值，直观认为是负相关，距离越远，系数越小。
-        但是最短路径只能影响系数大小，不能决定。因为热扩散的路径在全图可以认为有无数条（可以循环扩散），两点间的
-        小波系数虽然是刻画这两个节点间的结构特征，但还是会受周围节点的影响。
-        只取最短路径进行研究。该函数只是提供一个统计意义上的规律，某些距离较远的节点上的系数是可以比近距离的
-        系数要大，这是因为某些地方的结构比较复杂，有些比较简单。
-        :param scale: 尺度参数，即热扩散系数。
-        :return: dict，key = distance，value = [wavelet coefficient mean, variance]
-        """
-        coeff_mat = self.cal_all_wavelet_coeffs(scale)
-        dist_coeff = dict()
-        for idx1 in range(self.n_nodes):
-            for idx2 in range(self.n_nodes):
-                shortest_path_length = nx.dijkstra_path_length(self.graph, self.nodes[idx1], self.nodes[idx2])
-                dist_coeff[shortest_path_length] = dist_coeff.get(shortest_path_length, []) + [coeff_mat[idx1][idx2]]
-        dist_coeff_info = dict()
-        for length, coeffs in dist_coeff.items():
-            mean = np.mean(coeffs)
-            var = np.var(coeffs)
-            dist_coeff_info[length] = [mean, var]
-
-        return dist_coeff_info
 
 
     def get_nodes_layers(self):
@@ -276,7 +216,7 @@ class GraphWave(EmbeddingMixin):
                 for _ in range(cur_layer_nodes):
                     _node = queue.pop(0)
                     rings[hop].append(self.node2idx[_node])
-                    next_hop_neibors = list(nx.neighbors(graph, _node))
+                    next_hop_neibors = list(nx.neighbors(self.graph, _node))
                     for _neibor in next_hop_neibors:
                         if _neibor not in visited:
                             queue.append(_neibor)
@@ -308,16 +248,17 @@ class GraphWave(EmbeddingMixin):
         return calc_distance(p, q, metric)
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="l1", weight=None, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=10, save_path=None):
         """
         计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
         :param method: 相似性衡量标准
+        :param layers: 广搜的最大层数
         :param save_path: 将计算得到的相似度以csv文件保存
         :return: 相似度矩阵
         """
         #nodes_layers = self.get_nodes_layers()
-        nodes_layers = self.get_nodes_layers_bfs(5)
+        nodes_layers = self.get_nodes_layers_bfs(layers)
         method = str.lower(method)
         similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
         for idx1 in tqdm(range(self.n_nodes)):
@@ -340,6 +281,7 @@ class GraphWave(EmbeddingMixin):
                 #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
                 #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
                 similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
+
         if save_path:
             """
             df = pd.DataFrame(data=similarity_mat, index=self.nodes, columns=self.nodes)
@@ -515,47 +457,6 @@ def laplacian(adj):
     return lap
 
 
-def t():
-    from utils.util import dataloader, evaluate_SVC_accuracy, evaluate_LR_accuracy
-    from example import parser
-    settings = parser.parameter_parser()
-
-    dataset = "usa"
-
-    graph, label_dict, n_class = dataloader(dataset, directed=False)
-    wave_machine = GraphWave(graph, settings)
-    res = wave_machine.calc_wavelet_coeff_chebyshev(10, 20)
-    print(res[0, :])
-
-
-if __name__ == "__main__":
-    from utils.util import dataloader, evaluate_SVC_accuracy, evaluate_LR_accuracy
-    from example import parser
-    settings = parser.parameter_parser()
-
-    dataset = "bell2"
-    scale = 5
-    metric = 'L1'
-
-    graph, label_dict, n_class = dataloader(dataset, directed=False)
-    wave_machine = GraphWave(graph, settings)
-    #wavelet_coeff = wave_machine.cal_all_wavelet_coeffs(10)
-    #wave_machine.calc_wavelet_similarity(wavelet_coeff, method='L1', save_path="../../similarity/subway_10_L1.csv")
-    #approx_wavelet_coeffs = np.asarray(wave_machine.calc_wavelet_coeff_chebyshev(100, 200), dtype=np.float)
-    exact_wavelet_coeffs = np.array(wave_machine.cal_all_wavelet_coeffs(scale))
-    wave_machine.calc_wavelet_similarity(exact_wavelet_coeffs, metric, save_path="../../similarity/{}_{}_{}.csv".format(dataset, scale, metric))
-    """
-    embeddings_dict = wave_machine.single_scale_embedding(scale)
-    embeddings = []
-    nodes = []
-    labels = []
-    for node, embedd in embeddings_dict.items():
-        embeddings.append(embedd)
-        nodes.append(node)
-        labels.append(label_dict[node])
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    evaluate_SVC_accuracy(embeddings, labels, random_state=42)
-    """
 
 
 

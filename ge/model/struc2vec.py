@@ -424,26 +424,3 @@ def compute_dtw_dist(part_list, degreeList, dist_func):
                 dtw_dist[v1, v2][layer] = dist
     return dtw_dist
 
-
-if __name__ == '__main__':
-    from utils.util import dataloader, cluster_evaluate, evaluate_LR_accuracy, evaluate_SVC_accuracy
-    from utils.visualize import plot_embeddings, plot_subway_embedding
-
-    graph, label_dict, n_class = dataloader(name="usa", directed=False)
-    model = Struc2Vec(graph, walk_length=15, num_walks=15, stay_prob=0.3)
-    model.train(embed_size=32, window_size=15)
-    embeddings_dict = model.get_embeddings()
-
-    nodes = []
-    embeddings = []
-    labels = []
-    for node, embedding in embeddings_dict.items():
-        nodes.append(node)
-        embeddings.append(embedding)
-        labels.append(label_dict[node])
-
-    evaluate_LR_accuracy(embeddings, labels)
-    evaluate_SVC_accuracy(embeddings, labels)
-    #cluster_evaluate(embeddings, labels, class_num=n_class)
-    plot_embeddings(nodes, embeddings, labels, method='tsne', perplexity=3)
-    #plot_subway_embedding(nodes, embeddings, labels, perplexity=3)

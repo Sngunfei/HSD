@@ -1,16 +1,14 @@
 # -*- coding:utf-8 -*-
 
-import sys
-import random
+
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import numpy as np
 import networkx as nx
-import pyecharts
-from pyecharts.charts import EffectScatter, Bar, Page
+
+from pyecharts.charts import  Bar
 from pyecharts import options as opts
-from pyecharts.faker import Collector, Faker
-from pyecharts.globals import SymbolType
+import matplotlib
 import matplotlib.pyplot as plt
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
@@ -82,6 +80,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
     :param perplexity:　困惑度，用于TSNE方法中。
     :return:
     """
+    matplotlib.use('TkAgg')
     if method not in ['pca', 'tsne']:
         raise NotImplementedError("The visualize method {} is not implemented.".format(method))
 
@@ -94,36 +93,38 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
         """
         model = TSNE(n_components=2,  random_state=random_state, n_iter=5000, perplexity=perplexity, init="pca")
-
+    embeddings = np.array(embeddings)
     node_pos = np.array(model.fit_transform(embeddings))
 
     # 没有标签
-    dic = dict()
-    for i in range(len(node_pos)):
-        x, y = node_pos[i, 0], node_pos[i, 1]
-        if not labels:
-            plt.scatter(x, y, s=88)
-        x = round(x, 2)
-        y = round(y, 2)
-        dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
-    for k, v in dic.items():
-        x, y = k.split(" ")
-        #x = max(float(x) - len(v) * 0.02,-2)
-        plt.text(float(x), float(y), " ".join(v))
+    if not labels:
+        dic = dict()
+        for i in range(len(node_pos)):
+            x, y = node_pos[i, 0], node_pos[i, 1]
+            if not labels:
+                plt.scatter(x, y, s=88)
+            x = round(x, 2)
+            y = round(y, 2)
+            dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
+        for k, v in dic.items():
+            x, y = k.split(" ")
+            #x = max(float(x) - len(v) * 0.02,-2)
+            plt.text(float(x), float(y), " ".join(v))
 
     if labels:
         # 带标签
-        markers = ['<', '8', 's', '*', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+        markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
         color_idx = {}
         for idx, node in enumerate(nodes):
             color_idx.setdefault(labels[idx], [])
             color_idx[labels[idx]].append(idx)
-
+        print(color_idx)
         for c, idx in color_idx.items():
             #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-            plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)%16])#, s=area[idx])
+            print(c, idx, markers[int(c)])
+            plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)])#, s=area[idx])
 
-    #plt.legend()
+    plt.legend()
     plt.show()
 
 
