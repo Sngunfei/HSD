@@ -243,6 +243,8 @@ def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
     print("classification report: ")
     print(report)
 
+    return score
+
 
 def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     """
@@ -269,6 +271,8 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     print("SVC(ovr) balanced accuracy score:{}.".format(balanced_score))
     print("classification report: ")
     print(report)
+
+    return score
 
 
 

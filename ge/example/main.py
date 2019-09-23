@@ -43,9 +43,9 @@ def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_pro
     return embeddings_dict
 
 
-def hse(name="", graph=None, scale=10, method='l1', dim=16):
+def hse(name="", graph=None, scale=10, method='l1', dim=16, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
-    if not os.path.exists(save_path):
+    if not (reuse and os.path.exists(save_path)):
         settings = parser.parameter_parser()
         wave_machine = GraphWave(graph, settings)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
@@ -59,8 +59,8 @@ def hse(name="", graph=None, scale=10, method='l1', dim=16):
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False)
-    #embedding_dict = hse(name=data, graph=graph, scale=20, method='l1', dim=32)
-    embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
+    embedding_dict = hse(name=data, graph=graph, scale=10, method='l1', dim=32)
+    #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph)
     nodes = []
@@ -76,6 +76,27 @@ def embedd(data):
     plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=5)
 
 
+def robustness(data, prob=0.3, cnt=10):
+    from ge.utils.robustness import random_remove_edges
+    graph, label_dict, n_class =dataloader(data, directed=False)
+    scores = []
+    for _ in range(cnt):
+        _graph = random_remove_edges(nx.Graph(graph), prob=prob)
+        embedding_dict = hse(name=data, graph=_graph, scale=10, method='l1', dim=32, reuse=False)
+        nodes = []
+        labels = []
+        embeddings = []
+        for node, embedding in embedding_dict.items():
+            nodes.append(node)
+            embeddings.append(embedding)
+            labels.append(label_dict.get(node, str(n_class)))
+
+        score = evaluate_LR_accuracy(embeddings, labels, random_state=42)
+        scores.append(score)
+    print(scores)
+    print("mean: ", np.mean(scores), "std: ", np.std(scores))
+
+
 if __name__ == '__main__':
-    embedd("europe")
+    robustness("europe")
 
