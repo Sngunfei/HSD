@@ -7,23 +7,17 @@ class EmbeddingMixin(object):
     """
 
     def __init__(self):
-        self.name = None
-        self.mtype = None
-        self.dim = None
-        self.embeddings = {}
+        self.embeddings = None
 
 
     def train(self):
-
         raise NotImplementedError("111")
 
 
     def getEmbedding(self):
-
         return self.embeddings
 
 
     def getParams(self):
-
         return None
 

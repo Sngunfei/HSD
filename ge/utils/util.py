@@ -275,6 +275,7 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     print(report)
 
 
+
 if __name__ == '__main__':
     #write_label("G:\pyworkspace\graph-embedding\data\subway.edgelist")
-    write_label(name="usa")
+    pass
