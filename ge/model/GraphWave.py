@@ -248,7 +248,7 @@ class GraphWave(EmbeddingMixin):
         return calc_distance(p, q, metric)
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=10, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=5, save_path=None):
         """
         计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
