@@ -5,6 +5,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import numpy as np
 import networkx as nx
+import seaborn as sns
+import pandas as pd
 
 from pyecharts.charts import  Bar
 from pyecharts import options as opts
@@ -15,58 +17,6 @@ plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
 from ge.utils.util import dataloader
-
-
-def get_node_color(node_community):
-    cnames = [item[0] for item in matplotlib.colors.cnames.iteritems()]
-    node_colors = [cnames[c] for c in node_community]
-    return node_colors
-
-
-def plot(x_s, y_s, fig_n, x_lab, y_lab, file_save_path, title, legendLabels=None, show=False):
-    plt.rcParams.update({'font.size': 16, 'font.weight': 'bold'})
-    markers = ['o', '*', 'v', 'D', '<' , 's', '+', '^', '>']
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-    series = []
-    plt.figure(fig_n)
-    i = 0
-    for i in range(len(x_s)):
-        # n_points = len(x_s[i])
-        # n_points = int(n_points/10) + random.randint(1,100)
-        # x = x_s[i][::n_points]
-        # y = y_s[i][::n_points]
-        x = x_s[i]
-        y = y_s[i]
-        series.append(plt.plot(x, y, color=colors[i], linewidth=2, marker=markers[i], markersize=8))
-        plt.xlabel(x_lab, fontsize=16, fontweight='bold')
-        plt.ylabel(y_lab, fontsize=16, fontweight='bold')
-        plt.title(title, fontsize=16, fontweight='bold')
-    if legendLabels:
-        plt.legend([s[0] for s in series], legendLabels)
-    plt.savefig(file_save_path)
-    if show:
-        plt.show()
-
-
-def plot_ts(ts_df, plot_title, eventDates, eventLabels=None, save_file_name=None, xLabel=None, yLabel=None, show=False):
-    ax = ts_df.plot(title=plot_title, marker = '*', markerfacecolor='red', markersize=10, linestyle = 'solid')
-    colors = ['r', 'g', 'c', 'm', 'y', 'b', 'k']
-    if not eventLabels:
-        for eventDate in eventDates:
-            ax.axvline(eventDate, color='r', linestyle='--', lw=2) # Show event as a red vertical line
-    else:
-        for idx in range(len(eventDates)):
-            ax.axvline(eventDates[idx], color=colors[idx], linestyle='--', lw=2, label=eventLabels[idx]) # Show event as a red vertical line
-            ax.legend()
-    if xLabel:
-        ax.set_xlabel(xLabel, fontweight='bold')
-    if yLabel:
-        ax.set_ylabel(yLabel, fontweight='bold')
-    fig = ax.get_figure()
-    if save_file_name:
-        fig.savefig(save_file_name, bbox_inches='tight')
-    if show:
-        fig.show()
 
 
 def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=42, perplexity=5):
@@ -118,10 +68,8 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         for idx, node in enumerate(nodes):
             color_idx.setdefault(labels[idx], [])
             color_idx[labels[idx]].append(idx)
-        print(color_idx)
         for c, idx in color_idx.items():
             #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-            print(c, idx, markers[int(c)])
             plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)])#, s=area[idx])
 
     plt.legend()
@@ -264,6 +212,29 @@ def effectscatter_splitline() -> Bar:
     return c
 
 
-if __name__ == '__main__':
-    #flight_data_analyze(['brazil'])
-    flight_data_analyze()
+# todo
+def heat_map(embeddings, labels):
+    """
+    画各类中心的heat_map
+    :param embeddings:
+    :param labels:
+    :return:
+    """
+    embeddings = np.asarray(embeddings)
+    labels = np.asarray(labels)
+    centers = dict()
+    labelset = np.unique(labels)
+    n_class = len(labelset)
+    for label in labelset:
+        centers[label] = np.mean(embeddings[labels==label], axis=0)
+
+    sns.set()
+    matplotlib.use('TkAgg')
+    dis = np.zeros(shape=(n_class, n_class))
+    for i, label in enumerate(labelset):
+        center1 = centers[label]
+        for j in range(i+1, n_class):
+            center2 = centers[labelset[j]]
+            dis[i, j] = dis[j, i] = np.sum(np.square(center1 - center2))
+    sns.heatmap(dis, annot=True, cmap="YlGnBu")
+    plt.show()
