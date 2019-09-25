@@ -34,15 +34,17 @@ class LaplacianEigenmaps:
                 if self.graph[u][v]['weight'] < threshold:
                     del_edges.append((u, v))
         elif percentile:
-            thres = 0.0
-            n = 1
+            _weights = []
             for edge in edges:
                 u, v = edge
-                thres += 1.0 / n * (self.graph[u][v]['weight'] * percentile - thres)
+                # if one edge's weight very big, then would delete many valuable edges.
+                #thres += 1.0 / n * (self.graph[u][v]['weight'] * percentile - thres)
+                _weights.append(self.graph[u][v]['weight'])
+            threshold = np.percentile(_weights, percentile * 100)
 
             for edge in edges:
                 u, v = edge
-                if self.graph[u][v]['weight'] < thres:
+                if self.graph[u][v]['weight'] < threshold:
                     del_edges.append((u, v))
         self.graph.remove_edges_from(del_edges)
 
@@ -57,9 +59,11 @@ class LaplacianEigenmaps:
 
 
     def create_embedding(self, threshold=None, percentile=None):
+        _n_edge = nx.number_of_edges(self.graph)
         if threshold or percentile:
             self._sparse_process(threshold, percentile)
-
+        _n_edge1 = nx.number_of_edges(self.graph)
+        print("n_edges: before:{}, after:{}\n".format(_n_edge, _n_edge1))
         L_sym = nx.normalized_laplacian_matrix(self.graph)
         w, v = linalg.eigs(L_sym, k=self.dim + 1, which='SM')
         X = v[:, 1:]

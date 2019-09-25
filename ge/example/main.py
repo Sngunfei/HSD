@@ -15,6 +15,8 @@ from model.LINE import LINE
 from model.node2vec import Node2Vec
 from model.HOPE import HOPE
 
+from ge.utils.robustness import random_remove_edges
+
 
 def graphWave(graph, scale):
     wave_machine = GraphWave(graph, heat_coefficient=scale)
@@ -72,7 +74,7 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.9, reuse=False)
+    embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.75, reuse=False)
     #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
 
     #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
@@ -92,30 +94,72 @@ def embedd(data):
     #heat_map(embeddings, labels)
 
 
-def robustness(data, prob=0.3, cnt=10):
-    from ge.utils.robustness import random_remove_edges
+def robustness(data, probs=None, cnt=10):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    scores = []
+    #fout = open("../../output/report.txt", mode="w+", encoding="utf-8")
+    for i, prob in enumerate(probs):
+        start = time.time()
+        scores = []
+        for _ in range(cnt):
+            _graph = random_remove_edges(nx.Graph(graph), prob=prob)
+            embedding_dict = hseLE(name=data, graph=_graph, scale=10, method='l1', dim=32, percentile=0.85, reuse=False)
+            nodes = []
+            labels = []
+            embeddings = []
+            for node, embedding in embedding_dict.items():
+                nodes.append(node)
+                embeddings.append(embedding)
+                labels.append(label_dict.get(node, str(n_class)))
+
+            score = evaluate_LR_accuracy(embeddings, labels, random_state=42)
+            scores.append(score)
+        t = time.time() - start
+        #res = {"scores": scores, "mean": np.mean(scores), "std": np.std(scores), "mean_time": 1.0 * t / cnt}
+        #fout.write("prob={}\n report:\n{}\n\n".format(prob, res))
+    #fout.close()
+
+        print(data, "prob={}, cnt={}".format(prob, cnt))
+        print(scores)
+        print("mean: ", np.mean(scores), "std: ", np.std(scores))
+        print("run {} times, time={}, mean={}".format(cnt, t, 1.0 * t / cnt))
+
+
+# todo
+def _time_test(dataset=None, cnt=10):
+    """
+    在数据集上记录运行时长
+    :param dataset: dataset name, str.
+    :param cnt: execute cnt times, int.
+    :return: the average time on the dataset, float.
+    """
+    graph, _, _ = dataloader(dataset, directed=False, auto_label=True)
+    n_nodes = nx.number_of_nodes(graph)
+    n_edges = nx.number_of_edges(graph)
     start = time.time()
     for _ in range(cnt):
-        _graph = random_remove_edges(nx.Graph(graph), prob=prob)
-        embedding_dict = hseLE(name=data, graph=_graph, scale=10, method='l1', dim=32, percentile=0.85, reuse=False)
-        nodes = []
-        labels = []
-        embeddings = []
-        for node, embedding in embedding_dict.items():
-            nodes.append(node)
-            embeddings.append(embedding)
-            labels.append(label_dict.get(node, str(n_class)))
+        hseLE(name=dataset, graph=graph, scale=50, method='l1', dim=16, percentile=0.4, reuse=False)
+    end = time.time()
+    _time = end - start
+    _mean_time = 1.0 * _time / cnt
+    print("Number of nodes: {}, number of edges: {}, run {} times, time = {}s, mean time = {}s\n"
+          .format(n_nodes, n_edges, cnt, _time, _mean_time))
+    return n_nodes, n_edges, _mean_time
 
-        score = evaluate_LR_accuracy(embeddings, labels, random_state=42)
-        scores.append(score)
-    t = time.time() - start
-    print(scores)
-    print("mean: ", np.mean(scores), "std: ", np.std(scores))
-    print("run {} times, time={}, mean={}".format(cnt, t, 1.0 * t / 10))
 
+def scalability_test(datasets=None, cnt=10):
+    """
+    在不同规模的数据集上记录运行时长
+    :param datasets: a list of dataset. [names]
+    :param cnt: excute cnt times, int
+    :return:
+    """
+    with open("../../output/time_report.txt", mode="w+", encoding="utf-8") as fout:
+        for _, data in enumerate(datasets):
+            n_nodes, n_edges, mean_time = _time_test(data, cnt)
+            fout.write("dataset: {}, run {} times.\n".format(data, cnt))
+            fout.write("Number of nodes: {}, number of edges: {}, mean time = {}s\n\n".format(n_nodes, n_edges, mean_time))
 
 if __name__ == '__main__':
     #embedd("europe")
-    robustness("europe", prob=0.7, cnt=10)
+    #robustness("europe", probs=[0.85], cnt=50)
+    scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])

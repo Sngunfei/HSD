@@ -189,4 +189,7 @@ def compute_cheb_coeff_basis(scale, order):
 
 
 if __name__ == '__main__':
-    write_label(name="europe")
+    a = {'A': {"a1":1, "a2":2}, "B": 2}
+    for k, v in a.items():
+        print(k)
+        print(v)
