@@ -1,0 +1,18 @@
+dataset: bell, run 10 times.
+Number of nodes: 31, number of edges: 102, mean time = 0.1780620813369751s
+
+dataset: mkarate, run 10 times.
+Number of nodes: , 68, number of edges: 155, mean time = 0.810839056968689s
+
+dataset: subway, run 10 times.
+Number of nodes: 277, number of edges: 326, mean time = 11.425113821029663s
+
+dataset: railway, run 10 times.
+Number of nodes:  173, number of edges: 519, mean time = 5.892201590538025s
+
+dataset: brazil, run 10 times.
+Number of nodes: 131, number of edges: 1074, mean time = 2.6654059410095217s
+
+dataset: europe, run 10 times.
+Number of nodes: 399, number of edges: 5995, mean time = 51.99065515995026s
+
