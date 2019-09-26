@@ -9,7 +9,7 @@ from sklearn import metrics
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
-
+from sklearn.neighbors import KNeighborsClassifier
 
 
 def cluster_evaluate(embeddings=None, labels=None, class_num=None):
@@ -97,5 +97,45 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     return score
 
 
+def evaluate_KNN_accuracy(embeddings=None, labels=None, random_state=42):
+    """
+    基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
+    :return:
+    """
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+                                                    random_state=random_state, shuffle=True)
+    knn = KNeighborsClassifier(n_neighbors=5, weights="uniform", algorithm="auto", n_jobs=-1)
+    knn.fit(xtrain, ytrain)
+    preds = knn.predict(xtest)
+
+    score = accuracy_score(ytest, preds)
+    balanced_score = balanced_accuracy_score(ytest, preds)
+    report = classification_report(ytest, preds)
+
+    print("KNN accuracy score:{}.".format(score))
+    print("KNN balanced accuracy score:{}.".format(balanced_score))
+    print("classification report: ")
+    print(report)
+
+    return score
+
+
 if __name__ == '__main__':
-    heat_map()
+    from utils.util import dataloader
+    from model.LaplacianEigenmaps import LaplacianEigenmaps
+
+    graph, label_dict, n_class = dataloader("europe", auto_label=True, directed=False, similarity=True, scale=10, metric="l1")
+    model = LaplacianEigenmaps(graph, dim=32)
+    embedding_dict = model.create_embedding(percentile=0.85)
+    nodes = []
+    labels = []
+    embeddings = []
+    for node, embedding in embedding_dict.items():
+        nodes.append(node)
+        embeddings.append(embedding)
+        labels.append(label_dict.get(node, str(n_class)))
+
+    evaluate_KNN_accuracy(embeddings=embeddings, labels=labels, n_neighbors=10, random_state=42)
+
+
+

@@ -171,12 +171,12 @@ class GraphWave(EmbeddingMixin):
         :param scale: 尺度参数，即heat coefficient, float
         :return: 小波系数矩阵，shape=(n, n), ndarray
         """
-        print("Start calculate wavelet coefficients.\n")
+        #print("Start calculate wavelet coefficients.\n")
         coeff_mat = []
-        for node_idx in tqdm(range(self.n_nodes)):
+        for node_idx in range(self.n_nodes):
             coeff = self._calc_node_coefficients(node_idx, scale)
             coeff_mat.append(coeff)
-        print("calculate wavelet coefficients done. \n")
+        #print("calculate wavelet coefficients done. \n")
         return np.array(coeff_mat, dtype=np.float32)
 
 
@@ -201,9 +201,9 @@ class GraphWave(EmbeddingMixin):
         根据节点间的最短路径，将节点局部邻域进行层次划分，以节点为中心的嵌套环状结构，其他节点分布在对应的环上。
         :return: dict(dict()), 嵌套字典结构，第一册key为节点，第二层key为距离。
         """
-        print("Start compute node layers. \n")
+        #print("Start compute node layers. \n")
         res = dict()
-        for idx in tqdm(range(self.n_nodes)):
+        for idx in range(self.n_nodes):
             rings = defaultdict(list)
             origin = self.nodes[idx]
             visited = [origin]
@@ -223,7 +223,7 @@ class GraphWave(EmbeddingMixin):
                             visited.append(_neibor)
                 hop += 1
             res[idx] = rings
-        print("Compute node layers done. \n")
+        #print("Compute node layers done. \n")
         return res
 
 
@@ -248,12 +248,13 @@ class GraphWave(EmbeddingMixin):
         return calc_distance(p, q, metric)
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=5, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=5, normalized=True, save_path=None):
         """
         计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
         :param method: 相似性衡量标准
         :param layers: 广搜的最大层数
+        :param normalized: 是否正则化
         :param save_path: 将计算得到的相似度以csv文件保存
         :return: 相似度矩阵
         """
@@ -261,8 +262,8 @@ class GraphWave(EmbeddingMixin):
         nodes_layers = self.get_nodes_layers_bfs(layers)
         method = str.lower(method)
         similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        for idx1 in tqdm(range(self.n_nodes)):
-            for idx2 in tqdm(range(idx1, self.n_nodes)):
+        for idx1 in range(self.n_nodes):
+            for idx2 in range(idx1, self.n_nodes):
                 rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
                 maxHop = min(max(len(rings1), len(rings2)), 5) + 1
                 dist = 0.0
@@ -276,7 +277,7 @@ class GraphWave(EmbeddingMixin):
                         q.append(coeff_mat[idx2, node])
                     if not (p or q):
                         break
-                    dist += self._calc_pq_distance(p, q, method, normalized=True)
+                    dist += self._calc_pq_distance(p, q, method, normalized=normalized)
 
                 #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
                 #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
@@ -340,6 +341,7 @@ def _check_prob_distri(p, q):
     if not math.isclose(sum(p), 1.0) or not math.isclose(sum(q), 1.0):
         raise ArithmeticError("The sum of probability distribution function is not 1.0")
     """
+
 
 def wasserstein_guass(p, q):
     """

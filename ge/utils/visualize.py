@@ -17,6 +17,7 @@ plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
 from ge.utils.util import dataloader
+from ge.utils.db import Database
 
 
 def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=42, perplexity=5):
@@ -257,6 +258,8 @@ def roubust_line():
     s60=[0.7875, 0.7625, 0.875, 0.825, 0.7875, 0.875, 0.725, 0.85, 0.8125, 0.825, 0.8375, 0.7875, 0.8, 0.85, 0.7875, 0.7375, 0.8375, 0.775, 0.8125, 0.875]
     s55=[0.8375, 0.7625, 0.8625, 0.7625, 0.8125, 0.8125, 0.825, 0.8125, 0.775, 0.85, 0.7875, 0.8375, 0.8625, 0.85, 0.775, 0.7375, 0.8, 0.7875, 0.85, 0.75]
     s50=[0.8125, 0.8, 0.825, 0.775, 0.7875, 0.775, 0.8625, 0.8875, 0.775, 0.8, 0.8, 0.725, 0.775, 0.775, 0.8375, 0.725, 0.8375, 0.8125, 0.775, 0.7875]
+
+    scores = [[0.9625]*25, ]
     scores = [s100, s95, s90, s85, s80, s75, s70, s65, s60, s55, s50]
     ratio = []
     for i, score in enumerate(scores):
@@ -274,5 +277,23 @@ def roubust_line():
     plt.show()
 
 
+def robustness_knn():
+    db = Database()
+    filters = {"evaluate": "KNN", "metric": "l1", "ge_name": "HSELE", "data": "europe"}
+    records = db.find("scores", filters=filters)
+    ratio = []
+    scores = []
+    for doc in records:
+        _scores = doc['scores']
+        scores.extend(_scores)
+        ratio += [1.0 - doc['prob']] * len(_scores)
+    #scores = scores[::-1]
+    data = pd.DataFrame(data={"Accuracy score": scores, "Deletion Ratio": ratio})
+    sns.set(style="ticks")
+    sns.relplot(x="Deletion Ratio", y="Accuracy score", data=data, kind="line")
+    plt.ylim((0.3, 1))
+    plt.show()
+
+
 if __name__ == '__main__':
-    roubust_line()
+    robustness_knn()

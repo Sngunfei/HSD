@@ -3,10 +3,11 @@
 import os
 import time
 import networkx as nx
+from tqdm import tqdm
 from utils.visualize import plot_embeddings, heat_map
 import numpy as np
 from utils.util import dataloader
-from utils.evaluate import evaluate_LR_accuracy, evaluate_SVC_accuracy, cluster_evaluate
+from utils.evaluate import evaluate_LR_accuracy, evaluate_SVC_accuracy, evaluate_KNN_accuracy
 from model.GraphWave import GraphWave
 from model.struc2vec import Struc2Vec
 from model.LocallyLinearEmbedding import LocallyLinearEmbedding
@@ -16,6 +17,7 @@ from model.node2vec import Node2Vec
 from model.HOPE import HOPE
 
 from ge.utils.robustness import random_remove_edges
+from ge.utils.db import Database
 
 
 def graphWave(graph, scale):
@@ -74,7 +76,7 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.75, reuse=False)
+    embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.5, reuse=True)
     #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
 
     #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
@@ -87,22 +89,26 @@ def embedd(data):
         nodes.append(node)
         embeddings.append(embedding)
         labels.append(label_dict.get(node, str(n_class)))
-
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_KNN_accuracy(embeddings, labels, random_state=42)
     #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
+    #plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
     #heat_map(embeddings, labels)
 
 
-def robustness(data, probs=None, cnt=10):
+def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric='l1', dim=32, percentile=0.75):
+    if not db:
+        db = Database()
+    classifiers = {"LR": evaluate_LR_accuracy, "SVC": evaluate_SVC_accuracy, "KNN": evaluate_KNN_accuracy}
+    clf = classifiers[method]
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    #fout = open("../../output/report.txt", mode="w+", encoding="utf-8")
     for i, prob in enumerate(probs):
         start = time.time()
         scores = []
-        for _ in range(cnt):
+        for _ in tqdm(range(cnt)):
             _graph = random_remove_edges(nx.Graph(graph), prob=prob)
-            embedding_dict = hseLE(name=data, graph=_graph, scale=10, method='l1', dim=32, percentile=0.85, reuse=False)
+            embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
+                                   dim=dim, percentile=percentile, reuse=False)
             nodes = []
             labels = []
             embeddings = []
@@ -110,21 +116,33 @@ def robustness(data, probs=None, cnt=10):
                 nodes.append(node)
                 embeddings.append(embedding)
                 labels.append(label_dict.get(node, str(n_class)))
-
-            score = evaluate_LR_accuracy(embeddings, labels, random_state=42)
+            score = clf(embeddings, labels, random_state=42)
             scores.append(score)
         t = time.time() - start
-        #res = {"scores": scores, "mean": np.mean(scores), "std": np.std(scores), "mean_time": 1.0 * t / cnt}
-        #fout.write("prob={}\n report:\n{}\n\n".format(prob, res))
-    #fout.close()
-
+        res = {"ge_name": "HSELE",
+               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+               "data": data,
+               "prob": prob,
+               "percentile": percentile,
+               "scale": scale,
+               "metric": metric,
+               "dim": dim,
+               "cnt": cnt,
+               "evaluate": method,
+               "scores": scores,
+               "mean": np.mean(scores),
+               "std": np.std(scores),
+               "mean_time": 1.0 * t / cnt
+               }
+        db.insert_score(res)
+        """
         print(data, "prob={}, cnt={}".format(prob, cnt))
         print(scores)
         print("mean: ", np.mean(scores), "std: ", np.std(scores))
         print("run {} times, time={}, mean={}".format(cnt, t, 1.0 * t / cnt))
+        """
 
 
-# todo
 def _time_test(dataset=None, cnt=10):
     """
     在数据集上记录运行时长
@@ -159,7 +177,8 @@ def scalability_test(datasets=None, cnt=10):
             fout.write("dataset: {}, run {} times.\n".format(data, cnt))
             fout.write("Number of nodes: {}, number of edges: {}, mean time = {}s\n\n".format(n_nodes, n_edges, mean_time))
 
+
 if __name__ == '__main__':
     #embedd("europe")
-    #robustness("europe", probs=[0.85], cnt=50)
-    scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
+    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(10, 12)], method="KNN", cnt=25, percentile=0.5)
+    #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
