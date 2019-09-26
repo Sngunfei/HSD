@@ -188,8 +188,26 @@ def compute_cheb_coeff_basis(scale, order):
     return list(coeffs)
 
 
+# todo
+def parall():
+    """
+    分层，计算相似度都是可以并行的，应该能降低运行时间。
+    :return:
+    """
+    pass
+
+
+def f(data):
+    import os
+    print("pid:", os.getpid())
+    print("ppid:", os.getppid())
+    for i in data:
+        print(i)
+
 if __name__ == '__main__':
-    a = {'A': {"a1":1, "a2":2}, "B": 2}
-    for k, v in a.items():
-        print(k)
-        print(v)
+    from multiprocessing import Process
+    p = Process(target=f, args=([i for i in range(0, 3)],))
+    p2 = Process(target=f, args=([i for i in range(10, 13)],))
+    p.start()
+    p2.start()
+
