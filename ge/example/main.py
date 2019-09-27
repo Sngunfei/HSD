@@ -6,7 +6,7 @@ import networkx as nx
 from tqdm import tqdm
 from utils.visualize import plot_embeddings, heat_map
 import numpy as np
-from utils.util import dataloader
+from utils.util import dataloader, sparse_process
 from utils.evaluate import evaluate_LR_accuracy, evaluate_SVC_accuracy, evaluate_KNN_accuracy
 from model.GraphWave import GraphWave
 from model.struc2vec import Struc2Vec
@@ -28,8 +28,8 @@ def graphWave(graph, scale):
 
 def node2vec(graph):
     graph = nx.DiGraph(graph)
-    model = Node2Vec(graph, walk_length=10, num_walks=10, p=1, q=2.0, workers=1)
-    model.train(window_size=10, iter=500)
+    model = Node2Vec(graph, walk_length=15, num_walks=10, p=1, q=2.0, workers=1)
+    model.train(window_size=15, iter=500)
     embeddings_dict = model.get_embeddings()
     return embeddings_dict
 
@@ -60,6 +60,21 @@ def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, reuse=True):
     return embeddings_dict
 
 
+def hseNode2vec(name="", graph=None, scale=10, metric='l1', dim=16, percentile=0.0, reuse=True):
+    save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, metric)
+    if not (reuse and os.path.exists(save_path)):
+        wave_machine = GraphWave(graph, heat_coefficient=scale)
+        coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
+        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=metric, layers=10, save_path=save_path)
+
+    new_graph, _, _ = dataloader(name, directed=True, auto_label=True, similarity=True, scale=scale, metric=metric)
+    new_graph = sparse_process(new_graph, percentile=percentile)
+    model = Node2Vec(new_graph, walk_length=15, num_walks=10, p=1, q=2.0, workers=1)
+    model.train(window_size=15, iter=500, embed_size=dim)
+    embeddings_dict = model.get_embeddings()
+    return embeddings_dict
+
+
 def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
@@ -76,9 +91,9 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.5, reuse=True)
+    #embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.5, reuse=True)
     #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
-
+    embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
     #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph)
@@ -89,7 +104,7 @@ def embedd(data):
         nodes.append(node)
         embeddings.append(embedding)
         labels.append(label_dict.get(node, str(n_class)))
-    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_LR_accuracy(embeddings, labels, random_state=42)
     evaluate_KNN_accuracy(embeddings, labels, random_state=42)
     #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
     #plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
@@ -103,12 +118,16 @@ def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric=
     clf = classifiers[method]
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
     for i, prob in enumerate(probs):
+        print("prob = ", prob)
         start = time.time()
         scores = []
         for _ in tqdm(range(cnt)):
             _graph = random_remove_edges(nx.Graph(graph), prob=prob)
-            embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
-                                   dim=dim, percentile=percentile, reuse=False)
+            #embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
+            #                       dim=dim, percentile=percentile, reuse=False)
+            embedding_dict = hseNode2vec(name=data, graph=_graph, scale=scale, metric=metric,
+                                         dim=dim, percentile=percentile, reuse=False)
+
             nodes = []
             labels = []
             embeddings = []
@@ -119,7 +138,7 @@ def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric=
             score = clf(embeddings, labels, random_state=42)
             scores.append(score)
         t = time.time() - start
-        res = {"ge_name": "HSELE",
+        res = {"ge_name": "hseNode2vec",
                "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                "data": data,
                "prob": prob,
@@ -180,5 +199,5 @@ def scalability_test(datasets=None, cnt=10):
 
 if __name__ == '__main__':
     #embedd("europe")
-    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(10, 12)], method="KNN", cnt=25, percentile=0.5)
+    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(10, 21)], method="KNN", cnt=25, percentile=0.5)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])

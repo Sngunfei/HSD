@@ -34,5 +34,5 @@ class Database(object):
 
     def find(self, collection, filters):
         col = self.db[collection]
-        res = col.find(filters, {"prob": 1, "scores": 1})
+        res = col.find(filters, {"prob": 1, "scores": 1, "evaluate": 1})
         return res

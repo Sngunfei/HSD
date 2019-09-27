@@ -240,60 +240,53 @@ def heat_map(embeddings, labels):
     plt.show()
 
 
-def roubust_line():
-    s100=[0.9125, 0.925, 0.925, 0.9125, 0.9, 0.925, 0.925, 0.9125, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925, 0.925]
-    s95=[0.875, 0.8625, 0.925, 0.9125, 0.8625, 0.9, 0.8875, 0.925, 0.875, 0.925, 0.9375, 0.9125, 0.9, 0.9, 0.925, 0.9125, 0.8875, 0.925, 0.9125, 0.95]
-    s90=[0.9, 0.875, 0.9, 0.875, 0.925, 0.9, 0.825, 0.9375, 0.8625, 0.8875, 0.875, 0.9125, 0.975, 0.9125, 0.925, 0.9125, 0.8625, 0.9, 0.9125, 0.925]
-    #s85=[0.925, 0.9375, 0.8125, 0.9375, 0.9, 0.8625, 0.9, 0.825, 0.875, 0.8375, 0.9125, 0.8625, 0.8875, 0.9125, 0.8125, 0.9, 0.875, 0.8375, 0.925, 0.9125]
-    #s80=[0.925, 0.8625, 0.8875, 0.925, 0.8, 0.9, 0.9, 0.925, 0.9225, 0.85, 0.9, 0.9125, 0.8875, 0.9125, 0.9325, 0.925, 0.8375, 0.9225, 0.925, 0.8875]
-    s85=[0.9, 0.8625, 0.875, 0.875, 0.85, 0.9375, 0.85, 0.925, 0.8875, 0.8625, 0.9, 0.875, 0.85, 0.9, 0.9125, 0.8875, 0.8625, 0.875, 0.8375,
-         0.9125, 0.925, 0.8625, 0.9, 0.8375, 0.8875, 0.8625, 0.875, 0.9, 0.85, 0.8875, 0.9125, 0.8625, 0.8125, 0.875, 0.8625, 0.8875, 0.9, 0.85,
-         0.8375, 0.9, 0.875, 0.8625, 0.8625, 0.9, 0.9, 0.8375, 0.9125, 0.8875, 0.85, 0.9625]
-    s80=[0.8625, 0.7125, 0.85, 0.85, 0.9, 0.8625, 0.8875, 0.875, 0.85, 0.8625, 0.925, 0.925, 0.825, 0.875, 0.875, 0.85, 0.8875, 0.9125, 0.9125,
-         0.875, 0.875, 0.8375, 0.8875, 0.8375, 0.7625, 0.8875, 0.8625, 0.875, 0.8125, 0.875, 0.8375, 0.8375, 0.875, 0.825, 0.8375, 0.8625, 0.875,
-         0.875, 0.8125, 0.85, 0.8375, 0.9375, 0.85, 0.95, 0.85, 0.85, 0.9125, 0.8875, 0.9125, 0.7875]
-    s75=[0.925, 0.8375, 0.9, 0.8625, 0.9, 0.85, 0.85, 0.8875, 0.825, 0.8625, 0.9, 0.9125, 0.8125, 0.9375, 0.8875, 0.85, 0.8625, 0.8875, 0.9, 0.9]
-    s70=[0.8875, 0.875, 0.925, 0.875, 0.8875, 0.9, 0.875, 0.875, 0.9, 0.85, 0.825, 0.8625, 0.8125, 0.8625, 0.9, 0.85, 0.8625, 0.925, 0.8625, 0.7875]
-    s65=[0.8, 0.85, 0.8875, 0.85, 0.7875, 0.7875, 0.9125, 0.8875, 0.7875, 0.8625, 0.8375, 0.8625, 0.7625, 0.875, 0.8, 0.8625, 0.9, 0.85, 0.8125, 0.8125]
-    s60=[0.7875, 0.7625, 0.875, 0.825, 0.7875, 0.875, 0.725, 0.85, 0.8125, 0.825, 0.8375, 0.7875, 0.8, 0.85, 0.7875, 0.7375, 0.8375, 0.775, 0.8125, 0.875]
-    s55=[0.8375, 0.7625, 0.8625, 0.7625, 0.8125, 0.8125, 0.825, 0.8125, 0.775, 0.85, 0.7875, 0.8375, 0.8625, 0.85, 0.775, 0.7375, 0.8, 0.7875, 0.85, 0.75]
-    s50=[0.8125, 0.8, 0.825, 0.775, 0.7875, 0.775, 0.8625, 0.8875, 0.775, 0.8, 0.8, 0.725, 0.775, 0.775, 0.8375, 0.725, 0.8375, 0.8125, 0.775, 0.7875]
+def robustness_knn():
+    db = Database()
+    filters = {"evaluate": "LR", "metric": "l1", "ge_name": "HSELE", "data": "europe"}
+    cursor = db.find("scores", filters=filters)
+    LR_records = []
+    for record in cursor:
+        LR_records.append(record)
+    filters['evaluate'] = 'KNN'
+    cursor = db.find("scores", filters=filters)
+    KNN_records = []
+    for record in cursor:
+        KNN_records.append(record)
+    ratio1, ratio2 = [], []
+    LR_scores, KNN_scores = [], []
+    for doc1, doc2 in zip(LR_records, KNN_records):
+        print(doc1)
+        _scores = doc1['scores']
+        LR_scores.extend(_scores)
+        ratio1 += [1.0 - doc1['prob']] * len(_scores)
+        print(doc2)
+        _scores = doc2['scores']
+        KNN_scores.extend(_scores)
+        ratio2 += [1.0 - doc2['prob']] * len(_scores)
+    #scores = scores[::-1]
+    evaluate = ["LR"] * len(LR_scores) + ["KNN"] * len(KNN_scores)
+    LR_scores.extend(KNN_scores)
+    ratio1.extend(ratio2)
 
-    scores = [[0.9625]*25, ]
-    scores = [s100, s95, s90, s85, s80, s75, s70, s65, s60, s55, s50]
-    ratio = []
-    for i, score in enumerate(scores):
-        ratio += [i * 0.05] * len(score)
-    _scores = []
-    for score in scores:
-        _scores.extend(score)
-    #ratio = [0.05] * 20 + [0.10] * 20 + [0.15] * 20 + [0.20] * 20 + [0.25] * 20 + [0.30] * 20 + [0.35] * 20 + [0.4] * 20 + [0.45] * 20 + [0.5] * 20
-    #score = [0.915, 0.906, 0.896, 0.883, 0.878, 0.877, 0.87, 0.839, 0.819, 0.807, 0.798]
-    #ratio = [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]
-    data = pd.DataFrame(data={"Accuracy score":_scores, "Deletion Ratio": ratio})
+    data = pd.DataFrame(data={"Accuracy score": LR_scores, "Deletion Ratio": ratio1, "method": evaluate})
     sns.set(style="ticks")
-    sns.relplot(x="Deletion Ratio", y="Accuracy score", data=data, kind="line")
-    plt.ylim((0.5, 1))
+    sns.relplot(x="Deletion Ratio", y="Accuracy score", hue="method", data=data, kind="line")
+    plt.ylim((0.6, 1))
     plt.show()
 
 
-def robustness_knn():
-    db = Database()
-    filters = {"evaluate": "KNN", "metric": "l1", "ge_name": "HSELE", "data": "europe"}
-    records = db.find("scores", filters=filters)
-    ratio = []
-    scores = []
-    for doc in records:
-        _scores = doc['scores']
-        scores.extend(_scores)
-        ratio += [1.0 - doc['prob']] * len(_scores)
-    #scores = scores[::-1]
-    data = pd.DataFrame(data={"Accuracy score": scores, "Deletion Ratio": ratio})
+def time_vs():
+    n_nodes = [31, 68, 277, 173, 131, 399]
+    times = [0.17806, 0.8108, 11.4251, 5.8922, 2.66540, 51.99065]
+
+    data = pd.DataFrame(data={"Time": times, "Number of Nodes": n_nodes})
     sns.set(style="ticks")
-    sns.relplot(x="Deletion Ratio", y="Accuracy score", data=data, kind="line")
-    plt.ylim((0.3, 1))
+    sns.relplot(x="Number of Nodes", y="Time", data=data, kind="line")
+    plt.ylabel("Time  /  s")
+    #plt.ylim((0.6, 1))
     plt.show()
 
 
 if __name__ == '__main__':
-    robustness_knn()
+    #robustness_knn()
+    time_vs()
