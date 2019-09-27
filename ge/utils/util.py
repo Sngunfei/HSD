@@ -10,6 +10,7 @@ def dataloader(name="", directed=False, auto_label=False, similarity=False, scal
     Loda graph data by dataset name.
     :param name: dataset name, str
     :param directed: bool, if True, return directed graph.
+    :param auto_label:
     :param similarity: similarity data or edgelist.
     :param scale: i.e. head coefficient, int
     :param metric: similarity metric, like L1 and L2, etc.
@@ -19,12 +20,13 @@ def dataloader(name="", directed=False, auto_label=False, similarity=False, scal
         label_path = "../../data/{}_auto.label".format(name)
     else:
         label_path = "../../data/{}.label".format(name)
+
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
     else:
         metric = str.lower(metric)
         edge_path = "../../similarity/{}_{}_{}.csv".format(name, scale, metric)
-        directed = False # similarity can't be directed.
+        #directed = False # similarity can't be directed.
 
     if directed:
         graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
@@ -188,26 +190,37 @@ def compute_cheb_coeff_basis(scale, order):
     return list(coeffs)
 
 
-# todo
-def parall():
+def sparse_process(graph, threshold=None, percentile=None):
     """
-    分层，计算相似度都是可以并行的，应该能降低运行时间。
+    将邻接矩阵稀疏化
+    :param graph:
+    :param threshold: 权重低于threshold的边将会被删掉
+    :param percentile: 按照百分比删边
     :return:
     """
-    pass
+    del_edges = []
+    edges = nx.edges(graph)
+    if threshold:
+        for edge in edges:
+            u, v = edge
+            if graph[u][v]['weight'] < threshold:
+                del_edges.append((u, v))
+    elif percentile:
+        _weights = []
+        for edge in edges:
+            u, v = edge
+            # if one edge's weight very big, then would delete many valuable edges.
+            #thres += 1.0 / n * (self.graph[u][v]['weight'] * percentile - thres)
+            _weights.append(graph[u][v]['weight'])
+        threshold = np.percentile(_weights, percentile * 100)
+
+        for edge in edges:
+            u, v = edge
+            if graph[u][v]['weight'] < threshold:
+                del_edges.append((u, v))
+    graph.remove_edges_from(del_edges)
+
+    return graph
 
 
-def f(data):
-    import os
-    print("pid:", os.getpid())
-    print("ppid:", os.getppid())
-    for i in data:
-        print(i)
-
-if __name__ == '__main__':
-    from multiprocessing import Process
-    p = Process(target=f, args=([i for i in range(0, 3)],))
-    p2 = Process(target=f, args=([i for i in range(10, 13)],))
-    p.start()
-    p2.start()
 
