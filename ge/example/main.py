@@ -47,7 +47,7 @@ def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_pro
     return embeddings_dict
 
 
-def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, reuse=True):
+def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
@@ -55,7 +55,8 @@ def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, reuse=True):
         wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=10, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
-    model = LocallyLinearEmbedding(new_graph)
+    new_graph = sparse_process(new_graph, percentile=percentile)
+    model = LocallyLinearEmbedding(new_graph, dim)
     embeddings_dict = model.create_embedding(dim)
     return embeddings_dict
 
@@ -92,8 +93,8 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
     #embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.5, reuse=True)
-    #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
-    embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
+    embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=False)
+    #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
     #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph)
@@ -115,18 +116,27 @@ def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric=
     if not db:
         db = Database()
     classifiers = {"LR": evaluate_LR_accuracy, "SVC": evaluate_SVC_accuracy, "KNN": evaluate_KNN_accuracy}
-    clf = classifiers[method]
+    knn_clf = classifiers[method]
+    lr_clf = classifiers['LR']
+
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
     for i, prob in enumerate(probs):
         print("prob = ", prob)
-        start = time.time()
-        scores = []
+        knn_scores = []
+        lr_scores = []
+        times = []
         for _ in tqdm(range(cnt)):
+            start = time.time()
             _graph = random_remove_edges(nx.Graph(graph), prob=prob)
             #embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
             #                       dim=dim, percentile=percentile, reuse=False)
-            embedding_dict = hseNode2vec(name=data, graph=_graph, scale=scale, metric=metric,
-                                         dim=dim, percentile=percentile, reuse=False)
+
+            #embedding_dict = hseNode2vec(name=data, graph=_graph, scale=scale, metric=metric,
+            #                             dim=dim, percentile=percentile, reuse=False)
+
+            embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric,
+                                   dim=dim, percentile=percentile, reuse=False)
+            times.append(time.time() - start)
 
             nodes = []
             labels = []
@@ -135,10 +145,10 @@ def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric=
                 nodes.append(node)
                 embeddings.append(embedding)
                 labels.append(label_dict.get(node, str(n_class)))
-            score = clf(embeddings, labels, random_state=42)
-            scores.append(score)
-        t = time.time() - start
-        res = {"ge_name": "hseNode2vec",
+            knn_scores.append(knn_clf(embeddings, labels, random_state=42))
+            lr_scores.append(lr_clf(embeddings, labels, random_state=42))
+
+        res = {"ge_name": "hseLLE",
                "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                "data": data,
                "prob": prob,
@@ -147,13 +157,31 @@ def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric=
                "metric": metric,
                "dim": dim,
                "cnt": cnt,
-               "evaluate": method,
-               "scores": scores,
-               "mean": np.mean(scores),
-               "std": np.std(scores),
-               "mean_time": 1.0 * t / cnt
+               "evaluate": "LR",
+               "scores": lr_scores,
+               "mean": np.mean(lr_scores),
+               "std": np.std(lr_scores),
+               "mean_time": np.mean(times)
                }
         db.insert_score(res)
+
+        res = {"ge_name": "hseLLE",
+               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+               "data": data,
+               "prob": prob,
+               "percentile": percentile,
+               "scale": scale,
+               "metric": metric,
+               "dim": dim,
+               "cnt": cnt,
+               "evaluate": "KNN",
+               "scores": knn_scores,
+               "mean": np.mean(knn_scores),
+               "std": np.std(knn_scores),
+               "mean_time": np.mean(times)
+               }
+        db.insert_score(res)
+
         """
         print(data, "prob={}, cnt={}".format(prob, cnt))
         print(scores)
@@ -199,5 +227,5 @@ def scalability_test(datasets=None, cnt=10):
 
 if __name__ == '__main__':
     #embedd("europe")
-    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(10, 21)], method="KNN", cnt=25, percentile=0.5)
+    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(14, 21)], method="KNN", cnt=25, percentile=0.5)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
