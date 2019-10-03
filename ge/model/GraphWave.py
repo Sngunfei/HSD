@@ -16,6 +16,9 @@ from .EmbeddingMixin import EmbeddingMixin
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
+import multiprocessing as mp
+from multiprocessing import Queue
+
 
 
 class GraphWave(EmbeddingMixin):
@@ -296,6 +299,39 @@ class GraphWave(EmbeddingMixin):
                         fout.write("{} {} {}\n".format(node1, node2, similarity_mat[idx1, idx2]))
 
         return similarity_mat
+
+
+    def _worker(self, arr, start, q):
+        origin = arr[start]
+        dis = {}
+        for i in range(start + 1, len(arr)):
+            d = np.sum(np.square(origin - arr[i]))
+            dis[i] = d
+        q.put((start, dis))
+        return
+
+
+    def parallel_calc_similarity(self, coeff_mat, method="l1", layers=5, normalized=True, save_path=None):
+
+        nodes_layers = self.get_nodes_layers_bfs(layers)
+        method = str.lower(method)
+        similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        jobs = []
+        queue = Queue()
+        for i in range(4):
+            p = mp.Process(target=self._worker, args=(array, i, queue,), name="row{}".format(i))
+            jobs.append(p)
+            p.start()
+
+        for job in jobs:
+            job.join()
+        for _ in jobs:
+            start, dis = queue.get()
+            for k, v in dis.items():
+                print(start, k, v)
+                distance[start, k] = distance[k, start] = v
+
+        print(distance)
 
 
 def wasserstein_distance(p, q, dual=False):
