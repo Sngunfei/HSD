@@ -19,6 +19,9 @@ from model.HOPE import HOPE
 from ge.utils.robustness import random_remove_edges
 from ge.utils.db import Database
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def graphWave(graph, scale):
     wave_machine = GraphWave(graph, heat_coefficient=scale)
@@ -48,11 +51,12 @@ def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_pro
 
 
 def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, reuse=True):
-    save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
+    save_path = "../../similarity/{}_{}_{}_1.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
-        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=10, save_path=save_path)
+        #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
+        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=5, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
@@ -105,8 +109,8 @@ def embedd(data):
         nodes.append(node)
         embeddings.append(embedding)
         labels.append(label_dict.get(node, str(n_class)))
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    evaluate_KNN_accuracy(embeddings, labels, random_state=42)
+    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    #evaluate_KNN_accuracy(embeddings, labels, random_state=42)
     #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
     #plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
     #heat_map(embeddings, labels)
@@ -200,15 +204,15 @@ def _time_test(dataset=None, cnt=10):
     graph, _, _ = dataloader(dataset, directed=False, auto_label=True)
     n_nodes = nx.number_of_nodes(graph)
     n_edges = nx.number_of_edges(graph)
-    start = time.time()
+    times = []
     for _ in range(cnt):
-        hseLE(name=dataset, graph=graph, scale=50, method='l1', dim=16, percentile=0.4, reuse=False)
-    end = time.time()
-    _time = end - start
-    _mean_time = 1.0 * _time / cnt
+        start = time.time()
+        hseLLE(name=dataset, graph=graph, scale=50, method='l1', dim=16, percentile=0.4, reuse=False)
+        times.append(time.time() - start)
+    mean_time = sum(times) / cnt
     print("Number of nodes: {}, number of edges: {}, run {} times, time = {}s, mean time = {}s\n"
-          .format(n_nodes, n_edges, cnt, _time, _mean_time))
-    return n_nodes, n_edges, _mean_time
+          .format(n_nodes, n_edges, cnt, times, mean_time))
+    return n_nodes, n_edges, mean_time
 
 
 def scalability_test(datasets=None, cnt=10):
@@ -226,6 +230,9 @@ def scalability_test(datasets=None, cnt=10):
 
 
 if __name__ == '__main__':
+    #start = time.time()
     #embedd("europe")
-    robustness("europe", db=Database(), probs=[i * 0.05 for i in range(14, 21)], method="KNN", cnt=25, percentile=0.5)
+    #print("all", time.time() - start)
+    _time_test("europe")
+    #robustness("europe", db=Database(), probs=[i * 0.05 for i in range(14, 21)], method="KNN", cnt=25, percentile=0.5)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
