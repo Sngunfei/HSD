@@ -12,13 +12,12 @@ import pygsp
 
 from ge.utils.util import compute_cheb_coeff_basis, build_node_idx_map
 from .EmbeddingMixin import EmbeddingMixin
+from ge.utils.distance import calc_pq_distance
 
 np.set_printoptions(suppress=True, precision=5)
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 import multiprocessing as mp
-from multiprocessing import Queue
-
 
 
 class GraphWave(EmbeddingMixin):
@@ -230,27 +229,6 @@ class GraphWave(EmbeddingMixin):
         return res
 
 
-    def _calc_pq_distance(self, p, q, metric="l1", normalized=False):
-        """
-        计算两个分布之间的相似性，p和q分别为两个节点，在同一层环上的小波系数分布，可能并不等长，为了突出节点度数
-        对于节点结构性质的重要性，我们用 0 将分布对齐。
-        :param metric: 相似性度量标准，默认为L1
-        :param normalized: 是否将p，q放缩成正常的概率分布，因为p，q分别求和后的结果不一定相等。
-        :return: 两个分布之间的相似性
-        """
-        length = max(len(p), len(q))
-        p = p + (length - len(p)) * [0]
-        q = q + (length - len(q)) * [0]
-        p = np.sort(p)
-        q = np.sort(q)
-
-        if normalized:
-            p = 1.0 * p / np.sum(p) if np.sum(p) > 0.0 else p
-            q = 1.0 * q / np.sum(q) if np.sum(q) > 0.0 else q
-
-        return calc_distance(p, q, metric)
-
-
     def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=5, normalized=True, save_path=None):
         """
         计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
@@ -280,7 +258,7 @@ class GraphWave(EmbeddingMixin):
                         q.append(coeff_mat[idx2, node])
                     if not (p or q):
                         break
-                    dist += self._calc_pq_distance(p, q, method, normalized=normalized)
+                    dist += calc_pq_distance(p, q, method, normalized=normalized)
 
                 #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
                 #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
@@ -301,185 +279,63 @@ class GraphWave(EmbeddingMixin):
         return similarity_mat
 
 
-    def _worker(self, arr, start, q):
-        origin = arr[start]
-        dis = {}
-        for i in range(start + 1, len(arr)):
-            d = np.sum(np.square(origin - arr[i]))
-            dis[i] = d
-        q.put((start, dis))
-        return
-
-
-    def parallel_calc_similarity(self, coeff_mat, method="l1", layers=5, normalized=True, save_path=None):
-
+    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=8, save_path=None):
+        print("Start parallelly calculate similarity......")
         nodes_layers = self.get_nodes_layers_bfs(layers)
-        method = str.lower(method)
+        metric = str.lower(metric)
         similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        jobs = []
-        queue = Queue()
-        for i in range(4):
-            p = mp.Process(target=self._worker, args=(array, i, queue,), name="row{}".format(i))
-            jobs.append(p)
-            p.start()
+        pool = mp.Pool(workers)
+        result = {}
 
-        for job in jobs:
-            job.join()
-        for _ in jobs:
-            start, dis = queue.get()
-            for k, v in dis.items():
-                print(start, k, v)
-                distance[start, k] = distance[k, start] = v
+        for idx in range(self.n_nodes):
+            _res = pool.apply_async(_worker, args=(coeff_mat, idx, metric, nodes_layers, ))
+            result[idx] = _res
 
-        print(distance)
+        pool.close()
+        pool.join()
 
+        for idx, _res in result.items():
+            result[idx] = _res.get()
 
-def wasserstein_distance(p, q, dual=False):
-    """
-    优化求解两个分布之间的2阶wasserstein距离
-    """
-    length = len(p)
-    D = np.zeros((length, length))  # d(x, y)
+        for idx1, info in result.items():
+            for idx2, similarity in info.items():
+                similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = similarity
 
-    for i in range(length):
-        for j in range(length):
-            D[i, j] = np.abs(p[i] - q[j])
+        if save_path:
+            """
+            df = pd.DataFrame(data=similarity_mat, index=self.nodes, columns=self.nodes)
+            df.to_csv(save_path, mode="w+")
+            """
+            with open(save_path, mode='w+', encoding='utf-8') as fout:
+                for idx1 in range(self.n_nodes):
+                    node1 = self.nodes[idx1]
+                    for idx2 in range(idx1 + 1, self.n_nodes):
+                        node2 = self.nodes[idx2]
+                        fout.write("{} {} {}\n".format(node1, node2, similarity_mat[idx1, idx2]))
 
-    A_r = np.zeros((length, length, length))
-    A_t = np.zeros((length, length, length))
-
-    for i in range(length):
-        for j in range(length):
-            A_r[i, i, j] = 1
-            A_t[i, j, i] = 1
-
-    A = np.concatenate((A_r.reshape((length, length ** 2)), A_t.reshape((length, length ** 2))), axis=0)
-    b = np.concatenate((p, q), axis=0)
-    c = D.reshape((length ** 2))
-    if dual:
-        opt_res = linprog(-b, A.transpose(), c, bounds=(None, None))
-        emd = -opt_res.fun
-    else:
-        opt_res = linprog(c, A_eq=A, b_eq=b)
-        emd = opt_res.fun
-    return emd
+        return similarity_mat
 
 
-def _check_prob_distri(p, q):
-    """
-    验证两个概率分布是否有效，以供后续计算两者相似性。
-    """
-    if (not isinstance(p, list) and not isinstance(p, np.ndarray)) \
-        or (not isinstance(q, list) and not isinstance(q, np.ndarray)):
-        raise TypeError("The probability distribution type must be list or ndarray")
-    assert len(p) == len(q), "Length of p({}) must be equal to length of q({})".format(len(p), len(q))
-    """
-    if not math.isclose(sum(p), 1.0) or not math.isclose(sum(q), 1.0):
-        raise ArithmeticError("The sum of probability distribution function is not 1.0")
-    """
 
-
-def wasserstein_guass(p, q):
-    """
-    在欧式空间中计算两个n维高斯分布之间的2阶Wasserstein距离，解析解如下：
-        W(u1，u2)^2 = |m1 - m2|^2 + tr(C1 + C2 - 2(C2^{-1/2}C1C2^{1/2})^{1/2})
-    其中m1和m2分别为两个分布的均值即中心，C1和C2是对应的协方差矩阵，对称半正定。
-    当维度为1时，就退化到两个正态分布之间的距离，公式可写为：
-        W(u1, u2)^2 = |m1 - m2|^2 + sqrt((\sigma1 + \sigma2 - 2(\sigma1\sigma2)))
-    这时候就能很好的说明W式距离能够刻画分布之间的几何距离：中心点之间的距离 + 分布形状之间的距离
-    :param p: First guass distribution.
-    :param q: Second guass distribution
-    :return: The 2th Wasserstein distance between two Guass.
-    """
-    _check_prob_distri(p, q)
-    m1 = np.mean(p)
-    m2 = np.mean(q)
-    sigma1 = np.mean(np.square(p - m1))
-    sigma2 = np.mean(np.square(q - m2))
-    dist = (m1 - m2) ** 2 + sigma1 + sigma2 - 2 * (sigma1 * sigma2) ** 0.5
-    return dist
-
-
-def KL_divergence(p, q, symmetric=False):
-    """
-    计算两个分布之间的Kullback–Leibler散度，公式如下：
-        KL(p | q) = Σplog(p / q)
-    注意到KL散度实际上并不属于距离度量，因为不对称，求KL散度的均值可以解决。
-    :param p: First probability distribution
-    :param q: Second probability distribution
-    :param symmetric: if True, calculate symmetric KL divergence
-    :return: The KL divergence between p, q
-    """
-    _check_prob_distri(p, q)
-    kl_pq = np.sum(p * np.log(p / q))
-    if symmetric:
-        kl_qp = np.sum(q * np.log(q / p))
-        return (kl_pq + kl_qp) / 2.0
-    return kl_pq
-
-
-def JS_divergence(p, q):
-    """
-    计算两个分布之间的Jensen–Shannon散度，定义如下：
-        JS(P | Q) = [KL(P | M) + KL(Q | M)] / 2， M = （P + Q) / 2
-    可以看到JS散度是基于KL散度定义的，更加平滑，而且对称。
-    :param p: First probability distribution
-    :param q: Second probability distribution
-    :return: The JS divergence between p, q
-    """
-    _check_prob_distri(p, q)
-    m = p + q
-    js = (KL_divergence(p, m, False) + KL_divergence(q, m, False)) / 2.0
-    return js
-
-
-def L_1_2_distance(p, q, order):
-    """
-    计算两个分布之间的 L1 or L2 距离。
-    """
-    _check_prob_distri(p, q)
-    if order == 1:
-        return np.sum(np.abs(p - q))
-    elif order == 2:
-        return np.sum(np.square(p - q))
-
-
-def Dynamic_Time_Warping(p, q):
-    """
-    动态时间规整，DTW
-    :param p:
-    :param q:
-    :return:
-    """
-    raise NotImplementedError("Dynamic_Time_Warping is not implemented yet.")
-
-
-def calc_distance(p, q, metric=None):
-    """
-    计算两个概率分布之间的距离。
-    :param metric: 距离名称, str
-    :return: 距离大小，float
-    """
-    if not metric or not isinstance(metric, str):
-        raise TypeError("Need to specify a metric")
-    sup_metrics = ['l1', 'l2', 'kl', 'skl', 'js', 'wguass', 'wasser']
-    if str.lower(metric) not in sup_metrics:
-        raise NotImplementedError("The {} metric is not supported yet.".format(metric))
-    metric = str.lower(metric)
-    if metric == 'l1':
-        return L_1_2_distance(p, q, 1)
-    elif metric == 'l2':
-        return L_1_2_distance(p, q, 2)
-    elif metric == 'kl':
-        return KL_divergence(p, q)
-    elif metric == 'skl':
-        return KL_divergence(p, q, True)
-    elif metric == 'js':
-        return JS_divergence(p, q)
-    elif metric == 'wguass':
-        return wasserstein_guass(p, q)
-    elif metric == 'wasser':
-        return wasserstein_distance(p, q)
+def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):
+    similarity = {}
+    for idx2 in range(idx1+1, len(coeff_mat)):
+        rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
+        maxHop = min(max(len(rings1), len(rings2)), 5) + 1
+        dist = 0.0
+        for hop in range(1, maxHop):
+            ring1, ring2 = rings1[hop], rings2[hop]
+            p, q = [], []
+            for node in ring1:
+                p.append(coeff_mat[idx1, node])
+            for node in ring2:
+                q.append(coeff_mat[idx2, node])
+            if not (p or q):
+                break
+            dist += calc_pq_distance(p, q, metric, normalized=False)
+        similarity[idx2] =  (1.0 / dist) if dist > 1e-3 else 1e3
+    #queue.put((idx1, similarity))
+    return similarity
 
 
 def laplacian(adj):

@@ -10,7 +10,6 @@ import numpy as np
 from joblib import Parallel, delayed
 import logging
 import networkx as nx
-
 from ge.utils.walker import RandomWalker
 
 
