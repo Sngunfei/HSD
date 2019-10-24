@@ -288,5 +288,5 @@ def time_vs():
 
 
 if __name__ == '__main__':
-    #robustness_knn()
-    time_vs()
+    robustness_knn()
+    #time_vs()

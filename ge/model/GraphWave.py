@@ -212,7 +212,7 @@ class GraphWave(EmbeddingMixin):
             neibors = nx.neighbors(self.graph, origin)
             queue = list(neibors)
             visited.extend(queue)
-            hop = 1
+            hop = 0   # 因为小波系数在源节点也有值，所以源节点也当做独立的一环参与计算。
             while queue and hop < max_hop:
                 cur_layer_nodes = len(queue)
                 for _ in range(cur_layer_nodes):
@@ -323,7 +323,7 @@ def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):
         rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
         maxHop = min(max(len(rings1), len(rings2)), 5) + 1
         dist = 0.0
-        for hop in range(1, maxHop):
+        for hop in range(0, maxHop):  # 1 -> 0, 原来的版本不将源节点参与计算，现在从0开始计hop。
             ring1, ring2 = rings1[hop], rings2[hop]
             p, q = [], []
             for node in ring1:
@@ -333,7 +333,7 @@ def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):
             if not (p or q):
                 break
             dist += calc_pq_distance(p, q, metric, normalized=False)
-        similarity[idx2] =  (1.0 / dist) if dist > 1e-3 else 1e3
+        similarity[idx2] =  (1.0 / dist) if dist > 1e-4 else 1e4  # 在这里定义距离和相似度反比。
     #queue.put((idx1, similarity))
     return similarity
 

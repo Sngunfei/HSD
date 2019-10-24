@@ -225,6 +225,25 @@ def sparse_process(graph, threshold=None, percentile=None):
 
 
 
+def f():
+    dic = {}
+    with open("G:\pyworkspace\graph-embedding\data\\railway.edgelist", mode='r', encoding="utf-8") as fin:
+        while True:
+            line = fin.readline()
+            if not line:
+                break
+            a, b = line.strip().split(" ")
+            dic[a] = 1
+            dic[b] = 1
+    for k, _ in dic.items():
+        if len(k) > 2:
+            print(k)
+    print(len(dic))
+
+
+if __name__ == '__main__':
+    f()
+
 
 
 
