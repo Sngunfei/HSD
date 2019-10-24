@@ -4,6 +4,7 @@ import os
 import time
 import networkx as nx
 from tqdm import tqdm
+import multiprocessing as mp
 from utils.visualize import plot_embeddings, heat_map
 import numpy as np
 from utils.util import dataloader, sparse_process
@@ -51,12 +52,12 @@ def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_pro
 
 
 def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, reuse=True):
-    save_path = "../../similarity/{}_{}_{}_1.csv".format(name, scale, method)
+    save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
-        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=5, save_path=save_path)
+        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
@@ -65,8 +66,8 @@ def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, r
     return embeddings_dict
 
 
-def hseNode2vec(name="", graph=None, scale=10, metric='l1', dim=16, percentile=0.0, reuse=True):
-    save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, metric)
+def hseNode2vec(idx, name="", graph=None, scale=10, metric='l1', dim=16, percentile=0.0, reuse=True):
+    save_path = "../../similarity/{}_{}_{}_idx.csv".format(name, scale, metric)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
@@ -74,8 +75,8 @@ def hseNode2vec(name="", graph=None, scale=10, metric='l1', dim=16, percentile=0
 
     new_graph, _, _ = dataloader(name, directed=True, auto_label=True, similarity=True, scale=scale, metric=metric)
     new_graph = sparse_process(new_graph, percentile=percentile)
-    model = Node2Vec(new_graph, walk_length=15, num_walks=10, p=1, q=2.0, workers=1)
-    model.train(window_size=15, iter=500, embed_size=dim)
+    model = Node2Vec(new_graph, walk_length=15, num_walks=10, p=1, q=1.0, workers=1)
+    model.train(window_size=15, iter=300, embed_size=dim)
     embeddings_dict = model.get_embeddings()
     return embeddings_dict
 
@@ -96,10 +97,10 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    #embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=32, percentile=0.5, reuse=True)
-    embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=False)
+    embedding_dict = hseLE(name=data, graph=graph, scale=5, method='l1', dim=32, percentile=0.8, reuse=True)
+    #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=32)
+    #embedding_dict = struc2vec(graph, walk_length=10, window_size =10, num_walks=15, stay_prob=0.3, dim=32)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph)
     nodes = []
@@ -109,89 +110,94 @@ def embedd(data):
         nodes.append(node)
         embeddings.append(embedding)
         labels.append(label_dict.get(node, str(n_class)))
-    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    #evaluate_KNN_accuracy(embeddings, labels, random_state=42)
+    evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_KNN_accuracy(embeddings, labels, random_state=42)
     #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
-    #plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
+    plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
     #heat_map(embeddings, labels)
 
 
-def robustness(data, db=None, probs=None, cnt=10, scale=10, method="LR", metric='l1', dim=32, percentile=0.75):
-    if not db:
-        db = Database()
-    classifiers = {"LR": evaluate_LR_accuracy, "SVC": evaluate_SVC_accuracy, "KNN": evaluate_KNN_accuracy}
-    knn_clf = classifiers[method]
-    lr_clf = classifiers['LR']
+def robustness(data, probs=None, cnt=10, scale=10, method="LR", metric='l1', dim=32, percentile=0.75):
 
     graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    for i, prob in enumerate(probs):
-        print("prob = ", prob)
-        knn_scores = []
-        lr_scores = []
-        times = []
-        for _ in tqdm(range(cnt)):
-            start = time.time()
-            _graph = random_remove_edges(nx.Graph(graph), prob=prob)
-            #embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
-            #                       dim=dim, percentile=percentile, reuse=False)
+    pool = mp.Pool(5)
+    results = []
+    for i, p in enumerate(probs):
+        print(i, p)
+        _res = pool.apply_async(worker, args=(i, p, data, graph, label_dict, n_class, cnt, scale, metric, dim, percentile))
+        results.append(_res)
 
-            #embedding_dict = hseNode2vec(name=data, graph=_graph, scale=scale, metric=metric,
-            #                             dim=dim, percentile=percentile, reuse=False)
+    pool.close()
+    pool.join()
 
-            embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric,
-                                   dim=dim, percentile=percentile, reuse=False)
-            times.append(time.time() - start)
+    for _res in results:
+        _res.get()
 
-            nodes = []
-            labels = []
-            embeddings = []
-            for node, embedding in embedding_dict.items():
-                nodes.append(node)
-                embeddings.append(embedding)
-                labels.append(label_dict.get(node, str(n_class)))
-            knn_scores.append(knn_clf(embeddings, labels, random_state=42))
-            lr_scores.append(lr_clf(embeddings, labels, random_state=42))
 
-        res = {"ge_name": "hseLLE",
-               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-               "data": data,
-               "prob": prob,
-               "percentile": percentile,
-               "scale": scale,
-               "metric": metric,
-               "dim": dim,
-               "cnt": cnt,
-               "evaluate": "LR",
-               "scores": lr_scores,
-               "mean": np.mean(lr_scores),
-               "std": np.std(lr_scores),
-               "mean_time": np.mean(times)
-               }
-        db.insert_score(res)
+def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=10, metric='l1', dim=32, percentile=0.75):
+    db = Database()
+    print("idx = {}, prob = {}".format(idx, prob))
+    knn_scores = []
+    lr_scores = []
+    times = []
+    for _ in tqdm(range(cnt)):
+        start = time.time()
+        _graph = random_remove_edges(nx.Graph(graph), prob=prob)
+        #embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
+        #                       dim=dim, percentile=percentile, reuse=False)
 
-        res = {"ge_name": "hseLLE",
-               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-               "data": data,
-               "prob": prob,
-               "percentile": percentile,
-               "scale": scale,
-               "metric": metric,
-               "dim": dim,
-               "cnt": cnt,
-               "evaluate": "KNN",
-               "scores": knn_scores,
-               "mean": np.mean(knn_scores),
-               "std": np.std(knn_scores),
-               "mean_time": np.mean(times)
-               }
-        db.insert_score(res)
+        embedding_dict = hseNode2vec(idx, name=data, graph=_graph, scale=scale, metric=metric,
+                                     dim=dim, percentile=percentile, reuse=False)
 
-        """
-        print(data, "prob={}, cnt={}".format(prob, cnt))
-        print(scores)
-        print("mean: ", np.mean(scores), "std: ", np.std(scores))
-        print("run {} times, time={}, mean={}".format(cnt, t, 1.0 * t / cnt))
-        """
+        #embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric,
+        #                       dim=dim, percentile=percentile, reuse=False)
+        times.append(time.time() - start)
+
+        nodes = []
+        labels = []
+        embeddings = []
+        for node, embedding in embedding_dict.items():
+            nodes.append(node)
+            embeddings.append(embedding)
+            labels.append(label_dict.get(node, str(n_class)))
+        knn_scores.append(evaluate_KNN_accuracy(embeddings, labels, random_state=42))
+        lr_scores.append(evaluate_LR_accuracy(embeddings, labels, random_state=42))
+
+    res = {"ge_name": "hseNode2vec",
+           "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+           "data": data,
+           "prob": prob,
+           "percentile": percentile,
+           "scale": scale,
+           "metric": metric,
+           "dim": dim,
+           "cnt": cnt,
+           "evaluate": "LR",
+           "scores": lr_scores,
+           "mean": np.mean(lr_scores),
+           "std": np.std(lr_scores),
+           "mean_time": np.mean(times)
+           }
+    db.insert_score(res)
+
+    res = {"ge_name": "hseNode2vec",
+           "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+           "data": data,
+           "prob": prob,
+           "percentile": percentile,
+           "scale": scale,
+           "metric": metric,
+           "dim": dim,
+           "cnt": cnt,
+           "evaluate": "KNN",
+           "scores": knn_scores,
+           "mean": np.mean(knn_scores),
+           "std": np.std(knn_scores),
+           "mean_time": np.mean(times)
+           }
+    db.insert_score(res)
+
+    return True
 
 
 def _time_test(dataset=None, cnt=10):
@@ -231,8 +237,8 @@ def scalability_test(datasets=None, cnt=10):
 
 if __name__ == '__main__':
     #start = time.time()
-    #embedd("europe")
+    embedd("usa")
     #print("all", time.time() - start)
-    _time_test("europe")
-    #robustness("europe", db=Database(), probs=[i * 0.05 for i in range(14, 21)], method="KNN", cnt=25, percentile=0.5)
+    #_time_test("europe")
+    #robustness("europe", probs=[i * 0.05 for i in range(10, 21)], method="KNN", cnt=25, percentile=0.5)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
