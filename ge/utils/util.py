@@ -5,19 +5,21 @@ import networkx as nx
 from tqdm import tqdm
 
 
-def dataloader(name="", directed=False, auto_label=False, similarity=False, scale=None, metric=None):
+def dataloader(name="", directed=False, label="auto", similarity=False, scale=None, metric=None):
     """
     Loda graph data by dataset name.
     :param name: dataset name, str
     :param directed: bool, if True, return directed graph.
-    :param auto_label:
+    :param label:
     :param similarity: similarity data or edgelist.
     :param scale: i.e. head coefficient, int
     :param metric: similarity metric, like L1 and L2, etc.
     :return: graph, node labels, number of node classes.
     """
-    if auto_label:
+    if label == "auto":
         label_path = "../../data/{}_auto.label".format(name)
+    elif label == "SIR":
+        label_path = "../../data/{}_SIR.label".format(name)
     else:
         label_path = "../../data/{}.label".format(name)
 
@@ -223,8 +225,6 @@ def sparse_process(graph, threshold=None, percentile=None):
     return graph
 
 
-
-
 def f():
     dic = {}
     with open("G:\pyworkspace\graph-embedding\data\\railway.edgelist", mode='r', encoding="utf-8") as fin:
@@ -239,6 +239,7 @@ def f():
         if len(k) > 2:
             print(k)
     print(len(dic))
+
 
 
 if __name__ == '__main__':

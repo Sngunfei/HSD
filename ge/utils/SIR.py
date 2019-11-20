@@ -1,11 +1,139 @@
 # -*- encoding: utf-8 -*-
 
 """
-Susceptible - Infected - Recover Model
+    Susceptible - Infected - Recover Model
+
+    随机选取某个节点为origin，向外传播疾病，感染概率为p，恢复概率为r，每次恢复后就免疫后续
+感染。在给定的时间t内，其能传染的节点数量（感染 + 恢复），可以代表节点的influence，不考虑
+节点属性和边属性，只考虑连接情况，能反映出节点的结构信息。
 """
 
-# todo
-def SIR():
+import networkx as nx
+from utils.util import build_node_idx_map
+import copy, random
+from collections import defaultdict
 
-    raise NotImplementedError()
+class SIR():
+
+    def __init__(self, graph, p=1.0, r=None, t=25, random_state=42):
+        """
+        模型初始化
+        :param graph: 网络图
+        :param p: 传染概率
+        :param r: 恢复概率， default：1 / (average degree)
+        :param t: 传播时间
+        """
+
+        self.G = graph
+        self.p = p
+        if not r:
+            self.r = 1.0 / self._get_average_degree()
+        else:
+            self.r = r
+        self.t = t
+        self.random_state = random_state
+        self.idx2node, self.node2idx = build_node_idx_map(graph)
+        self.influence = defaultdict(int)
+
+
+    def _get_average_degree(self):
+        total = 0
+        for _, degree in nx.degree(self.G):
+            total += degree
+        return total / nx.number_of_nodes(self.G)
+
+
+    def start(self):
+        """
+        Susceptible - Infected - Recover Model
+        :return:
+        """
+        for idx, node in enumerate(self.idx2node):
+            for _ in range(5): # 重复5次消除随机因素
+                self.influence[node] += self._diffuse_from_node(node)
+            print(node, self.influence[node])
+
+
+    def _diffuse_from_node(self, node):
+        """
+        以node为起始点，向外传播
+        :param node:
+        :return:
+        """
+        infected = set() # 传染集合
+        infected.add(node)
+        recoverd = set() # 恢复集合
+
+        t = self.t
+        while t > 0:
+            #print(node, t, infected)
+            current_infectd = copy.deepcopy(infected)
+            for _node in current_infectd:
+                for neighbor in nx.neighbors(self.G, _node):
+                    # 传染
+                    if neighbor not in recoverd and neighbor not in infected and random.random() <= self.p:
+                        infected.add(neighbor)
+                # 恢复
+                if random.random() <= self.r:
+                    recoverd.add(_node)
+                    infected.remove(_node)
+            t -= 1
+
+        # 时间t内传染到的节点数量，即节点的影响力
+        influence = len(infected) + len(recoverd)
+        return influence
+
+
+    def label_nodes(self, n_class):
+        """
+        根据node的influence来贴标签，n_class表示分为多少个类别
+
+        按位置划分还是按score的区间划分？ 怎么分都不均匀= =
+        :param n_class:
+        :return:
+        """
+        scores = sorted(self.influence.items(), key=lambda x:x[1])
+        min_score, max_score = scores[0][1], scores[-1][1]
+        interval = (max_score - min_score) / n_class
+        labels = {}
+
+        i = 1
+        for node, score in scores:
+            if score <= min_score + interval * i:
+                labels[node] = i - 1
+            else:
+                labels[node] = i
+                i += 1
+
+        return labels
+
+
+if __name__ == '__main__':
+    from utils.util import dataloader
+    data, _, _ = dataloader("brazil", directed=False)
+    model = SIR(data, p=0.8, r=None, t=2, random_state=42)
+    model.start()
+    labels = model.label_nodes(4)
+    fout = open("../../data/brazil_SIR.label", mode="w+", encoding="utf8")
+    for node, label in labels.items():
+        fout.write("{} {} \n".format(node, label))
+    fout.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

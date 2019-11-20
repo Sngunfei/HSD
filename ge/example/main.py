@@ -73,7 +73,7 @@ def hseNode2vec(idx, name="", graph=None, scale=10, metric='l1', dim=16, percent
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
         wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=metric, layers=10, save_path=save_path)
 
-    new_graph, _, _ = dataloader(name, directed=True, auto_label=True, similarity=True, scale=scale, metric=metric)
+    new_graph, _, _ = dataloader(name, directed=True, label='auto', similarity=True, scale=scale, metric=metric)
     new_graph = sparse_process(new_graph, percentile=percentile)
     model = Node2Vec(new_graph, walk_length=15, num_walks=10, p=1, q=1.0, workers=1)
     model.train(window_size=15, iter=300, embed_size=dim)
@@ -96,13 +96,15 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 
 def embedd(data):
-    graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
-    embedding_dict = hseLE(name=data, graph=graph, scale=5, method='l1', dim=32, percentile=0.8, reuse=True)
-    #embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=32, reuse=True)
+    graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
+    #embedding_dict = hseLE(name=data, graph=graph, scale=10, method='l1', dim=64, percentile=0.8, reuse=True)
+    embedding_dict = hseLLE(name=data, graph=graph, scale=10, method='l1', dim=16, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(graph, walk_length=10, window_size =10, num_walks=15, stay_prob=0.3, dim=32)
+    #embedding_dict = struc2vec(graph, walk_length=10, window_size=10, num_walks=30, stay_prob=0.2, dim=10)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph)
+    #embedding_dict = graphWave(graph, 10)
+
     nodes = []
     labels = []
     embeddings = []
@@ -113,13 +115,13 @@ def embedd(data):
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
     evaluate_KNN_accuracy(embeddings, labels, random_state=42)
     #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
+    plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=3)
     #heat_map(embeddings, labels)
 
 
 def robustness(data, probs=None, cnt=10, scale=10, method="LR", metric='l1', dim=32, percentile=0.75):
 
-    graph, label_dict, n_class = dataloader(data, directed=False, auto_label=True)
+    graph, label_dict, n_class = dataloader(data, directed=False, label="auto")
     pool = mp.Pool(5)
     results = []
     for i, p in enumerate(probs):
@@ -207,7 +209,7 @@ def _time_test(dataset=None, cnt=10):
     :param cnt: execute cnt times, int.
     :return: the average time on the dataset, float.
     """
-    graph, _, _ = dataloader(dataset, directed=False, auto_label=True)
+    graph, _, _ = dataloader(dataset, directed=False, label="auto")
     n_nodes = nx.number_of_nodes(graph)
     n_edges = nx.number_of_edges(graph)
     times = []
@@ -237,7 +239,7 @@ def scalability_test(datasets=None, cnt=10):
 
 if __name__ == '__main__':
     #start = time.time()
-    embedd("usa")
+    embedd("brazil")
     #print("all", time.time() - start)
     #_time_test("europe")
     #robustness("europe", probs=[i * 0.05 for i in range(10, 21)], method="KNN", cnt=25, percentile=0.5)
