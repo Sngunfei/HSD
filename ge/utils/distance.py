@@ -5,6 +5,8 @@ Calculate different distances between distributions.
 """
 
 import numpy as np
+from numpy import linalg
+from scipy import stats
 
 
 def calc_pq_distance(p, q, metric="l1", normalized=False):
@@ -156,7 +158,7 @@ def calc_distance(p, q, metric=None):
     """
     if not metric or not isinstance(metric, str):
         raise TypeError("Need to specify a metric")
-    sup_metrics = ['l1', 'l2', 'kl', 'skl', 'js', 'wguass', 'wasser']
+    sup_metrics = ['l1', 'l2', 'kl', 'skl', 'js', 'wguass', 'wasserstein']
     if str.lower(metric) not in sup_metrics:
         raise NotImplementedError("The {} metric is not supported yet.".format(metric))
     metric = str.lower(metric)
@@ -172,5 +174,6 @@ def calc_distance(p, q, metric=None):
         return JS_divergence(p, q)
     elif metric == 'wguass':
         return wasserstein_guass(p, q)
-    elif metric == 'wasser':
-        return wasserstein_distance(p, q)
+    elif metric == 'wasserstein':
+        #return wasserstein_distance(p, q)
+        return stats.wasserstein_distance(p, q) * len(p)
