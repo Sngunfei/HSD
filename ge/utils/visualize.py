@@ -12,6 +12,7 @@ from pyecharts.charts import  Bar
 from pyecharts import options as opts
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import cm
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
@@ -44,61 +45,28 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
         """
         model = TSNE(n_components=2,  random_state=random_state, n_iter=5000, perplexity=perplexity, init="pca")
+
     embeddings = np.array(embeddings)
-    node_pos = np.array(model.fit_transform(embeddings))
+    _2d_data = np.array(model.fit_transform(embeddings))
 
-    # 没有标签
     if not labels:
-        dic = dict()
-        for i in range(len(node_pos)):
-            x, y = node_pos[i, 0], node_pos[i, 1]
-            if not labels:
-                plt.scatter(x, y, s=88)
-            x = round(x, 2)
-            y = round(y, 2)
-            dic["{} {}".format(x, y)] = dic.get("{} {}".format(x, y), []) + [nodes[i]]
-        for k, v in dic.items():
-            x, y = k.split(" ")
-            #x = max(float(x) - len(v) * 0.02,-2)
-            plt.text(float(x), float(y), " ".join(v))
-
-    if labels:
-        # 带标签
+        plt.scatter(x=_2d_data[:, 0], y=_2d_data[:, 1], s=40, marker='o')
+    else:
+        from collections import defaultdict
         markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
-        color_idx = {}
+        class_dict = defaultdict(list)
         for idx, node in enumerate(nodes):
-            color_idx.setdefault(labels[idx], [])
-            color_idx[labels[idx]].append(idx)
-        for c, idx in color_idx.items():
-            #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])
-            plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, s=50, marker=markers[int(c)])#, s=area[idx])
+            class_dict[labels[idx]].append(idx)
 
-    plt.legend()
+        for _class, _indices in class_dict.items():
+            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40,  c=[(int(_class)+1)*3]*len(_indices), marker='o', cmap=cm.get_cmap())
+            _class = int(_class)
+            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class])
+
+
+    #plt.legend()
     plt.show()
 
-
-def plot_subway_embedding(nodes=None, embeddings=None, labels=None, perplexity=5):
-    model = TSNE(n_components=2, random_state=42, n_iter=10000, perplexity=perplexity, init="pca")
-    node_pos = model.fit_transform(embeddings)
-
-    markers = ['+', 'o', '<', '*', 'D', 'x', 'H', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
-    color_idx = {}
-    for i in range(len(nodes)):
-        color_idx.setdefault(labels[i], [])
-        color_idx[labels[i]].append(i)
-
-    for c, idx in color_idx.items():
-        #plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c, marker=markers[int(c)%16])#, s=area[idx])\
-        c = int(c)
-        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=(c-1)%3, s=30, marker=markers[(c-1) // 3 + 1])#, s=area[idx])
-
-    """
-    for i in range(len(nodes)):
-        plt.text(node_pos[i, 0], node_pos[i, 1], nodes[i])
-    """
-    plt.xlabel("t-SNE 1")
-    plt.ylabel("t-SNE 2")
-    plt.show()
 
 
 def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):

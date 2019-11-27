@@ -22,7 +22,7 @@ import multiprocessing as mp
 
 class GraphWave(EmbeddingMixin):
 
-    def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=10):
+    def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=20.0):
         super().__init__()
         self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."
         self.graph = graph
@@ -279,7 +279,7 @@ class GraphWave(EmbeddingMixin):
         return similarity_mat
 
 
-    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=8, save_path=None):
+    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, save_path=None):
         print("Start parallelly calculate similarity......")
         nodes_layers = self.get_nodes_layers_bfs(layers)
         metric = str.lower(metric)

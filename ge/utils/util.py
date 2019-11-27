@@ -218,32 +218,22 @@ def sparse_process(graph, threshold=None, percentile=None):
 
         for edge in edges:
             u, v = edge
-            if graph[u][v]['weight'] < threshold:
+            if graph[u][v]['weight'] <= threshold:
                 del_edges.append((u, v))
     graph.remove_edges_from(del_edges)
 
     return graph
 
 
-def f():
-    dic = {}
-    with open("G:\pyworkspace\graph-embedding\data\\railway.edgelist", mode='r', encoding="utf-8") as fin:
-        while True:
-            line = fin.readline()
-            if not line:
-                break
-            a, b = line.strip().split(" ")
-            dic[a] = 1
-            dic[b] = 1
-    for k, _ in dic.items():
-        if len(k) > 2:
-            print(k)
-    print(len(dic))
+def connect_graph(graph: nx.Graph) -> nx.Graph:
+    """
+    一个图可能有多个连通分量，为了使其之间能够有路径到达，在不同连通分量之间添加一条边，使其连通
+    :param graph: 原图
+    :return: 连通图
+    """
 
 
 
-if __name__ == '__main__':
-    f()
 
 
 

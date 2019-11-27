@@ -110,11 +110,11 @@ class SIR():
 
 if __name__ == '__main__':
     from utils.util import dataloader
-    data, _, _ = dataloader("brazil", directed=False)
-    model = SIR(data, p=0.8, r=None, t=2, random_state=42)
+    data, _, _ = dataloader("europe", directed=False)
+    model = SIR(data, p=0.9, r=None, t=3, random_state=42)
     model.start()
-    labels = model.label_nodes(4)
-    fout = open("../../data/brazil_SIR.label", mode="w+", encoding="utf8")
+    labels = model.label_nodes(5)
+    fout = open("../../data/brazil_SIR_5.label", mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()
