@@ -41,7 +41,7 @@ class LocallyLinearEmbedding:
         return self.embeddings
 
 
-    def sklearn_lle(self, n_neighbors, dim, random_state):
+    def sklearn_lle(self, n_neighbors=20, dim=64, random_state=42):
         A = self.adj
         A = A.todense()
         model = LLE(n_neighbors=n_neighbors, n_components=dim, random_state=random_state)
