@@ -232,6 +232,24 @@ def connect_graph(graph: nx.Graph) -> nx.Graph:
     :return: 连通图
     """
 
+    # if graph is connected already.
+    if nx.is_connected(graph):
+        return graph
+
+    # n_components > 1
+    components = nx.connected_components(graph)
+    node = None
+    edges = []
+    for comp in components:
+        if node is None:
+            node = comp.pop()
+        else:
+            edges.append((node, comp.pop()))  # 随机加边
+
+    graph.add_edges_from(edges)
+    return graph
+
+
 
 
 

@@ -9,7 +9,7 @@
 """
 
 import networkx as nx
-from utils.util import build_node_idx_map
+from utils.util import build_node_idx_map, connect_graph
 import copy, random
 from collections import defaultdict
 
@@ -51,7 +51,7 @@ class SIR():
         for idx, node in enumerate(self.idx2node):
             for _ in range(5): # 重复5次消除随机因素
                 self.influence[node] += self._diffuse_from_node(node)
-            print(node, self.influence[node])
+            #print(node, self.influence[node])
 
 
     def _diffuse_from_node(self, node):
@@ -61,26 +61,26 @@ class SIR():
         :return:
         """
         infected = set() # 传染集合
-        infected.add(node)
+        infected.add((node, 1))
         recoverd = set() # 恢复集合
 
         t = self.t
         while t > 0:
             #print(node, t, infected)
             current_infectd = copy.deepcopy(infected)
-            for _node in current_infectd:
+            for _node, _weight in current_infectd:
                 for neighbor in nx.neighbors(self.G, _node):
                     # 传染
                     if neighbor not in recoverd and neighbor not in infected and random.random() <= self.p:
-                        infected.add(neighbor)
+                        infected.add((neighbor, _weight-0.1))
                 # 恢复
                 if random.random() <= self.r:
-                    recoverd.add(_node)
-                    infected.remove(_node)
+                    recoverd.add((_node, _weight))
+                    infected.remove((_node, _weight))
             t -= 1
 
         # 时间t内传染到的节点数量，即节点的影响力
-        influence = len(infected) + len(recoverd)
+        influence = sum([_weight for _, _weight in infected]) + sum([_weight for _, _weight in recoverd])
         return influence
 
 
@@ -92,29 +92,33 @@ class SIR():
         :param n_class:
         :return:
         """
-        scores = sorted(self.influence.items(), key=lambda x:x[1])
+        scores = sorted(self.influence.items(), key=lambda x: x[1])
         min_score, max_score = scores[0][1], scores[-1][1]
         interval = (max_score - min_score) / n_class
         labels = {}
 
+        cnt = defaultdict(int)
         i = 1
         for node, score in scores:
             if score <= min_score + interval * i:
                 labels[node] = i - 1
+                cnt[i-1] += 1
             else:
                 labels[node] = i
+                cnt[i] += 1
                 i += 1
-
+        print(cnt)
         return labels
 
 
 if __name__ == '__main__':
     from utils.util import dataloader
     data, _, _ = dataloader("europe", directed=False)
-    model = SIR(data, p=0.9, r=None, t=3, random_state=42)
+    print("radius", nx.radius(data))
+    model = SIR(data, p=0.9, r=None, t=2, random_state=42)
     model.start()
-    labels = model.label_nodes(5)
-    fout = open("../../data/brazil_SIR_5.label", mode="w+", encoding="utf8")
+    labels = model.label_nodes(4)
+    fout = open("../../data/europe_SIR.label", mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()
