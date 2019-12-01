@@ -115,9 +115,10 @@ if __name__ == '__main__':
     from utils.util import dataloader
     data, _, _ = dataloader("europe", directed=False)
     print("radius", nx.radius(data))
+    print("diameter", nx.diameter(data))
     model = SIR(data, p=0.9, r=None, t=2, random_state=42)
     model.start()
-    labels = model.label_nodes(4)
+    labels = model.label_nodes(5)
     fout = open("../../data/europe_SIR.label", mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))

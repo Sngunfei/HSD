@@ -50,10 +50,10 @@ def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
     from sklearn.linear_model import LogisticRegressionCV
     #from sklearn.multiclass import OneVsRestClassifier
 
-    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
 
-    lrc = LogisticRegressionCV(cv=5, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
+    lrc = LogisticRegressionCV(cv=25, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
     score = accuracy_score(preds, ytest)
@@ -102,9 +102,9 @@ def evaluate_KNN_accuracy(embeddings=None, labels=None, random_state=42):
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     :return:
     """
-    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.2,
+    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
-    knn = KNeighborsClassifier(n_neighbors=5, weights="uniform", algorithm="auto", n_jobs=-1)
+    knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
     knn.fit(xtrain, ytrain)
     preds = knn.predict(xtest)
 
