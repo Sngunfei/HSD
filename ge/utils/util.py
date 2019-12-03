@@ -5,7 +5,7 @@ import networkx as nx
 from tqdm import tqdm
 
 
-def dataloader(name="", directed=False, label="auto", similarity=False, scale=None, metric=None):
+def dataloader(name="", directed=False, label="origin", similarity=False, scale=None, metric=None):
     """
     Loda graph data by dataset name.
     :param name: dataset name, str
@@ -16,19 +16,14 @@ def dataloader(name="", directed=False, label="auto", similarity=False, scale=No
     :param metric: similarity metric, like L1 and L2, etc.
     :return: graph, node labels, number of node classes.
     """
-    if label == "auto":
-        label_path = "../../data/{}_auto.label".format(name)
-    elif label == "SIR":
-        label_path = "../../data/{}_SIR.label".format(name)
-    else:
-        label_path = "../../data/{}.label".format(name)
+
+    label_path = "../../data/{}_{}.label".format(name, label)
 
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
     else:
-        metric = str.lower(metric)
-        edge_path = "../../similarity/{}_{}_{}.csv".format(name, scale, metric)
-        #directed = False # similarity can't be directed.
+        directed = False
+        edge_path = "../../similarity/{}_{}_{}.csv".format(name, scale, str.lower(metric))
 
     if directed:
         graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
@@ -38,7 +33,6 @@ def dataloader(name="", directed=False, label="auto", similarity=False, scale=No
                                  edgetype=float, data=[('weight', float)])
 
     label_dict, num_class = read_label(label_path)
-
     return graph, label_dict, num_class
 
 
