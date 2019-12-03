@@ -32,8 +32,8 @@ def graphWave(graph, scale=10, d=32):
 
 def node2vec(graph):
     graph = nx.DiGraph(graph)
-    model = Node2Vec(graph, walk_length=30, num_walks=15, p=1.0, q=2.0, workers=1)
-    model.train(window_size=30, iter=500)
+    model = Node2Vec(graph, walk_length=50, num_walks=15, p=1.0, q=2.0, workers=3)
+    model.train(window_size=15, iter=300)
     embeddings_dict = model.get_embeddings()
     return embeddings_dict
 
@@ -57,13 +57,13 @@ def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, r
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
-        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, save_path=save_path)
+        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=3, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
     model = LocallyLinearEmbedding(new_graph, dim)
     #embeddings_dict = model.create_embedding(dim)
-    embeddings_dict = model.sklearn_lle(n_neighbors=20, dim=dim, random_state=42)
+    embeddings_dict = model.sklearn_lle(n_neighbors=3, dim=dim, random_state=42)
     return embeddings_dict
 
 
@@ -99,12 +99,12 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
     #embedding_dict = hseLE(name=data, graph=graph, scale=50, method='wasserstein', dim=64, percentile=0.7, reuse=True)
-    #embedding_dict = hseLLE(name=data, graph=graph, scale=50, percentile=0.0, method='wasserstein', dim=64, reuse=True)
+    embedding_dict = hseLLE(name=data, graph=graph, scale=50, percentile=0.5, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    embedding_dict = struc2vec(graph, walk_length=30, window_size=30, num_walks=15, stay_prob=0.3, dim=64)
+    #embedding_dict = struc2vec(graph, walk_length=50, window_size=15, num_walks=15, stay_prob=0.3, dim=64)
     #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict = graphWave(graph, scale=50, d=32)
+    #embedding_dict = graphWave(graph, scale=5, d=32)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
 
     nodes = []
@@ -113,10 +113,9 @@ def embedd(data):
     for node, embedding in embedding_dict.items():
         nodes.append(node)
         embeddings.append(embedding)
-        labels.append(label_dict.get(node, str(n_class)))
+        labels.append(label_dict[node])
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
     evaluate_KNN_accuracy(embeddings, labels, random_state=42)
-    #evaluate_SVC_accuracy(embeddings, labels, random_state=42)
     plot_embeddings(nodes, embeddings, labels, method="tsne", perplexity=10)
     #heat_map(embeddings, labels)
 

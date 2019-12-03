@@ -21,7 +21,7 @@ from ge.utils.alias_sample import create_alias_table, alias_sample
 
 class Struc2Vec:
     def __init__(self, graph, walk_length=10, num_walks=100, workers=1, verbose=0, stay_prob=0.3,
-                 opt1_reduce_len=True, opt2_reduce_sim_calc=True, opt3_num_layers=None,
+                 opt1_reduce_len=True, opt2_reduce_sim_calc=True, opt3_num_layers=10,
                  temp_path='./temp_struc2vec/', reuse=False):
 
         self.graph = graph
@@ -291,9 +291,14 @@ class Struc2Vec:
                     e_list.append(w)
                     sum_w += w
 
+                a, b, c, d = v, neighbors, e_list, sum_w
+                node = self.idx2node[v]
                 e_list = [x / sum_w for x in e_list]
                 norm_weights[v] = e_list
-                accept, alias = create_alias_table(e_list)
+                if sum_w > 0.01:
+                    accept, alias = create_alias_table(e_list)
+                else:
+                    accept, alias = [0] * len(e_list), [0] * len(e_list)
                 node_alias_dict[v] = alias
                 node_accept_dict[v] = accept
 

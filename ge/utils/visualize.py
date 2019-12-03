@@ -53,15 +53,29 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         plt.scatter(x=_2d_data[:, 0], y=_2d_data[:, 1], s=40, marker='o')
     else:
         from collections import defaultdict
+        import matplotlib.colors as colors
+        import matplotlib.cm as cmx
+
         markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+        cm = plt.get_cmap("nipy_spectral")
+        cNorm  = colors.Normalize(vmin=0, vmax=5)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+
         class_dict = defaultdict(list)
         for idx, node in enumerate(nodes):
             class_dict[labels[idx]].append(idx)
 
         for _class, _indices in class_dict.items():
-            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40,  c=[(int(_class)+1)*3]*len(_indices), marker='o', cmap=cm.get_cmap())
             _class = int(_class)
-            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class])
+            # general case， n_class < 10
+            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
+
+            # mirror karate network, n_class = 34
+            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)])
+
+        #for idx, (x, y) in enumerate(_2d_data):
+        #    plt.text(x, y, nodes[idx])
 
 
     #plt.legend()
