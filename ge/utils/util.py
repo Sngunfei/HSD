@@ -244,6 +244,23 @@ def connect_graph(graph: nx.Graph) -> nx.Graph:
     return graph
 
 
+def get_metadata_of_networks():
+    networks = ["bell", "mkarate", "europe", "usa"]
+
+    for name in networks:
+        data, _, _ = dataloader(name, directed=False)
+        print(name)
+        print("radius", nx.radius(data))
+        print("diameter", nx.diameter(data))
+        print("Average Degree:", np.mean([j for _, j in nx.degree(data)]))
+
+    return
+
+if __name__ == '__main__':
+    get_metadata_of_networks()
+
+
+
 
 
 
