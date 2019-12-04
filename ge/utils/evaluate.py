@@ -104,7 +104,7 @@ def evaluate_KNN_accuracy(embeddings=None, labels=None, random_state=42):
     """
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
-    knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
+    knn = KNeighborsClassifier(n_neighbors=20, weights="uniform", algorithm="auto", n_jobs=-1)
     knn.fit(xtrain, ytrain)
     preds = knn.predict(xtest)
 
