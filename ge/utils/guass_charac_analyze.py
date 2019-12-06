@@ -25,7 +25,7 @@ def guass_charac():
 
     print(kl_divergence)
 
-    x = [i for i in range(0, 5000, 10)]
+    x = [i for i in range(0, 10000, 10)]
 
     real_1, imag_1 = charac(first, x)
     real_2, imag_2 = charac(second, x)
@@ -38,12 +38,12 @@ def guass_charac():
     real_diff = [abs(i-j) for i, j in zip(real_1, real_2)]
     imag_diff = [abs(i-j) for i, j in zip(imag_1, imag_2)]
 
-    diff = [i+j for i, j in zip(real_diff, imag_diff)]
+    diff = [np.sqrt(i**2+j**2) for i, j in zip(real_diff, imag_diff)]
 
-    plt.plot(x, real_diff, "b-")
-    plt.plot(x, imag_diff, "r-")
-    plt.plot(x, diff, "k-")
-    plt.plot(x, [kl_divergence]*len(x), "g-")
+    #plt.plot(x, real_diff, "b-")
+    #plt.plot(x, imag_diff, "r-")
+    plt.plot(x, diff, "k-", label="real^2 + imag^2")
+    plt.plot(x, [kl_divergence]*len(x), "g-", label="KL")
 
 
     plt.legend()

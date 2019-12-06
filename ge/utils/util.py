@@ -254,10 +254,27 @@ def get_metadata_of_networks():
         print("diameter", nx.diameter(data))
         print("Average Degree:", np.mean([j for _, j in nx.degree(data)]))
 
-    return
+
+def judge_by_degree(data):
+    graph, _, _ = dataloader(data, directed=False, label="SIR")
+    node_degree = {}
+    for node, degree in nx.degree(graph):
+        node_degree[node] = degree
+
+    res = sorted(node_degree.items(), key=lambda x:x[1])
+
+    fout = open("../../data/usa_degree.label", mode="w+", encoding="utf-8")
+    for node, degree in res:
+        fout.write("{} {}\n".format(node, degree))
+    fout.close()
+
 
 if __name__ == '__main__':
-    get_metadata_of_networks()
+    _, labels, _ = dataloader("usa", directed=False, label="SIR")
+    cnt = {}
+    for node, label in labels.items():
+        cnt[label] = cnt.get(label, 0) + 1
+    print(cnt)
 
 
 
