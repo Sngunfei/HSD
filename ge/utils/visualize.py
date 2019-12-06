@@ -21,7 +21,7 @@ from ge.utils.util import dataloader
 from ge.utils.db import Database
 
 
-def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=42, perplexity=5):
+def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", random_state=42, perplexity=5):
     """
     降维可视化计算得到的嵌入向量
     :param nodes: 节点名称
@@ -44,7 +44,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         在bell数据集中，有稀疏对称点，数量只有一对，还有稠密对称点，数量有四五对，
         有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
         """
-        model = TSNE(n_components=2,  random_state=random_state, n_iter=5000, perplexity=perplexity, init="pca")
+        model = TSNE(n_components=2,  random_state=random_state, n_iter=1000, perplexity=perplexity, init="pca")
 
     embeddings = np.array(embeddings)
     _2d_data = np.array(model.fit_transform(embeddings))
@@ -59,7 +59,7 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
         markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
 
         cm = plt.get_cmap("nipy_spectral")
-        cNorm  = colors.Normalize(vmin=0, vmax=5)
+        cNorm  = colors.Normalize(vmin=0, vmax=n_class-1)
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
 
         class_dict = defaultdict(list)
@@ -70,12 +70,11 @@ def plot_embeddings(nodes, embeddings, labels=None, method="pca", random_state=4
             _class = int(_class)
             # general case， n_class < 10
             #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
-
             # mirror karate network, n_class = 34
-            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)])
+            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)], label=_class)
 
         #for idx, (x, y) in enumerate(_2d_data):
-        #    plt.text(x, y, nodes[idx])
+         #   plt.text(x, y, nodes[idx])
 
 
     #plt.legend()

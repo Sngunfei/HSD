@@ -36,3 +36,6 @@ class Database(object):
         col = self.db[collection]
         res = col.find(filters, {"prob": 1, "scores": 1, "evaluate": 1})
         return res
+
+    def close(self):
+        self.client.close()

@@ -229,7 +229,7 @@ class GraphWave(EmbeddingMixin):
         return res
 
 
-    def calc_wavelet_similarity(self, coeff_mat, method="l1", layers=5, normalized=True, save_path=None):
+    def calc_wavelet_similarity(self, coeff_mat, method="l1", hierachical=True, layers=5, normalized=True, save_path=None):
         """
         计算节点间小波系数的相似性，首先计算出各层的相似性，然后累加求和。
         :param coeff_mat: 小波系数矩阵
@@ -239,30 +239,37 @@ class GraphWave(EmbeddingMixin):
         :param save_path: 将计算得到的相似度以csv文件保存
         :return: 相似度矩阵
         """
-        #nodes_layers = self.get_nodes_layers()
-        nodes_layers = self.get_nodes_layers_bfs(layers)
-        method = str.lower(method)
-        similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        for idx1 in range(self.n_nodes):
-            for idx2 in range(idx1, self.n_nodes):
-                rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
-                maxHop = min(max(len(rings1), len(rings2)), 5) + 1
-                dist = 0.0
-                for hop in range(1, maxHop):
-                    # 取出同一层的环
-                    ring1, ring2 = rings1[hop], rings2[hop]
-                    p, q = [], []
-                    for node in ring1:
-                        p.append(coeff_mat[idx1, node])
-                    for node in ring2:
-                        q.append(coeff_mat[idx2, node])
-                    if not (p or q):
-                        break
-                    dist += calc_pq_distance(p, q, method, normalized=normalized)
+        if hierachical:
+            nodes_layers = self.get_nodes_layers_bfs(layers)
+            method = str.lower(method)
+            similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+            for idx1 in range(self.n_nodes):
+                for idx2 in range(idx1, self.n_nodes):
+                    rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
+                    maxHop = min(max(len(rings1), len(rings2)), 5) + 1
+                    dist = 0.0
+                    for hop in range(1, maxHop):
+                        # 取出同一层的环
+                        ring1, ring2 = rings1[hop], rings2[hop]
+                        p, q = [], []
+                        for node in ring1:
+                            p.append(coeff_mat[idx1, node])
+                        for node in ring2:
+                            q.append(coeff_mat[idx2, node])
+                        if not (p or q):
+                            break
+                        dist += calc_pq_distance(p, q, method, normalized=normalized)
 
-                #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
-                #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
-                similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
+                    #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
+                    #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
+                    similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
+
+        else:
+            from scipy import stats
+            similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+            for idx1 in range(self.n_nodes):
+                for idx2 in range(idx1, self.n_nodes):
+                    similarity_mat[idx1, idx2] = stats.wasserstein_distance(coeff_mat[idx1, :], coeff_mat[idx2, :]) * self.n_nodes
 
         if save_path:
             """

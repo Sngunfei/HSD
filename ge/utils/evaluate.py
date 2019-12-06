@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score
 from sklearn.neighbors import KNeighborsClassifier
 
 
@@ -48,24 +48,27 @@ def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
     :return: Accuracy score, float.
     """
     from sklearn.linear_model import LogisticRegressionCV
-    #from sklearn.multiclass import OneVsRestClassifier
 
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
 
-    lrc = LogisticRegressionCV(cv=25, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
+    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
-    score = accuracy_score(preds, ytest)
-    balanced_score = balanced_accuracy_score(ytest, preds)
-    report = classification_report(ytest, preds)
-    print("logistic regression(ovr) accuracy score:{}.".format(score))
-    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_score))
+    accuracy = accuracy_score(ytest, preds)
+    balanced_accuracy = balanced_accuracy_score(ytest, preds)
+    micro_f1 = f1_score(ytest, preds, average="micro")
+    macro_f1 = f1_score(ytest, preds, average="macro")
 
+    report = classification_report(ytest, preds)
+    print("------------------------------LR--------------------------------")
+    print("logistic regression(ovr) accuracy score:{}.".format(accuracy))
+    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_accuracy))
     print("classification report: ")
     print(report)
+    print("micro_f1: {}, macro_f1: {}".format(micro_f1, macro_f1))
 
-    return score
+    return accuracy
 
 
 def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
@@ -104,7 +107,7 @@ def evaluate_KNN_accuracy(embeddings=None, labels=None, random_state=42):
     """
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
-    knn = KNeighborsClassifier(n_neighbors=20, weights="uniform", algorithm="auto", n_jobs=-1)
+    knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
     knn.fit(xtrain, ytrain)
     preds = knn.predict(xtest)
 
