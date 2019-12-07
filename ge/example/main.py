@@ -240,9 +240,22 @@ def scalability_test(datasets=None, cnt=10):
             fout.write("Number of nodes: {}, number of edges: {}, mean time = {}s\n\n".format(n_nodes, n_edges, mean_time))
 
 
+def mkarate_wavelet():
+    from utils.guass_charac_analyze import mkarate_wavelet_analyse, mkarate_wavelet_analyse_2
+    data, _, _ = dataloader("mkarate", directed=False)
+    wave_machine = GraphWave(data, heat_coefficient=10)
+    node2idx, idx2node = wave_machine.node2idx, wave_machine.nodes
+    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=10)
+    index34, index51, index17 = node2idx['34'], node2idx['51'], node2idx['17']
+    wavelet34, wavelet51, wavelet17 = wavelets[index34], wavelets[index51], wavelets[index17]
+    similarity = wave_machine.calc_wavelet_similarity(wavelets, method="wasserstein", hierachical=True, layers=5)
+    mkarate_wavelet_analyse(wavelet34, wavelet51, wavelet17, similarity[index34, index51], similarity[index34, index17])
+
+
 if __name__ == '__main__':
     #start = time.time()
-    embedd("usa")
+    #embedd("usa")
+    mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
     #robustness("usa", probs=[i * 0.05 for i in range(13, 16)], cnt=10, metric="wasserstein", dim=64, scale=50, percentile=0.7)
