@@ -61,11 +61,125 @@ def charac(p:np.array, samples:list):
     res_real = []
     res_imag = []
     for t in samples:
+        print(p)
         value = np.mean(np.exp(1j * p * t))
         res_real.append(value.real)
         res_imag.append(value.imag)
 
     return res_real, res_imag
+
+
+def mkarate_wavelet_analyse(w1:list, w2:list, w3:list, s1:float, s2:float):
+    """
+    以mirror-karate network中的节点举例，其中w1和w2是结构对称的小波系数，而w3是不对称的，
+    分析一下它们的特征函数差异
+    :param w1:
+    :param w2:
+    :param w3:
+    :return:
+    """
+    w1, w2, w3 = np.sort(w1),  np.sort(w2),  np.sort(w3)
+    samples = [i for i in range(0, 2000, 5)]
+    real_1, imag_1 = charac(w1, samples)
+    real_2, imag_2 = charac(w2, samples)
+    real_3, imag_3 = charac(w3, samples)
+
+    font = {'family': 'Times New Roman',
+             'weight': 'normal',
+             'size': 24,
+    }
+
+    plt.figure()
+    #plt.subplot(221)
+    plt.plot(samples, real_1, 'b-', label="Node34 - Real")
+    plt.plot(samples, imag_1, 'r-', label="Node34 - Imag")
+    plt.plot(samples, real_2, 'g-', label="Node51 - Real")
+    plt.plot(samples, imag_2, 'k-', label="Node51 - Imag")
+    plt.xlabel("Sample points", fontdict=font)
+    plt.ylabel("Value", fontdict=font)
+    #plt.plot(samples, real_3, 'g-', label="real_3")
+    #plt.plot(samples, imag_3, 'g-', label="imag_3")
+    plt.legend(prop=font)
+
+    #plt.subplot(222)
+    plt.figure()
+
+    plt.plot(samples, real_3, 'g-', label="Node17 - Real")
+    plt.plot(samples, imag_3, 'k-', label="Node17 - Imag")
+    plt.plot(samples, real_1, 'b-', label="Node34 - Real")
+    plt.plot(samples, imag_1, 'r-', label="Node34 - Imag")
+    plt.xlabel("Sample points", fontdict=font)
+    plt.ylabel("Value", fontdict=font)
+
+    #plt.plot(samples, real_3, 'g-', label="real_3")
+    #plt.plot(samples, imag_3, 'g-', label="imag_3")
+    plt.legend(prop=font)
+
+    #plt.subplot(223)
+    plt.figure()
+
+    real_diff = [abs(i - j) for i, j in zip(real_1, real_2)]
+    imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_2)]
+
+    diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
+    plt.plot(samples, diff, 'b-', label="Nodes (34, 57) Euclidean distance")
+    plt.plot(samples, [s1]*len(samples), 'k-', label="Nodes (34, 57) hierachical wasserstein distance")
+
+    #plt.subplot(224)
+    real_diff = [abs(i - j) for i, j in zip(real_1, real_3)]
+    imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_3)]
+    diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
+    plt.plot(samples, diff, 'r-',  label="Nodes (17, 34) Euclidean distance")
+    plt.plot(samples, [s2] * len(samples), 'y-', label="Nodes (17, 34) hierachical wasserstein distance")
+    plt.xlabel("Sample points", fontdict=font)
+    plt.ylabel("Distance", fontdict=font)
+    plt.legend(prop=font)
+    plt.show()
+
+
+def mkarate_wavelet_analyse_2(w1:list, w2:list, w3:list):
+    """
+    以mirror-karate network中的节点举例，其中w1和w2是结构对称的小波系数，而w3是不对称的，
+    分析一下它们的特征函数差异
+    :param w1:
+    :param w2:
+    :param w3:
+    :return:
+    """
+    w1, w2, w3 = np.sort(w1),  np.sort(w2),  np.sort(w3)
+    samples = [i for i in range(0, 1000, 5)]
+    real_1, imag_1 = charac(w1, samples)
+    real_2, imag_2 = charac(w2, samples)
+    real_3, imag_3 = charac(w3, samples)
+
+    plt.subplot(221)
+    plt.plot(real_1, imag_1, 'b-', label="1")
+    plt.plot(real_2, imag_2, 'r-', label="2")
+    plt.plot(real_3, imag_3, 'k-', label="3")
+
+    plt.subplot(222)
+    real_diff = [abs(i - j) for i, j in zip(real_1, real_2)]
+    imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_2)]
+    KL_12 = 0.0
+    for p, q in zip(w1, w2):
+        KL_12 += p * np.log(p / q)
+
+    diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
+    plt.plot(samples, diff, 'b-')
+    plt.plot(samples, [KL_12]*len(samples), 'k-')
+
+    plt.subplot(223)
+    real_diff = [abs(i - j) for i, j in zip(real_1, real_3)]
+    imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_3)]
+    KL_13 = 0.0
+    for p, q in zip(w1, w3):
+        KL_13 += p * np.log(p / q)
+    plt.plot(samples, [KL_13] * len(samples), 'k-')
+    diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
+    plt.plot(samples, diff, 'r-')
+
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
