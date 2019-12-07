@@ -9,6 +9,7 @@ from scipy import sparse
 import networkx as nx
 from tqdm import tqdm
 import pygsp
+from scipy import stats
 
 from ge.utils.util import compute_cheb_coeff_basis, build_node_idx_map
 from .EmbeddingMixin import EmbeddingMixin
@@ -37,10 +38,6 @@ class GraphWave(EmbeddingMixin):
         _, self.node2idx = build_node_idx_map(self.graph)
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
-
-
-    def train(self):
-        pass
 
     """
     heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
@@ -261,11 +258,10 @@ class GraphWave(EmbeddingMixin):
                         dist += calc_pq_distance(p, q, method, normalized=normalized)
 
                     #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
-                    #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = math.log(min(1.0 / dist, 1e9), math.e)
+                    #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = dist
                     similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
 
         else:
-            from scipy import stats
             similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
             for idx1 in range(self.n_nodes):
                 for idx2 in range(idx1, self.n_nodes):
@@ -284,6 +280,57 @@ class GraphWave(EmbeddingMixin):
                         fout.write("{} {} {}\n".format(node1, node2, similarity_mat[idx1, idx2]))
 
         return similarity_mat
+
+
+    def coefficient_elapse_by_scale(self, dataname, scales=None):
+        """
+        刘国军老师的提议，观测多尺度下的小波系数变化，只关心自己剩下的，然后衡量它们之间的距离。
+
+        CDF -> PDF, 将累积分布函数转化为单峰的概率分布函数，衡量概率分布之间的距离。
+        :parameter scales: 多尺度。
+        :return:
+        """
+        if not scales:
+            max_eigenvalue = self._e[-1]
+            print(max_eigenvalue)
+            scales = [i for i in range(1, int(max_eigenvalue+1), 1)]
+        nodes_wavelets = []
+        for idx, node in tqdm(enumerate(self.nodes)):
+            wavelets = []
+            for scale in scales:
+                wavelets.append(self._calc_node_coefficients(idx, scale)[idx])
+            nodes_wavelets.append(wavelets)
+        Wasserstein_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        KL_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        Guass_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        Wout = open("G:\pyworkspace\graph-embedding\similarity\{}_wasserstein.csv".format(dataname), mode="w+", encoding="utf-8")
+        Kout = open("G:\pyworkspace\graph-embedding\similarity\{}_kl.csv".format(dataname), mode="w+", encoding="utf-8")
+        Gout = open("G:\pyworkspace\graph-embedding\similarity\{}_gauss.csv".format(dataname), mode="w+", encoding="utf-8")
+
+        for idx1, node1 in tqdm(enumerate(self.nodes)):
+            for idx2 in range(idx1+1, self.n_nodes):
+                node2 = self.nodes[idx2]
+                wavelet1, wavelet2 = nodes_wavelets[idx1], nodes_wavelets[idx2]
+                Wasserstein_distances[idx1, idx2] = Wasserstein_distances[idx2, idx1] = stats.wasserstein_distance(wavelet1, wavelet2) * self.n_nodes
+                Wout.write("{} {} {}\n".format(node1, node2, Wasserstein_distances[idx1, idx2]))
+
+                for coeff1, coeff2 in zip(wavelet1, wavelet2):
+                    KL_distances[idx1, idx2] += coeff1 * np.log(coeff1 / coeff2)
+                    KL_distances[idx2, idx1] += coeff2 * np.log(coeff2 / coeff1)
+                KL_distances[idx1, idx2] = KL_distances[idx2, idx1] = (KL_distances[idx1, idx2] + KL_distances[idx2, idx1]) / 2
+                mu1, mu2 = np.mean(wavelet1), np.mean(wavelet2)
+                sigma1, sigma2 = np.std(wavelet1), np.std(wavelet2)
+                Guass_distances[idx1, idx2] = np.log(sigma2/sigma1) + (sigma1**2 + (mu1-mu2)**2) / (2 * sigma2**2) - 0.5
+                Guass_distances[idx2, idx1] = np.log(sigma1/sigma2) + (sigma2**2 + (mu1-mu2)**2) / (2 * sigma1**2) - 0.5
+                Guass_distances[idx1, idx2] = Guass_distances[idx2, idx1] = (Guass_distances[idx1, idx2] + Guass_distances[idx2, idx1]) / 2
+
+                Kout.write("{} {} {}\n".format(node1, node2, KL_distances[idx1, idx2]))
+                Gout.write("{} {} {}\n".format(node1, node2, Guass_distances[idx1, idx2]))
+
+        Wout.close()
+        Kout.close()
+        Gout.close()
+
 
 
     def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, save_path=None):
