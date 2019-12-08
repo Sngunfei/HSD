@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def graphWave(graph, scale=10, d=32):
+def graphWave(graph, scale=10.0, d=32):
     wave_machine = GraphWave(graph, heat_coefficient=scale, sample_number=d)
     embeddings_dict = wave_machine.single_scale_embedding(scale)
     return embeddings_dict
@@ -49,11 +49,14 @@ def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_pro
     return embeddings_dict
 
 
-def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, reuse=True):
+def hseLLE(name="", graph=None, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
+        print(coeffs[0])
+        print(coeffs[1])
+        print(coeffs[2])
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
         wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, save_path=save_path)
 
@@ -61,7 +64,7 @@ def hseLLE(name="", graph=None, scale=10, method='l1', dim=16, percentile=0.0, r
     new_graph = sparse_process(new_graph, percentile=percentile)
     model = LocallyLinearEmbedding(new_graph, dim)
     #embeddings_dict = model.create_embedding(dim)
-    embeddings_dict = model.sklearn_lle(n_neighbors=15, dim=dim, random_state=42)
+    embeddings_dict = model.sklearn_lle(n_neighbors=10, dim=dim, random_state=42)
     return embeddings_dict
 
 
@@ -80,7 +83,7 @@ def hseNode2vec(idx, name="", graph=None, scale=10, metric='l1', dim=16, percent
     return embeddings_dict
 
 
-def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
+def hseLE(name="", graph=None, scale=10.0, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
@@ -96,13 +99,13 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 def embedd(data):
     graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
-    #embedding_dict = hseLE(name=data, graph=graph, scale=50, method='wasserstein', dim=64, percentile=0.9, reuse=True)
-    #embedding_dict = hseLLE(name=data, graph=graph, scale=50, percentile=0.9, method='wasserstein', dim=64, reuse=False)
+    #embedding_dict = hseLE(name=data, graph=graph, scale=0.07, method='wasserstein', dim=64, percentile=0.7, reuse=True)
+    #embedding_dict = hseLLE(name=data, graph=graph, scale=0.1, percentile=0.8, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
     #embedding_dict = struc2vec(graph, walk_length=50, window_size=20, num_walks=20, stay_prob=0.3, dim=64)
-    embedding_dict = node2vec(graph)
+    #embedding_dict = node2vec(graph)
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict = graphWave(graph, scale=50, d=64)
+    embedding_dict = graphWave(graph, scale=0.07, d=64)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
 
     nodes = []
@@ -113,11 +116,11 @@ def embedd(data):
         embeddings.append(embedding)
         labels.append(label_dict[node])
 
-    #cluster_evaluate(embeddings, labels, class_num=n_class)
+    cluster_evaluate(embeddings, labels, class_num=n_class)
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
     print("--------------------------------------------------------------------")
     evaluate_KNN_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", perplexity=20)
+    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", perplexity=10)
     #heat_map(embeddings, labels)
 
 
@@ -254,8 +257,8 @@ def mkarate_wavelet():
 
 if __name__ == '__main__':
     #start = time.time()
-    #embedd("usa")
-    mkarate_wavelet()
+    embedd("usa")
+    #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
     #robustness("usa", probs=[i * 0.05 for i in range(13, 16)], cnt=10, metric="wasserstein", dim=64, scale=50, percentile=0.7)
