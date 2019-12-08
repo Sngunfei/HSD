@@ -38,7 +38,7 @@ class GraphWave(EmbeddingMixin):
         _, self.node2idx = build_node_idx_map(self.graph)
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
-        
+
 
     """
     heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
@@ -285,7 +285,7 @@ class GraphWave(EmbeddingMixin):
 
     def coefficient_elapse_by_scale(self, dataname, scales=None):
         """
-        刘国军老师的提议，观测多尺度下的小波系数变化，只关心自己剩下的，然后衡量它们之间的距离。
+        观测多尺度下的小波系数变化，只关心自己剩下的，然后衡量它们之间的距离。
 
         CDF -> PDF, 将累积分布函数转化为单峰的概率分布函数，衡量概率分布之间的距离。
         :parameter scales: 多尺度。
