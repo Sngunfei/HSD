@@ -38,6 +38,7 @@ class GraphWave(EmbeddingMixin):
         _, self.node2idx = build_node_idx_map(self.graph)
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
+        
 
     """
     heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
@@ -290,47 +291,96 @@ class GraphWave(EmbeddingMixin):
         :parameter scales: 多尺度。
         :return:
         """
-        if not scales:
-            max_eigenvalue = self._e[-1]
-            print(max_eigenvalue)
-            scales = [i for i in range(1, int(max_eigenvalue+1), 1)]
+        tmp = self._calc_node_coefficients(10, 100)
+        print(sum([abs(i-1.0/self.n_nodes) for i in tmp]))
+
+        # 多尺度残留小波系数
+        """
+        nodes_wavelets = []
+        for idx, node in tqdm(enumerate(self.nodes)):
+            wavelet = []
+            for scale in scales:
+                wavelet.append(self._calc_node_coefficients(idx, scale)[idx])
+            nodes_wavelets.append(wavelet)
+        """
+        nodes_wavelets = self.wavelet_func()
+        # 四种距离
+        Wasserstein_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        KL_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        KL_norm_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        Guass_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+
+        Wout = open("G:\pyworkspace\graph-embedding\similarity\\norm_{}_wasserstein.csv".format(dataname), mode="w+", encoding="utf-8")
+        Kout = open("G:\pyworkspace\graph-embedding\similarity\\norm_{}_kl.csv".format(dataname), mode="w+", encoding="utf-8")
+        Knorm_out = open("G:\pyworkspace\graph-embedding\similarity\\norm_{}_kl_norm.csv".format(dataname), mode="w+", encoding="utf-8")
+        Gout = open("G:\pyworkspace\graph-embedding\similarity\\norm_{}_gauss.csv".format(dataname), mode="w+", encoding="utf-8")
+
+        for idx1, node1 in tqdm(enumerate(self.nodes)):
+            for idx2 in range(idx1+1, self.n_nodes):
+                node2 = self.nodes[idx2]
+
+                wavelet1, wavelet2 = nodes_wavelets[idx1], nodes_wavelets[idx2]
+                # cdf -> pdf
+                p, q = np.empty(len(wavelet1), dtype=float), np.empty(len(wavelet2), dtype=float)
+                for i in range(len(wavelet1)-1):
+                    p[i] = wavelet1[i] - wavelet1[i + 1]
+                    q[i] = wavelet2[i] - wavelet2[i + 1]
+
+                # KL distance
+                for x, y in zip(p, q):
+                    if x < 0.000001 or y < 0.000001:
+                        continue
+                    KL_distances[idx1, idx2] += (x * np.log(x / y) + y * np.log(y / x)) / 2
+                Kout.write("{} {} {}\n".format(node1, node2, KL_distances[idx1, idx2]))
+
+
+                # norm KL distance
+                p, q = p / np.sum(p), q / np.sum(q)
+                for x, y in zip(p, q):
+                    if x < 0.000001 or y < 0.000001:
+                        continue
+                    KL_norm_distances[idx1, idx2] += (x * np.log(x / y) + y * np.log(y / x)) / 2
+                Knorm_out.write("{} {} {}\n".format(node1, node2, KL_norm_distances[idx1, idx2]))
+
+
+                # Wasserstein distance
+                Wasserstein_distances[idx1, idx2] = Wasserstein_distances[idx2, idx1] = stats.wasserstein_distance(wavelet1, wavelet2) * self.n_nodes
+                Wout.write("{} {} {}\n".format(node1, node2, Wasserstein_distances[idx1, idx2]))
+
+                # Guass Distance
+                mu1, mu2 = np.mean(wavelet1), np.mean(wavelet2)
+                sigma1, sigma2 = np.std(wavelet1), np.std(wavelet2)
+                Guass_distances[idx1, idx2] = (np.log(sigma2/sigma1) + (sigma1**2 + (mu1-mu2)**2) / (2 * sigma2**2) +
+                                               np.log(sigma1/sigma2) + (sigma2**2 + (mu1-mu2)**2) / (2 * sigma1**2) - 1) / 2
+                Gout.write("{} {} {}\n".format(node1, node2, Guass_distances[idx1, idx2]))
+
+        Wout.close()
+        Kout.close()
+        Gout.close()
+        Knorm_out.close()
+
+
+    def wavelet_func(self):
+        """
+        节点自身小波系数随着尺度的变化。
+        :return:
+        """
+        max_eigenvalue = self._e[-1]
+        print("最大特征值：", max_eigenvalue)
+        scales = [i/100 for i in range(1, 1500, 20)]
         nodes_wavelets = []
         for idx, node in tqdm(enumerate(self.nodes)):
             wavelets = []
             for scale in scales:
                 wavelets.append(self._calc_node_coefficients(idx, scale)[idx])
             nodes_wavelets.append(wavelets)
-        Wasserstein_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        KL_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        Guass_distances = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        Wout = open("G:\pyworkspace\graph-embedding\similarity\{}_wasserstein.csv".format(dataname), mode="w+", encoding="utf-8")
-        Kout = open("G:\pyworkspace\graph-embedding\similarity\{}_kl.csv".format(dataname), mode="w+", encoding="utf-8")
-        Gout = open("G:\pyworkspace\graph-embedding\similarity\{}_gauss.csv".format(dataname), mode="w+", encoding="utf-8")
 
-        for idx1, node1 in tqdm(enumerate(self.nodes)):
-            for idx2 in range(idx1+1, self.n_nodes):
-                node2 = self.nodes[idx2]
-                wavelet1, wavelet2 = nodes_wavelets[idx1], nodes_wavelets[idx2]
-                Wasserstein_distances[idx1, idx2] = Wasserstein_distances[idx2, idx1] = stats.wasserstein_distance(wavelet1, wavelet2) * self.n_nodes
-                Wout.write("{} {} {}\n".format(node1, node2, Wasserstein_distances[idx1, idx2]))
-
-                for coeff1, coeff2 in zip(wavelet1, wavelet2):
-                    KL_distances[idx1, idx2] += coeff1 * np.log(coeff1 / coeff2)
-                    KL_distances[idx2, idx1] += coeff2 * np.log(coeff2 / coeff1)
-                KL_distances[idx1, idx2] = KL_distances[idx2, idx1] = (KL_distances[idx1, idx2] + KL_distances[idx2, idx1]) / 2
-                mu1, mu2 = np.mean(wavelet1), np.mean(wavelet2)
-                sigma1, sigma2 = np.std(wavelet1), np.std(wavelet2)
-                Guass_distances[idx1, idx2] = np.log(sigma2/sigma1) + (sigma1**2 + (mu1-mu2)**2) / (2 * sigma2**2) - 0.5
-                Guass_distances[idx2, idx1] = np.log(sigma1/sigma2) + (sigma2**2 + (mu1-mu2)**2) / (2 * sigma1**2) - 0.5
-                Guass_distances[idx1, idx2] = Guass_distances[idx2, idx1] = (Guass_distances[idx1, idx2] + Guass_distances[idx2, idx1]) / 2
-
-                Kout.write("{} {} {}\n".format(node1, node2, KL_distances[idx1, idx2]))
-                Gout.write("{} {} {}\n".format(node1, node2, Guass_distances[idx1, idx2]))
-
-        Wout.close()
-        Kout.close()
-        Gout.close()
-
+        import matplotlib.pyplot as plt
+        for idx, node in enumerate(self.nodes):
+            plt.plot(scales, nodes_wavelets[idx], label=node)
+        plt.legend()
+        plt.show()
+        return nodes_wavelets
 
 
     def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, save_path=None):

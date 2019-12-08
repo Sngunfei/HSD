@@ -21,16 +21,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 def hseLLE(graph=None, name="mkarate", method='wasserstein', percentile=None, dim=16):
-    path = "G:\pyworkspace\graph-embedding\similarity\{}_{}.csv".format(name, method)
+    path = "G:\pyworkspace\graph-embedding\similarity\\norm_{}_{}.csv".format(name, method)
     if not os.path.exists(path):
         wave_machine = GraphWave(graph)
         wave_machine.coefficient_elapse_by_scale(dataname=name)
-
     graph = nx.read_edgelist(path=path, create_using=nx.Graph, edgetype=float, data=[('weight', float)])
     graph = sparse_process(graph, percentile=percentile)
     model = LocallyLinearEmbedding(graph, dim)
     #embeddings_dict = model.create_embedding(dim)
-    embeddings_dict = model.sklearn_lle(n_neighbors=15, dim=dim, random_state=42)
+    embeddings_dict = model.sklearn_lle(n_neighbors=10, dim=dim, random_state=42)
     return embeddings_dict
 
 def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
@@ -48,10 +47,10 @@ def hseLE(name="", graph=None, scale=10, method='l1', dim=16, threshold=None, pe
 
 
 def embedd(data):
-    graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
+    graph, label_dict, n_class = dataloader(data, directed=False, similarity=False, label="SIR")
 
-    embedding_dict = hseLLE(graph=graph, name=data, method='gauss', percentile=0.8, dim=64)
-    #embedding_dict = hseLE(name=data, graph=graph, scale=50, method='wasserstein', dim=64, percentile=0.7, reuse=True)
+    embedding_dict = hseLLE(graph=graph, name=data, method='gauss', percentile=0.7, dim=64)
+    #embedding_dict = hseLE(name=data, graph=graph, scale=50, method='wasserstein', dim=32, percentile=0.8, reuse=True)
 
     nodes = []
     labels = []
@@ -65,9 +64,15 @@ def embedd(data):
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
     print("--------------------------------------------------------------------")
     evaluate_KNN_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", perplexity=20)
+    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", perplexity=5)
     #heat_map(embeddings, labels)
 
 
 if __name__ == '__main__':
-    embedd("europe")
+    #embedd("europe")
+    graph, label_dict, n_class = dataloader("europe", directed=False, similarity=False, label="SIR")
+    wave_machine = GraphWave(graph)
+    L = wave_machine.L
+    import pandas as pd
+    data = pd.DataFrame(data=L.toarray())
+    data.to_csv(path_or_buf="G:\pyworkspace\graph-embedding\similarity\europe_laplacian.csv")
