@@ -34,8 +34,7 @@ def _check_prob_distri(p, q):
     """
     验证两个概率分布是否有效，以供后续计算两者相似性。
     """
-    if (not isinstance(p, list) and not isinstance(p, np.ndarray)) \
-        or (not isinstance(q, list) and not isinstance(q, np.ndarray)):
+    if not (isinstance(p, (list, np.ndarray)) and isinstance(q, (list, np.ndarray))):
         raise TypeError("The probability distribution type must be list or ndarray")
     assert len(p) == len(q), "Length of p({}) must be equal to length of q({})".format(len(p), len(q))
     """

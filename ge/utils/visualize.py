@@ -36,18 +36,24 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", ra
     if method not in ['pca', 'tsne']:
         raise NotImplementedError("The visualize method {} is not implemented.".format(method))
 
-    if method == 'pca':
-        model = PCA(n_components=2, whiten=True, random_state=random_state)
-    else:
-        """
-        perplexity是用来刻画近邻点数量的，如果近邻点多，那么就设置大一点，否则就设置小一点。
-        在bell数据集中，有稀疏对称点，数量只有一对，还有稠密对称点，数量有四五对，
-        有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
-        """
-        model = TSNE(n_components=2,  random_state=random_state, n_iter=1000, perplexity=perplexity, init="pca")
-
     embeddings = np.array(embeddings)
-    _2d_data = np.array(model.fit_transform(embeddings))
+    n, d = embeddings.shape
+
+    if d > 2:
+        if method == 'pca':
+            model = PCA(n_components=2, whiten=True, random_state=random_state)
+        else:
+            """
+            perplexity是用来刻画近邻点数量的，如果近邻点多，那么就设置大一点，否则就设置小一点。
+            在bell数据集中，有稀疏对称点，数量只有一对，还有稠密对称点，数量有四五对，
+            有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
+            """
+            model = TSNE(n_components=2,  random_state=random_state, n_iter=1000, perplexity=perplexity, init="pca")
+
+        _2d_data = np.array(model.fit_transform(embeddings))
+    else:
+        _2d_data = embeddings
+
 
     if not labels:
         plt.scatter(x=_2d_data[:, 0], y=_2d_data[:, 1], s=40, marker='o')
@@ -77,7 +83,7 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", ra
          #   plt.text(x, y, nodes[idx])
 
 
-    #plt.legend()
+    plt.legend()
     plt.show()
 
 

@@ -383,11 +383,11 @@ class GraphWave(EmbeddingMixin):
         return nodes_wavelets
 
 
-    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, save_path=None):
+    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, mode="similarity", save_path=None):
         print("Start parallelly calculate similarity......")
         nodes_layers = self.get_nodes_layers_bfs(layers)
         metric = str.lower(metric)
-        similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
+        mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
         pool = mp.Pool(workers)
         result = {}
 
@@ -397,13 +397,16 @@ class GraphWave(EmbeddingMixin):
 
         pool.close()
         pool.join()
-
         for idx, _res in result.items():
             result[idx] = _res.get()
 
         for idx1, info in result.items():
-            for idx2, similarity in info.items():
-                similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = similarity
+            for idx2, distance in info.items():
+                if mode == "similarity":
+                    mat[idx1, idx2] = mat[idx2, idx1] = (1.0 / distance) if distance > 1e-5 else 1e5
+                elif mode == "distance":
+                    mat[idx1, idx2] = mat[idx2, idx1] = distance
+
 
         if save_path:
             """
@@ -415,14 +418,15 @@ class GraphWave(EmbeddingMixin):
                     node1 = self.nodes[idx1]
                     for idx2 in range(idx1 + 1, self.n_nodes):
                         node2 = self.nodes[idx2]
-                        fout.write("{} {} {}\n".format(node1, node2, similarity_mat[idx1, idx2]))
+                        fout.write("{} {} {}\n".format(node1, node2, mat[idx1, idx2]))
 
-        return similarity_mat
+
+        return mat
 
 
 
 def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):
-    similarity = {}
+    distance = {}
     for idx2 in range(idx1+1, len(coeff_mat)):
         rings1, rings2 = nodes_layers[idx1], nodes_layers[idx2]
         maxHop = min(max(len(rings1), len(rings2)), 5) + 1
@@ -437,9 +441,9 @@ def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):
             if not (p or q):
                 break
             dist += calc_pq_distance(p, q, metric, normalized=False)
-        similarity[idx2] =  (1.0 / dist) if dist > 1e-4 else 1e4  # 在这里定义距离和相似度反比。
-    #queue.put((idx1, similarity))
-    return similarity
+        distance[idx2] = dist
+
+    return distance
 
 
 def laplacian(adj):

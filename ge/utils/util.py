@@ -3,6 +3,8 @@
 import numpy as np
 import networkx as nx
 from tqdm import tqdm
+import pandas as pd
+import os
 
 
 def dataloader(name="", directed=False, label="origin", similarity=False, scale=None, metric=None):
@@ -255,7 +257,7 @@ def get_metadata_of_networks():
         print("Average Degree:", np.mean([j for _, j in nx.degree(data)]))
 
 
-def judge_by_degree(data):
+def classify_nodes_by_degree(data):
     graph, _, _ = dataloader(data, directed=False, label="SIR")
     node_degree = {}
     for node, degree in nx.degree(graph):
@@ -269,12 +271,49 @@ def judge_by_degree(data):
     fout.close()
 
 
+def save_vectors(vectors: dict, path) -> bool:
+    """
+    保存嵌入向量, 以csv文件形式保存，有index，没有column
+    :param vectors:
+    :param path:
+    :return:
+    """
+    if not isinstance(vectors, dict):
+        raise TypeError("The vectors type should be dict(node: vector), but {}.".format(type(vectors)))
+    index = []
+    data = []
+    for node, vector in vectors.items():
+        index.append(node)
+        data.append(vector)
+    df = pd.DataFrame(data=data, index=index, columns=None, dtype=float)
+    df.to_csv(path, header=False, float_format="%.8f")
+
+    return True
+
+
+def read_vectors(path) -> dict:
+    """
+    读取嵌入向量, 以csv文件形式保存
+    :param vectors:
+    :param path:
+    :return:
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError("{} does not exist.".format(path))
+
+    df = pd.read_csv(path, header=None)
+    row, col = df.shape
+    embedding_dict = {}
+    for i in range(row):
+        embedding_dict[str(int(df.iloc[i][0]))] = list(df.iloc[i][1:])
+
+    return embedding_dict
+
+
 if __name__ == '__main__':
-    _, labels, _ = dataloader("usa", directed=False, label="SIR")
-    cnt = {}
-    for node, label in labels.items():
-        cnt[label] = cnt.get(label, 0) + 1
-    print(cnt)
+    path = "../../output/struc2vec_europe.csv"
+    res = read_vectors(path)
+    print(res['252'])
 
 
 
