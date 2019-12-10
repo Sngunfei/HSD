@@ -5,10 +5,10 @@ import time
 import networkx as nx
 from tqdm import tqdm
 import multiprocessing as mp
-from utils.visualize import plot_embeddings, heat_map
+from utils.visualize import plot_embeddings
 import numpy as np
-from utils.util import dataloader, sparse_process
-from utils.evaluate import evaluate_LR_accuracy, evaluate_SVC_accuracy, evaluate_KNN_accuracy, cluster_evaluate
+from utils.util import dataloader, sparse_process, save_vectors, read_vectors
+from utils.evaluate import evaluate_LR_accuracy, evaluate_KNN_accuracy, cluster_evaluate
 from model.GraphWave import GraphWave
 from model.struc2vec import Struc2Vec
 from model.LocallyLinearEmbedding import LocallyLinearEmbedding
@@ -17,22 +17,33 @@ from model.node2vec import Node2Vec
 
 from ge.utils.robustness import random_remove_edges
 from ge.utils.db import Database
+from ge.utils.tsne import tsne, cal_pairwise_dist
 
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def graphWave(graph, scale=10.0, d=32):
-    wave_machine = GraphWave(graph, heat_coefficient=scale, sample_number=d)
-    embeddings_dict = wave_machine.single_scale_embedding(scale)
+def graphWave(name, graph, reused=False, scale=10.0, dim=32):
+    path = "../../output/graphwave_{}_{}.csv".format(name, scale)
+    if reused and os.path.exists(path):
+        embeddings_dict = read_vectors(path)
+    else:
+        wave_machine = GraphWave(graph, heat_coefficient=scale, sample_number=dim)
+        embeddings_dict = wave_machine.single_scale_embedding(scale)
+        save_vectors(embeddings_dict, path)
     return embeddings_dict
 
 
-def node2vec(graph):
-    graph = nx.DiGraph(graph)
-    model = Node2Vec(graph, walk_length=50, num_walks=15, p=1.0, q=2.0, workers=3)
-    model.train(embed_size=64, window_size=20, iter=500)
-    embeddings_dict = model.get_embeddings()
+def node2vec(name, graph, reused=False, walk_length=50, window_size=20, num_walks=15, p=1.0, q=2.0, dim=64):
+    path = "../../output/node2vec_{}.csv".format(name)
+    if reused and os.path.exists(path):
+        embeddings_dict = read_vectors(path)
+    else:
+        graph = nx.DiGraph(graph)
+        model = Node2Vec(graph, walk_length=walk_length, num_walks=num_walks, p=p, q=q, workers=3)
+        model.train(embed_size=dim, window_size=window_size, iter=500)
+        embeddings_dict = model.get_embeddings()
+        save_vectors(embeddings_dict, path)
     return embeddings_dict
 
 
@@ -42,21 +53,26 @@ def LE(graph, dim=32):
     return embeddings_dict
 
 
-def struc2vec(graph=None, walk_length=10, window_size=10, num_walks=15, stay_prob=0.3, dim=16):
-    model = Struc2Vec(graph, walk_length=walk_length, num_walks=num_walks, stay_prob=stay_prob)
-    model.train(embed_size=dim, window_size=window_size)
-    embeddings_dict = model.get_embeddings()
+def struc2vec(name, graph, walk_length=10, window_size=10,
+              num_walks=15, stay_prob=0.3, dim=16, reused=False):
+
+    path = "../../output/struc2vec_{}.csv".format(name)
+    if reused and os.path.exists(path):
+        embeddings_dict = read_vectors(path)
+    else:
+        model = Struc2Vec(graph, walk_length=walk_length, num_walks=num_walks, stay_prob=stay_prob)
+        model.train(embed_size=dim, window_size=window_size)
+        embeddings_dict = model.get_embeddings()
+        save_vectors(embeddings_dict, path=path)
+
     return embeddings_dict
 
 
-def hseLLE(name="", graph=None, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=True):
+def hseLLE(name, graph, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
-        print(coeffs[0])
-        print(coeffs[1])
-        print(coeffs[2])
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
         wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, save_path=save_path)
 
@@ -68,7 +84,7 @@ def hseLLE(name="", graph=None, scale=10.0, method='l1', dim=16, percentile=0.0,
     return embeddings_dict
 
 
-def hseNode2vec(idx, name="", graph=None, scale=10, metric='l1', dim=16, percentile=0.0, reuse=True):
+def hseNode2vec(idx, name, graph, scale=10, metric='l1', dim=16, percentile=0.0, reuse=True):
     save_path = "../../similarity/{}_{}_{}_idx.csv".format(name, scale, metric)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
@@ -83,12 +99,12 @@ def hseNode2vec(idx, name="", graph=None, scale=10, metric='l1', dim=16, percent
     return embeddings_dict
 
 
-def hseLE(name="", graph=None, scale=10.0, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
+def hseLE(name, graph, scale=10.0, method='l1', dim=16, threshold=None, percentile=None, reuse=True):
     save_path = "../../similarity/{}_{}_{}.csv".format(name, scale, method)
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
-        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, method=method, layers=10, save_path=save_path)
+        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=False, method=method, layers=10, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     model = LaplacianEigenmaps(new_graph, dim=dim)
@@ -97,15 +113,15 @@ def hseLE(name="", graph=None, scale=10.0, method='l1', dim=16, threshold=None, 
     return embeddings_dict
 
 
-def embedd(data):
-    graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
-    #embedding_dict = hseLE(name=data, graph=graph, scale=0.07, method='wasserstein', dim=64, percentile=0.7, reuse=True)
+def embedd(data_name):
+    graph, label_dict, n_class = dataloader(data_name, directed=False, label="SIR")
+    #embedding_dict = hseLE(name=data, graph=graph, scale=0.1, method='wasserstein', dim=64, percentile=0.7, reuse=False)
     #embedding_dict = hseLLE(name=data, graph=graph, scale=0.1, percentile=0.8, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(graph, walk_length=50, window_size=20, num_walks=20, stay_prob=0.3, dim=64)
-    #embedding_dict = node2vec(graph)
+    #embedding_dict = struc2vec(data, graph=graph, walk_length=50, window_size=20, num_walks=20, stay_prob=0.3, dim=64, reused=True)
+    #embedding_dict = node2vec(data_name, graph, reused=True)
     #embedding_dict = LE(graph, dim=64)
-    embedding_dict = graphWave(graph, scale=0.07, d=64)
+    #embedding_dict = graphWave(graph, scale=0.07, d=64)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
 
     nodes = []
@@ -115,6 +131,9 @@ def embedd(data):
         nodes.append(node)
         embeddings.append(embedding)
         labels.append(label_dict[node])
+
+    dist = cal_pairwise_dist(np.array(embeddings))
+    embeddings = tsne(distance_mat=dist, dim=2, perplexity=30)
 
     cluster_evaluate(embeddings, labels, class_num=n_class)
     evaluate_LR_accuracy(embeddings, labels, random_state=42)
@@ -245,19 +264,37 @@ def scalability_test(datasets=None, cnt=10):
 
 def mkarate_wavelet():
     from utils.guass_charac_analyze import mkarate_wavelet_analyse, mkarate_wavelet_analyse_2
-    data, _, _ = dataloader("mkarate", directed=False)
-    wave_machine = GraphWave(data, heat_coefficient=10)
+    data, _, _ = dataloader("europe", directed=False)
+    wave_machine = GraphWave(data, heat_coefficient=0.07)
     node2idx, idx2node = wave_machine.node2idx, wave_machine.nodes
-    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=10)
+    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=0.07)
     index34, index51, index17 = node2idx['34'], node2idx['51'], node2idx['17']
     wavelet34, wavelet51, wavelet17 = wavelets[index34], wavelets[index51], wavelets[index17]
     similarity = wave_machine.calc_wavelet_similarity(wavelets, method="wasserstein", hierachical=True, layers=5)
     mkarate_wavelet_analyse(wavelet34, wavelet51, wavelet17, similarity[index34, index51], similarity[index34, index17])
 
 
+def visulize_via_smilarity_tsne(name):
+    graph, label_dict, n_class = dataloader(name, label="origin", directed=False, similarity=False)
+    wave_machine = GraphWave(graph, heat_coefficient=0.10)
+    coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=0.10)
+    mat = wave_machine.parallel_calc_similarity(coeff_mat, metric="wasserstein", mode="distance", save_path=None)
+    res = tsne(distance_mat=mat)
+
+    idx2node, node2idx = wave_machine.nodes, wave_machine.node2idx
+    labels = []
+    for idx, node in enumerate(idx2node):
+        node_label = label_dict[node]
+        labels.append(node_label)
+
+    plot_embeddings(idx2node, res, labels, n_class, method="tsne", perplexity=10)
+
+
+
 if __name__ == '__main__':
     #start = time.time()
-    embedd("usa")
+    #visulize_via_smilarity_tsne("europe")
+    embedd("europe")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
