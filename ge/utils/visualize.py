@@ -21,7 +21,7 @@ from ge.utils.util import dataloader
 from ge.utils.db import Database
 
 
-def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", random_state=42, perplexity=5):
+def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", init='random', random_state=42, perplexity=5):
     """
     降维可视化计算得到的嵌入向量
     :param nodes: 节点名称
@@ -48,7 +48,7 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", ra
             在bell数据集中，有稀疏对称点，数量只有一对，还有稠密对称点，数量有四五对，
             有稀疏又有稠密，所以在bell中无法找到一个很好的值来可视化，一般是1-5。
             """
-            model = TSNE(n_components=2,  random_state=random_state, n_iter=1000, perplexity=perplexity, init="pca")
+            model = TSNE(n_components=2,  random_state=random_state, n_iter=1000, perplexity=perplexity, init=init)
 
         _2d_data = np.array(model.fit_transform(embeddings))
     else:
@@ -79,11 +79,11 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", ra
             # mirror karate network, n_class = 34
             plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)], label=_class)
 
-        #for idx, (x, y) in enumerate(_2d_data):
-         #   plt.text(x, y, nodes[idx])
+        for idx, (x, y) in enumerate(_2d_data):
+            plt.text(x, y, nodes[idx])
 
 
-    plt.legend()
+    #plt.legend()
     plt.show()
 
 
