@@ -16,6 +16,8 @@ from scipy.cluster.vq import kmeans2, vq
 from scipy.linalg import norm
 from scipy.optimize import minimize
 from sklearn.decomposition import NMF
+import networkx as nx
+
 
 def extract_rolx_roles(G, roles=2):
     """

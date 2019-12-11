@@ -74,7 +74,7 @@ def hseLLE(name, graph, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=T
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
-        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, save_path=save_path)
+        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, mode="similarity", save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
@@ -104,7 +104,7 @@ def hseLE(name, graph, scale=10.0, method='l1', dim=16, threshold=None, percenti
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
-        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=False, method=method, layers=10, save_path=save_path)
+        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, method=method, layers=5, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     model = LaplacianEigenmaps(new_graph, dim=dim)
@@ -113,17 +113,22 @@ def hseLE(name, graph, scale=10.0, method='l1', dim=16, threshold=None, percenti
     return embeddings_dict
 
 
+def rolx(data_name):
+    embeddings_dict = read_vectors("../../output/rolx_{}.csv".format(data_name))
+    return embeddings_dict
+
+
 def embedd(data_name):
-    graph, label_dict, n_class = dataloader(data_name, directed=False, label="SIR")
-    #embedding_dict = hseLE(name=data, graph=graph, scale=0.1, method='wasserstein', dim=64, percentile=0.7, reuse=False)
-    #embedding_dict = hseLLE(name=data, graph=graph, scale=0.1, percentile=0.8, method='wasserstein', dim=64, reuse=True)
+    graph, label_dict, n_class = dataloader(data_name, directed=False, label="origin")
+    #embedding_dict = hseLE(name=data_name, graph=graph, scale=0.07, method='wasserstein', dim=64, percentile=0.7, reuse=False)
+    #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(data, graph=graph, walk_length=50, window_size=20, num_walks=20, stay_prob=0.3, dim=64, reused=True)
+    #embedding_dict = struc2vec(data_name, graph=graph, walk_length=50, window_size=20, num_walks=20, stay_prob=0.3, dim=64, reused=True)
     #embedding_dict = node2vec(data_name, graph, reused=True)
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict = graphWave(graph, scale=0.07, d=64)
+    embedding_dict = graphWave(data_name, graph, scale=0.3, dim=16, reused=True)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
-
+    #embedding_dict = rolx(data_name)
     nodes = []
     labels = []
     embeddings = []
@@ -132,14 +137,14 @@ def embedd(data_name):
         embeddings.append(embedding)
         labels.append(label_dict[node])
 
-    dist = cal_pairwise_dist(np.array(embeddings))
-    embeddings = tsne(distance_mat=dist, dim=2, perplexity=30)
+    #dist = cal_pairwise_dist(np.array(embeddings))
+    #embeddings = tsne(distance_mat=dist, dim=2, perplexity=30)
 
-    cluster_evaluate(embeddings, labels, class_num=n_class)
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    #cluster_evaluate(embeddings, labels, class_num=n_class)
+    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
     print("--------------------------------------------------------------------")
-    evaluate_KNN_accuracy(embeddings, labels, random_state=42)
-    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", perplexity=10)
+    #evaluate_KNN_accuracy(embeddings, labels, random_state=42)
+    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=10)
     #heat_map(embeddings, labels)
 
 
@@ -276,10 +281,16 @@ def mkarate_wavelet():
 
 def visulize_via_smilarity_tsne(name):
     graph, label_dict, n_class = dataloader(name, label="origin", directed=False, similarity=False)
-    wave_machine = GraphWave(graph, heat_coefficient=0.10)
-    coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=0.10)
+    wave_machine = GraphWave(graph, heat_coefficient=1.0)
+    eigenvalues = wave_machine._e
+    print(eigenvalues[0], eigenvalues[1], eigenvalues[-1])
+    coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=0.3)
     mat = wave_machine.parallel_calc_similarity(coeff_mat, metric="wasserstein", mode="distance", save_path=None)
-    res = tsne(distance_mat=mat)
+    #from utils.w_distance import calculate_w_distance
+    #mat = calculate_w_distance()
+    #res = tsne(distance_mat=mat, perplexity=30)
+    from sklearn.manifold import TSNE
+    res = TSNE(n_components=2, metric="precomputed", perplexity=10).fit_transform(mat)
 
     idx2node, node2idx = wave_machine.nodes, wave_machine.node2idx
     labels = []
@@ -287,14 +298,14 @@ def visulize_via_smilarity_tsne(name):
         node_label = label_dict[node]
         labels.append(node_label)
 
-    plot_embeddings(idx2node, res, labels, n_class, method="tsne", perplexity=10)
+    plot_embeddings(idx2node, res, labels, n_class, method="tsne", perplexity=30)
 
 
 
 if __name__ == '__main__':
     #start = time.time()
-    #visulize_via_smilarity_tsne("europe")
-    embedd("europe")
+    #visulize_via_smilarity_tsne("mkarate")
+    embedd("mkarate")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
