@@ -149,11 +149,11 @@ def build_node_idx_map(graph):
     :return:
     """
     node2idx = {}
-    idx2node = []
+    idx2node = {}
     node_size = 0
     for node in graph.nodes():
         node2idx[node] = node_size
-        idx2node.append(node)
+        idx2node[node_size] = node
         node_size += 1
     return idx2node, node2idx
 

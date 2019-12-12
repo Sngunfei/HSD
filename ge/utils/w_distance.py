@@ -16,7 +16,6 @@ def calculate_w_distance():
     #path = u"C:\\Users\86234\Desktop\SR_guojun_katate.xls"
     path = u"C:\\Users\86234\Desktop\SR_guojun_europe.xls"
     data = pd.read_excel(path, sheet_name=0, header=None)
-    print(data.shape)
     row, col = data.shape
     distance = np.zeros(shape=(row, row), dtype=np.float)
     for idx1 in range(row):
@@ -26,6 +25,9 @@ def calculate_w_distance():
             features_2 = data.loc[idx2, :]
             # 计算过程中会将每个元素除以总长度，当做默认权重，下面乘以len就是将权重再乘回来
             distance[idx1, idx2] = distance[idx2, idx1] = stats.wasserstein_distance(features_1, features_2) * len(features_1)
+
+    return distance
+    """
     res = pd.DataFrame(data=distance)
 
     # to_excel函数只能支持256列，europe数据集需要399*399, 改用openpyxl
@@ -36,7 +38,7 @@ def calculate_w_distance():
     for r in dataframe_to_rows(res, index=False, header=False):
         ws.append(r)
     wb.save("europe_distance.xlsx")
-
+    """
 
 """
 wasserstein_distance的实现细节如下：

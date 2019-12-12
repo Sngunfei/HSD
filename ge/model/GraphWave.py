@@ -12,7 +12,6 @@ import pygsp
 from scipy import stats
 
 from ge.utils.util import compute_cheb_coeff_basis, build_node_idx_map
-from .EmbeddingMixin import EmbeddingMixin
 from ge.utils.distance import calc_pq_distance
 
 np.set_printoptions(suppress=True, precision=5)
@@ -21,10 +20,9 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 import multiprocessing as mp
 
 
-class GraphWave(EmbeddingMixin):
+class GraphWave():
 
     def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=20.0):
-        super().__init__()
         self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."
         self.graph = graph
         self.heat_coefficient = heat_coefficient
