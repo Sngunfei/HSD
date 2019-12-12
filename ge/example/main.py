@@ -304,8 +304,8 @@ def visulize_via_smilarity_tsne(name):
 
 if __name__ == '__main__':
     #start = time.time()
-    #visulize_via_smilarity_tsne("mkarate")
-    embedd("mkarate")
+    visulize_via_smilarity_tsne("bell2")
+    #embedd("mkarate")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
