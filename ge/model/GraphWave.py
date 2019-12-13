@@ -129,7 +129,7 @@ class GraphWave():
         return np.array(embedding)
 
 
-    def single_scale_embedding(self, scale=None, mode="cha"):
+    def single_scale_embedding(self, scale: float, mode="cha") -> dict:
         """
         在单一尺度下计算嵌入向量。
         :param scale: 热系数，即尺度，float类型，默认为热系数参数值，但仍可以临时指定。
@@ -138,8 +138,6 @@ class GraphWave():
         """
         if mode not in ["cha", "mog", "mo"]:
             raise ValueError("The embedding mode:{} is not supported.".format(mode))
-        if not scale:
-            scale = self.heat_coefficient
 
         logging.info("Start calculate single scale={} embedding， mode={}".format(scale, mode))
         self.embeddings = {}
@@ -455,6 +453,21 @@ def laplacian(adj):
     diag = sparse.diags(np.array(posinv(adj.sum(0))).reshape([-1, ]), 0)
     lap = sparse.eye(n) - diag.dot(adj.dot(diag))
     return lap
+
+
+def scale_boundary(e1, eN, eta=0.85, gamma=0.95):
+    """
+    calculate the scale of heat diffusion wavelets.
+    :param e1:
+    :param eN:
+    :param eta:
+    :param gamma:
+    :return:
+    """
+    t = np.sqrt(e1 * eN)
+    sMax = - np.log(eta) / t
+    sMin = - np.log(gamma) / t
+    return sMin, sMax
 
 
 
