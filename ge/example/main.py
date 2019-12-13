@@ -9,7 +9,7 @@ from utils.visualize import plot_embeddings
 import numpy as np
 from utils.util import dataloader, sparse_process, save_vectors, read_vectors
 from utils.evaluate import evaluate_LR_accuracy, evaluate_KNN_accuracy, cluster_evaluate
-from model.GraphWave import GraphWave
+from model.GraphWave import GraphWave, scale_boundary
 from model.struc2vec import Struc2Vec
 from model.LocallyLinearEmbedding import LocallyLinearEmbedding
 from model.LaplacianEigenmaps import LaplacianEigenmaps
@@ -290,7 +290,7 @@ def visulize_via_smilarity_tsne(name):
     #mat = calculate_w_distance()
     #res = tsne(distance_mat=mat, perplexity=30)
     from sklearn.manifold import TSNE
-    res = TSNE(n_components=2, metric="precomputed", perplexity=10).fit_transform(mat)
+    res = TSNE(n_components=2, metric="precomputed", perplexity=3).fit_transform(mat)
 
     idx2node, node2idx = wave_machine.nodes, wave_machine.node2idx
     labels = []
@@ -302,10 +302,62 @@ def visulize_via_smilarity_tsne(name):
 
 
 
+def bell_scales():
+    from sklearn.manifold import TSNE
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+    import matplotlib.colors as colors
+    import matplotlib.cm as cmx
+
+    graph, label_dict, n_class = dataloader("bell", label="origin", directed=False, similarity=False)
+    model = TSNE(n_components=2, random_state=42, n_iter=1000, perplexity=3, init='random')
+    machine = GraphWave(graph)
+
+    cm = plt.get_cmap("nipy_spectral")
+    cNorm = colors.Normalize(vmin=0, vmax=n_class - 1)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+    markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    e1, eN = machine._e[1], machine._e[-1]
+    sMin, sMax = scale_boundary(e1, eN)
+    step = (sMax - sMin) / 4
+    scales = [50.0 + step * i * 500 for i in range(16)]
+    for i, scale in enumerate(scales):
+        plt.subplot(4, 4, i+1)
+        plt.xlabel("scale = {} ".format(scale))
+        plt.xticks([])
+        plt.yticks([])
+
+        embedding_dict = machine.single_scale_embedding(scale)
+        embeddings = []
+        labels = []
+        nodes = []
+        for node, vector in embedding_dict.items():
+            embeddings.append(vector)
+            labels.append(label_dict[node])
+            nodes.append(node)
+
+        data = model.fit_transform(embeddings)
+        class_dict = defaultdict(list)
+        for idx, node in enumerate(nodes):
+            class_dict[labels[idx]].append(idx)
+
+        for _class, _indices in class_dict.items():
+            _class = int(_class)
+            plt.scatter(data[_indices, 0], data[_indices, 1], s=60, marker=markers[_class], c=[scalarMap.to_rgba(_class)], label=_class)
+
+        for idx, (x, y) in enumerate(data):
+            plt.text(x, y, nodes[idx])
+
+    plt.show()
+
+
+
 if __name__ == '__main__':
     #start = time.time()
-    visulize_via_smilarity_tsne("bell2")
-    #embedd("mkarate")
+    #visulize_via_smilarity_tsne("bell")
+    bell_scales()
+    #embedd("bell")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
