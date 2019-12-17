@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, precision_score, recall_score
 from sklearn.neighbors import KNeighborsClassifier
 
 
@@ -38,7 +38,7 @@ def cluster_evaluate(embeddings=None, labels=None, class_num=None):
     return h, c, v, s
 
 
-def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
+def evaluate_LR_accuracy(embeddings, labels, random_state=42):
     """
     Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
 
@@ -56,22 +56,14 @@ def evaluate_LR_accuracy(embeddings=None, labels=None, random_state=42):
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
     accuracy = accuracy_score(ytest, preds)
-    balanced_accuracy = balanced_accuracy_score(ytest, preds)
-    micro_f1 = f1_score(ytest, preds, average="micro")
-    macro_f1 = f1_score(ytest, preds, average="macro")
 
-    report = classification_report(ytest, preds)
-    print("------------------------------LR--------------------------------")
-    print("logistic regression(ovr) accuracy score:{}.".format(accuracy))
-    print("logistic regression(ovr) balanced accuracy score:{}.".format(balanced_accuracy))
-    print("classification report: ")
-    print(report)
-    print("micro_f1: {}, macro_f1: {}".format(micro_f1, macro_f1))
+    print("------------------------------ LR --------------------------------")
+    evalute_results(ytest, preds)
 
     return accuracy
 
 
-def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
+def evaluate_SVC_accuracy(embeddings, labels, random_state=42):
     """
     Evaluate embedding effect using support vector classifier. Mode = One vs Rest (OVR)
 
@@ -100,45 +92,49 @@ def evaluate_SVC_accuracy(embeddings=None, labels=None, random_state=42):
     return score
 
 
-def evaluate_KNN_accuracy(embeddings=None, labels=None, random_state=42):
+def evaluate_KNN_accuracy(X, labels, metric, random_state=42):
     """
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     :return:
     """
-    xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
-                                                    random_state=random_state, shuffle=True)
-    knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
-    knn.fit(xtrain, ytrain)
-    preds = knn.predict(xtest)
+    if metric == "precomputed":
+        knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", metric="precomputed", n_jobs=-1)
+        knn.fit(X, labels)
+        preds = knn.predict(X)
+    else:
+        knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
+        knn.fit(X, labels)
+        preds = knn.predict(X)
 
-    score = accuracy_score(ytest, preds)
-    balanced_score = balanced_accuracy_score(ytest, preds)
-    report = classification_report(ytest, preds)
+    score = accuracy_score(labels, preds)
 
-    print("KNN accuracy score:{}.".format(score))
-    print("KNN balanced accuracy score:{}.".format(balanced_score))
-    print("classification report: ")
-    print(report)
-
+    print("------------------------------ KNN --------------------------------")
+    evalute_results(labels, preds)
     return score
 
 
-if __name__ == '__main__':
-    from utils.util import dataloader
-    from model.LaplacianEigenmaps import LaplacianEigenmaps
+def evalute_results(labels: list, preds: list):
+    accuracy = accuracy_score(labels, preds)
+    balanced_accuracy = balanced_accuracy_score(labels, preds)
+    precision = precision_score(labels, preds, average="micro")
+    recall = recall_score(labels, preds, average="micro")
+    macro_f1 = f1_score(labels, preds, average="macro")
+    micro_f1 = f1_score(labels, preds, average="micro")
 
-    graph, label_dict, n_class = dataloader("europe", auto_label=True, directed=False, similarity=True, scale=10, metric="l1")
-    model = LaplacianEigenmaps(graph, dim=32)
-    embedding_dict = model.create_embedding(percentile=0.85)
-    nodes = []
-    labels = []
-    embeddings = []
-    for node, embedding in embedding_dict.items():
-        nodes.append(node)
-        embeddings.append(embedding)
-        labels.append(label_dict.get(node, str(n_class)))
+    print("accuracy: ", accuracy)
+    print("balanced accuracy: ", balanced_accuracy)
+    print("micro precision: ", precision)
+    print("micro recall: ", recall)
+    print("macro f1: ", macro_f1)
+    print("micro f1: ", micro_f1)
 
-    evaluate_KNN_accuracy(embeddings=embeddings, labels=labels, n_neighbors=10, random_state=42)
+    report = classification_report(labels, preds, digits=7)
+
+    print(report)
+
+
+
+
 
 
 

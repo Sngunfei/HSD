@@ -33,7 +33,7 @@ class GraphWave():
         #self.L = nx.normalized_laplacian_matrix(self.graph) # 正则拉普拉斯矩阵
         self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
-        _, self.node2idx = build_node_idx_map(self.graph)
+        self.idx2node, self.node2idx = build_node_idx_map(self.graph)
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
 
@@ -403,7 +403,6 @@ class GraphWave():
                 elif mode == "distance":
                     mat[idx1, idx2] = mat[idx2, idx1] = distance
 
-
         if save_path:
             """
             df = pd.DataFrame(data=similarity_mat, index=self.nodes, columns=self.nodes)
@@ -415,7 +414,6 @@ class GraphWave():
                     for idx2 in range(idx1 + 1, self.n_nodes):
                         node2 = self.nodes[idx2]
                         fout.write("{} {} {}\n".format(node1, node2, mat[idx1, idx2]))
-
 
         return mat
 

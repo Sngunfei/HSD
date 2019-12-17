@@ -21,7 +21,7 @@ from ge.utils.util import dataloader
 from ge.utils.db import Database
 
 
-def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", init='random', random_state=42, perplexity=5):
+def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False, method="pca", init='random', random_state=42, perplexity=5):
     """
     降维可视化计算得到的嵌入向量
     :param nodes: 节点名称
@@ -79,8 +79,9 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, method="pca", in
             # mirror karate network, n_class = 34
             plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)], label=_class)
 
-        for idx, (x, y) in enumerate(_2d_data):
-            plt.text(x, y, nodes[idx])
+        if node_text:
+            for idx, (x, y) in enumerate(_2d_data):
+                plt.text(x, y, nodes[idx])
 
 
     #plt.legend()
