@@ -70,9 +70,4 @@ def embedd(data):
 
 if __name__ == '__main__':
     #embedd("europe")
-    graph, label_dict, n_class = dataloader("europe", directed=False, similarity=False, label="SIR")
-    wave_machine = GraphWave(graph)
-    L = wave_machine.L
-    import pandas as pd
-    data = pd.DataFrame(data=L.toarray())
-    data.to_csv(path_or_buf="G:\pyworkspace\graph-embedding\similarity\europe_laplacian.csv")
+    pass

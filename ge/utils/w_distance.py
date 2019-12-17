@@ -26,8 +26,6 @@ def calculate_w_distance():
             # 计算过程中会将每个元素除以总长度，当做默认权重，下面乘以len就是将权重再乘回来
             distance[idx1, idx2] = distance[idx2, idx1] = stats.wasserstein_distance(features_1, features_2) * len(features_1)
 
-    return distance
-    """
     res = pd.DataFrame(data=distance)
 
     # to_excel函数只能支持256列，europe数据集需要399*399, 改用openpyxl
@@ -38,7 +36,7 @@ def calculate_w_distance():
     for r in dataframe_to_rows(res, index=False, header=False):
         ws.append(r)
     wb.save("europe_distance.xlsx")
-    """
+
 
 """
 wasserstein_distance的实现细节如下：
@@ -143,7 +141,29 @@ def f():
     df.to_excel("europe_origin_label.xls", encoding="utf-8", header=False, index=False, columns=None)
 
 
+def save_laplacian_matrix():
+    from utils.util import dataloader
+    from model.GraphWave import GraphWave
+    graph, _, _ = dataloader("mkarate", directed=False, similarity=False, label="SIR")
+    wave_machine = GraphWave(graph)
+    L = np.asarray(wave_machine.L.toarray())
+    nodes = wave_machine.nodes
+    idx2node, node2idx = wave_machine.idx2node, wave_machine.node2idx
+    x = np.zeros_like(L)
+
+    """
+    for idx, node in enumerate(nodes):
+        for idx2 in range(idx, wave_machine.n_nodes):
+            node2 = idx2node[idx2]
+            x[int(node)-1, int(node2)-1] = x[int(node2)-1, int(node)-1] = L[idx, idx2]
+            print(int(node), idx)
+            print(int(node2), idx2)
+    """
+    data = pd.DataFrame(data=L)
+    data.to_csv(path_or_buf="G:\pyworkspace\graph-embedding\output\\mirror_karate_laplacian1.csv", header=False, index=False)
+
+
 
 if __name__ == '__main__':
     #calculate_w_distance()
-    f()
+    save_laplacian_matrix()
