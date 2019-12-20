@@ -48,7 +48,7 @@ class SIR():
         Susceptible - Infected - Recover Model
         :return:
         """
-        for idx, node in enumerate(self.idx2node):
+        for idx, node in self.idx2node.items():
             for _ in range(5): # 重复5次消除随机因素
                 self.influence[node] += self._diffuse_from_node(node)
             #print(node, self.influence[node])
@@ -107,19 +107,19 @@ class SIR():
                 labels[node] = i
                 cnt[i] += 1
                 i += 1
-        print(cnt)
+        #print(cnt)
         return labels
 
 
 if __name__ == '__main__':
     from utils.util import dataloader
-    data, _, _ = dataloader("social", directed=False)
-    print("radius", nx.radius(data))
-    print("diameter", nx.diameter(data))
+    data, _, _ = dataloader("usa", directed=False)
+    #print("radius", nx.radius(data))
+    #print("diameter", nx.diameter(data))
     model = SIR(data, p=0.9, r=None, t=5, random_state=42)
     model.start()
     labels = model.label_nodes(5)
-    fout = open("../../data/social_SIR.label", mode="w+", encoding="utf8")
+    fout = open("../../data/usa_SIR.label", mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()

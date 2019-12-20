@@ -62,7 +62,7 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
         import matplotlib.colors as colors
         import matplotlib.cm as cmx
 
-        markers = ['<', '*', 'x', 'D', 'H', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+        markers = ['o', '*', 'x', '<', '1', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
 
         cm = plt.get_cmap("nipy_spectral")
         cNorm  = colors.Normalize(vmin=0, vmax=n_class-1)
@@ -70,10 +70,10 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
 
         class_dict = defaultdict(list)
         for idx, node in enumerate(nodes):
-            class_dict[labels[idx]].append(idx)
+            class_dict[int(labels[idx])].append(idx)
 
-        for _class, _indices in class_dict.items():
-            _class = int(_class)
+        info = sorted(class_dict.items(), key=lambda item:item[0])
+        for _class, _indices in info:
             # general case， n_class < 10
             #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
             # mirror karate network, n_class = 34
@@ -83,8 +83,10 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
             for idx, (x, y) in enumerate(_2d_data):
                 plt.text(x, y, nodes[idx])
 
+    plt.legend()
 
-    #plt.legend()
+    plt.xticks([])
+    plt.yticks([])
     plt.show()
 
 
