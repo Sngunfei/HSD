@@ -92,17 +92,17 @@ def evaluate_SVC_accuracy(embeddings, labels, random_state=42):
     return score
 
 
-def evaluate_KNN_accuracy(X, labels, metric, random_state=42):
+def evaluate_KNN_accuracy(X, labels, metric, n_neighbor=10, random_state=42):
     """
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     :return:
     """
     if metric == "precomputed":
-        knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", metric="precomputed", n_jobs=-1)
+        knn = KNeighborsClassifier(n_neighbors=n_neighbor, weights="uniform", metric="precomputed", n_jobs=-1)
         knn.fit(X, labels)
         preds = knn.predict(X)
     else:
-        knn = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="auto", n_jobs=-1)
+        knn = KNeighborsClassifier(n_neighbors=n_neighbor, weights="uniform", algorithm="auto", n_jobs=-1)
         knn.fit(X, labels)
         preds = knn.predict(X)
 
