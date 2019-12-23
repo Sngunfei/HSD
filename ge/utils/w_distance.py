@@ -166,4 +166,32 @@ def save_laplacian_matrix():
 
 if __name__ == '__main__':
     #calculate_w_distance()
-    save_laplacian_matrix()
+    #save_laplacian_matrix()
+    a = np.array([1, 2, 3])
+    b = np.array([4, 5, 6])
+
+    u_sorter = np.argsort(a)
+    v_sorter = np.argsort(b)
+
+    all_values = np.concatenate((a, b))
+    all_values.sort(kind='mergesort')
+
+    # Compute the differences between pairs of successive values of u and v.
+    deltas = np.diff(all_values)
+
+    # Get the respective positions of the values of u and v among the values of
+    # both distributions.
+    u_cdf_indices = a[u_sorter].searchsorted(all_values[:-1], 'right')
+    v_cdf_indices = b[v_sorter].searchsorted(all_values[:-1], 'right')
+    print(all_values)
+    print(u_cdf_indices)
+    print(v_cdf_indices)
+
+    u_cdf = u_cdf_indices / 3
+    v_cdf = v_cdf_indices / 3
+
+    dist = np.sum(np.multiply(np.abs(u_cdf - v_cdf), deltas))
+
+    print(u_cdf)
+    print(v_cdf)
+    print(dist * 3)
