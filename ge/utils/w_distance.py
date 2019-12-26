@@ -167,8 +167,8 @@ def save_laplacian_matrix():
 if __name__ == '__main__':
     #calculate_w_distance()
     #save_laplacian_matrix()
-    a = np.array([1, 2, 3])
-    b = np.array([4, 5, 6])
+    a = np.array([2, 1, 3])
+    b = np.array([6, 5, 4])
 
     u_sorter = np.argsort(a)
     v_sorter = np.argsort(b)

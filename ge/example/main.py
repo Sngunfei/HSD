@@ -127,13 +127,13 @@ def embedd(data_name):
     scale = 2
     print(scale)
 
-    embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
+    #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(data_name, graph=graph, walk_length=50, window_size=20, num_walks=30, stay_prob=0.3, dim=64, reused=False)
-    #embedding_dict = node2vec(data_name, graph, reused=False)
+    #embedding_dict = struc2vec(data_name, graph=graph, walk_length=50, window_size=20, num_walks=30, stay_prob=0.3, dim=64, reused=True)
+    embedding_dict = node2vec(data_name, graph, reused=True)
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict = graphWave(data_name, graph, scale=scale, dim=64, reused=True)
+    #embedding_dict = graphWave(data_name, graph, scale=scale, dim=64, reused=False)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
     #embedding_dict = rolx(data_name)
 
@@ -149,9 +149,9 @@ def embedd(data_name):
     #embeddings = tsne(distance_mat=dist, dim=2, perplexity=30)
 
     #cluster_evaluate(embeddings, labels, class_num=n_class)
-    evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    evaluate_KNN_accuracy(embeddings, labels, "normal", random_state=42)
-    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=10)
+    #evaluate_LR_accuracy(embeddings, labels, random_state=42)
+    evaluate_KNN_accuracy(embeddings, labels, "normal", random_state=42,  n_neighbor=21)
+    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=30)
     #heat_map(embeddings, labels)
 
 
@@ -294,8 +294,8 @@ def visulize_via_smilarity_tsne(name, perplexity=30):
     eigenvalues = wave_machine._e
     sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
     scale = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
-    scale = 2
-
+    print("recommend scale: ", scale)
+    scale = 1
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
 
@@ -311,7 +311,7 @@ def visulize_via_smilarity_tsne(name, perplexity=30):
         labels.append(node_label)
 
     # 展示2维数据，参数tsne和perplexity没用
-    evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
+    evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=21)
     plot_embeddings(idx2node, res, labels, n_class, method="tsne", perplexity=30, node_text=False)
 
 
@@ -368,9 +368,9 @@ def bell_scales():
 
 if __name__ == '__main__':
     #start = time.time()
-    #visulize_via_smilarity_tsne("usa", perplexity=40)
+    #visulize_via_smilarity_tsne("usa", perplexity=30)
     #bell_scales()
-    embedd("europe")
+    embedd("usa")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
