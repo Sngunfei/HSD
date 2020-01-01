@@ -124,14 +124,14 @@ def embedd(data_name):
     eigenvalues = wave_machine._e
     sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
     scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
-    scale = 2
+   # scale = 2
     print(scale)
 
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(data_name, graph=graph, walk_length=50, window_size=20, num_walks=30, stay_prob=0.3, dim=64, reused=True)
-    embedding_dict = node2vec(data_name, graph, reused=True)
+    embedding_dict = struc2vec(data_name, graph=graph, walk_length=50, window_size=20, num_walks=30, stay_prob=0.3, dim=64, reused=False)
+    #embedding_dict = node2vec(data_name, graph, reused=True)
     #embedding_dict = LE(graph, dim=64)
     #embedding_dict = graphWave(data_name, graph, scale=scale, dim=64, reused=False)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
@@ -295,7 +295,7 @@ def visulize_via_smilarity_tsne(name, perplexity=30):
     sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
     scale = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
     print("recommend scale: ", scale)
-    scale = 1
+    scale = 2
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
 
@@ -368,9 +368,9 @@ def bell_scales():
 
 if __name__ == '__main__':
     #start = time.time()
-    #visulize_via_smilarity_tsne("usa", perplexity=30)
+    visulize_via_smilarity_tsne("usa", perplexity=30)
     #bell_scales()
-    embedd("usa")
+    #embedd("usa")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")

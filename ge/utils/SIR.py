@@ -119,7 +119,7 @@ if __name__ == '__main__':
     model = SIR(data, p=0.9, r=None, t=5, random_state=42)
     model.start()
     labels = model.label_nodes(5)
-    fout = open("../../data/usa_SIR.label", mode="w+", encoding="utf8")
+    fout = open("../../data/usa2_SIR.label", mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()
