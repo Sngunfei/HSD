@@ -77,18 +77,17 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
             # general case， n_class < 10
             #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
             # mirror karate network, n_class = 34
-            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=60, marker='o', c=[scalarMap.to_rgba(_class)], label=_class)
+            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
 
         if node_text:
             for idx, (x, y) in enumerate(_2d_data):
                 plt.text(x, y, nodes[idx])
 
-    plt.legend()
+    #plt.legend()
 
     plt.xticks([])
     plt.yticks([])
     plt.show()
-
 
 
 def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
