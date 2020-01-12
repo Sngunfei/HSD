@@ -84,7 +84,7 @@ class SIR():
         return influence
 
 
-    def label_nodes(self, n_class):
+    def label_nodes(self, n_class, mode=0):
         """
         根据node的influence来贴标签，n_class表示分为多少个类别
 
@@ -99,30 +99,48 @@ class SIR():
 
         cnt = defaultdict(int)
         i = 1
-        for node, score in scores:
-            if score <= min_score + interval * i:
-                labels[node] = i - 1
-                cnt[i-1] += 1
-            else:
-                labels[node] = i
-                cnt[i] += 1
-                i += 1
-        #print(cnt)
-        return labels
+
+        if mode == 0:
+            for node, score in scores:
+                if score <= min_score + interval * i:
+                    labels[node] = i - 1
+                    cnt[i-1] += 1
+                else:
+                    labels[node] = i
+                    cnt[i] += 1
+                    i += 1
+            #print(cnt)
+            return labels
+        elif mode == 1:
+            interval = len(scores) / n_class
+            for idx, info in enumerate(scores):
+                node, score = info[0], info[1]
+                if idx <= interval * i:
+                    labels[node] = i - 1
+                    cnt[i - 1] += 1
+                else:
+                    labels[node] = i
+                    cnt[i] += 1
+                    i += 1
+            return labels
 
 
 if __name__ == '__main__':
     from utils.util import dataloader
-    data, _, _ = dataloader("usa", directed=False)
+
+    name = "social"
+    data, _, _ = dataloader(name, directed=False)
     #print("radius", nx.radius(data))
     #print("diameter", nx.diameter(data))
     model = SIR(data, p=0.9, r=None, t=5, random_state=42)
+    #print(model._get_average_degree())
     model.start()
-    labels = model.label_nodes(5)
-    fout = open("../../data/usa2_SIR.label", mode="w+", encoding="utf8")
+    labels = model.label_nodes(5, mode=0)
+    fout = open("../../data/{}_SIR.label".format(name), mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()
+
 
 
 

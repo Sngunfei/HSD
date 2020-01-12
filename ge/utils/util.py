@@ -310,6 +310,18 @@ def read_vectors(path) -> dict:
     return embedding_dict
 
 
+def read_distance(path, n_nodes):
+    mat = np.zeros((n_nodes, n_nodes), dtype=np.float)
+    fin = open(path, mode='r', encoding="utf-8")
+    while True:
+        line = fin.readline()
+        if not line:
+            break
+        a, b, c = line.strip().split(" ")
+        mat[int(a), int(b)] = mat[int(b), int(a)] = float(c)
+    fin.close()
+    return mat
+
 if __name__ == '__main__':
     path = "../../output/struc2vec_europe.csv"
     res = read_vectors(path)
