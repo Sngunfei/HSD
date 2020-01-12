@@ -7,7 +7,7 @@ evluate the performance of embedding via different methods.
 from sklearn.cluster import AgglomerativeClustering
 from sklearn import metrics
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_predict, GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, precision_score, recall_score
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -97,15 +97,9 @@ def evaluate_KNN_accuracy(X, labels, metric, n_neighbor=10, random_state=42):
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     :return:
     """
-    if metric == "precomputed":
-        knn = KNeighborsClassifier(n_neighbors=n_neighbor, weights="uniform", metric="precomputed", n_jobs=-1)
-        knn.fit(X, labels)
-        preds = knn.predict(X)
-    else:
-        knn = KNeighborsClassifier(n_neighbors=n_neighbor, weights="uniform", algorithm="auto", n_jobs=-1)
-        knn.fit(X, labels)
-        preds = knn.predict(X)
-
+    knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric)
+    #knngs = GridSearchCV(knn, param_grid={"n_neighbors": [n_neighbor], "metric": [metric]}, cv=10)
+    preds = cross_val_predict(knn, X, labels, cv=10)
     score = accuracy_score(labels, preds)
 
     print("------------------------------ KNN --------------------------------")
