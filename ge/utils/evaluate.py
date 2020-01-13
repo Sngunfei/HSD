@@ -52,15 +52,14 @@ def evaluate_LR_accuracy(embeddings, labels, random_state=42):
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
 
-    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=1000, verbose=0, multi_class='ovr')
+    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=500, verbose=0, multi_class='ovr')
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
-    accuracy = accuracy_score(ytest, preds)
 
     print("------------------------------ LR --------------------------------")
-    evalute_results(ytest, preds)
+    accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evalute_results(ytest, preds)
 
-    return accuracy
+    return accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1
 
 
 def evaluate_SVC_accuracy(embeddings, labels, random_state=42):
@@ -100,11 +99,10 @@ def evaluate_KNN_accuracy(X, labels, metric, n_neighbor=10, random_state=42):
     knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric)
     #knngs = GridSearchCV(knn, param_grid={"n_neighbors": [n_neighbor], "metric": [metric]}, cv=10)
     preds = cross_val_predict(knn, X, labels, cv=10)
-    score = accuracy_score(labels, preds)
 
     print("------------------------------ KNN --------------------------------")
-    evalute_results(labels, preds)
-    return score
+    accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evalute_results(labels, preds)
+    return accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1
 
 
 def evalute_results(labels: list, preds: list):
@@ -125,6 +123,8 @@ def evalute_results(labels: list, preds: list):
     report = classification_report(labels, preds, digits=7)
 
     print(report)
+
+    return accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1
 
 
 

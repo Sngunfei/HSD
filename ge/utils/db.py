@@ -25,10 +25,11 @@ class Database(object):
         return res.inserted_id
 
 
-    def insert_score(self, info):
-        col = self.db['scores']
+    def insert(self, info, collection):
+        col = self.db[collection]
         res = col.insert_one(info)
-        logging.info("MongoDB insert scores: {}".format(info))
+        logging.info("MongoDB insert {}: {}".format(collection, info))
+        print("MongoDB insert {}: {}\n".format(collection, info))
         return res.inserted_id
 
 
