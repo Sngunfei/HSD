@@ -74,7 +74,9 @@ def hseLLE(name, graph, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=T
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
         #wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, method=method, layers=5, normalized=False, save_path=save_path)
-        wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, mode="similarity", save_path=save_path)
+        #wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, mode="similarity", save_path=save_path)
+        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, method=method, normalized=False, layers=5, save_path=save_path)
+
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
@@ -104,7 +106,7 @@ def hseLE(name, graph, scale=10.0, method='l1', dim=16, threshold=None, percenti
     if not (reuse and os.path.exists(save_path)):
         wave_machine = GraphWave(graph, heat_coefficient=scale)
         coeffs = wave_machine.cal_all_wavelet_coeffs(scale)
-        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, method=method, layers=5, save_path=save_path)
+        wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, normalized=False, method=method, layers=5, save_path=save_path)
 
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     model = LaplacianEigenmaps(new_graph, dim=dim)
@@ -130,8 +132,8 @@ def embedd(data_name, label_class="SIR"):
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    embedding_dict = struc2vec(data_name, graph=graph, walk_length=60, window_size=25, num_walks=15, stay_prob=0.3, dim=64, reused=False)
-    #embedding_dict = node2vec(data_name, graph, reused=False, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=64)
+    embedding_dict = struc2vec(data_name, graph=graph, walk_length=15, window_size=3, num_walks=5, stay_prob=0.3, dim=64, reused=True)
+    #embedding_dict = node2vec(data_name, graph, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=64, reused=True)
     #embedding_dict = LE(graph, dim=64)
     #embedding_dict = graphWave(data_name, graph, scale=scale, dim=64, reused=True)
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
@@ -151,13 +153,28 @@ def embedd(data_name, label_class="SIR"):
     #cluster_evaluate(embeddings, labels, class_num=n_class)
     #evaluate_LR_accuracy(embeddings, labels, random_state=42)
     #evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
-    plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=15)
+    _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=10)
+    tmp = {}
+    for idx, node in enumerate(nodes):
+        tmp[node] = _2d_data[idx]
+    save_vectors(tmp, "../../output/graphwave_{}_tsne.csv".format(data_name))
     #heat_map(embeddings, labels)
 
 
-def robustness(data, probs=None, cnt=10, scale=10, metric='l1', dim=32, percentile=0.75):
-
-    graph, label_dict, n_class = dataloader(data, directed=False, label="SIR")
+def robustness(data, probs=None, cnt=10, scale=10.0, label="SIR", metric='l1', dim=32, percentile=0.75):
+    """
+    测试鲁棒性
+    :param data:
+    :param probs:
+    :param cnt:
+    :param scale:
+    :param label:
+    :param metric:
+    :param dim:
+    :param percentile:
+    :return:
+    """
+    graph, label_dict, n_class = dataloader(data, directed=False, label=label)
     pool = mp.Pool(5)
     results = []
     for i, p in enumerate(probs):
@@ -170,24 +187,36 @@ def robustness(data, probs=None, cnt=10, scale=10, metric='l1', dim=32, percenti
         _res.get()
 
 
-def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=50, metric='l1', dim=64, percentile=0.75):
+def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=2, metric='l1', dim=64, percentile=0.75):
     db = Database()
     print("idx = {}, prob = {}".format(idx, prob))
-    knn_scores = []
-    lr_scores = []
-    times = []
     for _ in tqdm(range(cnt)):
         start = time.time()
-        _graph = random_remove_edges(nx.Graph(graph), prob=prob)
-        embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric,
-                               dim=dim, percentile=percentile, reuse=False)
+
+        if prob == 1.0:
+            _graph = graph
+        else:
+            _graph = random_remove_edges(nx.Graph(graph), prob=prob)
+
+        embedding_dict = hseLE(name=data, graph=_graph, scale=scale, method=metric, dim=dim, percentile=percentile, reuse=False)
+        method = "HSELE"
 
         #embedding_dict = hseNode2vec(idx, name=data, graph=_graph, scale=scale, metric=metric,
         #                             dim=dim, percentile=percentile, reuse=False)
 
-        #embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric,
-        #                       dim=dim, percentile=percentile, reuse=False)
-        times.append(time.time() - start)
+        #embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric, dim=dim, percentile=percentile, reuse=False)
+        #method = "HSELLE"
+
+        #embedding_dict = graphWave(name=data, graph=_graph, scale=scale, dim=64, reused=False)
+        #method = "GraphWave"
+
+        #embedding_dict = struc2vec(name=data, graph=_graph, walk_length=60, window_size=25, num_walks=10, stay_prob=0.3, dim=64, reused=False)
+        #method = "struc2vec"
+
+        #embedding_dict = node2vec(name=data, graph=_graph, walk_length=60, num_walks=10, window_size=25, p=1, q=2, dim=64, reused=False)
+        #method = "node2vec"
+
+        _time = time.time() - start
 
         nodes = []
         labels = []
@@ -196,44 +225,57 @@ def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=50, metric
             nodes.append(node)
             embeddings.append(embedding)
             labels.append(label_dict.get(node, str(n_class)))
-        knn_scores.append(evaluate_KNN_accuracy(embeddings, labels, random_state=42))
-        lr_scores.append(evaluate_LR_accuracy(embeddings, labels, random_state=42))
 
-    res = {"method": "HSELE",
-           "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-           "data": data,
-           "prob": prob,
-           "percentile": percentile,
-           "scale": scale,
-           "metric": metric,
-           "dim": dim,
-           "cnt": cnt,
-           "evaluate": "LR",
-           "scores": lr_scores,
-           "mean": np.mean(lr_scores),
-           "std": np.std(lr_scores),
-           "mean_time": np.mean(times),
-           "label": "SIR"
-           }
-    db.insert_score(res)
+        accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_LR_accuracy(embeddings,
+                                                                                                  labels,
+                                                                                                  random_state=42)
+        res_lr = {"method": method,
+               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+               "graph": data,
+               "prob": prob,
+               "percentile": percentile,
+               "scale": scale,
+               "metric": metric,
+               "dim": dim,
+               "evaluate model": "LR",
+               "accuracy": accuracy,
+               "balanced_accuracy": balanced_accuracy,
+               "precision": precision,
+               "recall": recall,
+               "macro f1": macro_f1,
+               "micro f1": micro_f1,
+               "time": _time,
+               "label": "SIR_2"
+               }
 
-    res = {"method": "HSELE",
-           "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-           "data": data,
-           "prob": prob,
-           "percentile": percentile,
-           "scale": scale,
-           "metric": metric,
-           "dim": dim,
-           "cnt": cnt,
-           "evaluate": "KNN",
-           "scores": knn_scores,
-           "mean": np.mean(knn_scores),
-           "std": np.std(knn_scores),
-           "mean_time": np.mean(times),
-           "label": "SIR"
-           }
-    db.insert_score(res)
+        accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_KNN_accuracy(embeddings, labels,
+                                                                                                   n_neighbor=20,
+                                                                                                   random_state=42,
+                                                                                                   metric="euclidean")
+        res_knn = {"method": method,
+               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+               "graph": data,
+               "prob": prob,
+               "percentile": percentile,
+               "scale": scale,
+               "metric": metric,
+               "dim": dim,
+               "cnt": cnt,
+               "evaluate model": "KNN",
+               "accuracy": accuracy,
+               "balanced_accuracy": balanced_accuracy,
+               "precision": precision,
+               "recall": recall,
+               "macro f1": macro_f1,
+               "micro f1": micro_f1,
+               "time": _time,
+               "label": "SIR_2"
+               }
+
+        #db.insert(res_lr, "graph embedding")
+        #db.insert(res_knn, "graph embedding")
+        db.insert(res_lr, "robust")
+        db.insert(res_knn, "robust")
 
     db.close()
     return True
@@ -323,7 +365,6 @@ def visulize_via_smilarity_tsne(name, label_class="SIR", perplexity=30, reused=F
     plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=False)
 
 
-
 def bell_scales():
     from sklearn.manifold import TSNE
     import matplotlib.pyplot as plt
@@ -376,11 +417,11 @@ def bell_scales():
 
 if __name__ == '__main__':
     #start = time.time()
-    visulize_via_smilarity_tsne("mkarate", label_class="origin", perplexity=10, reused=False)
+    #visulize_via_smilarity_tsne("europe", label_class="SIR_2", perplexity=10, reused=False)
     #bell_scales()
     #embedd("mkarate", label_class="origin")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
-    #robustness("usa", probs=[i * 0.05 for i in range(13, 16)], cnt=10, metric="wasserstein", dim=64, scale=50, percentile=0.7)
+    robustness("usa", probs=[0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.0], cnt=10, metric="wasserstein", label="SIR_2", dim=64, scale=2, percentile=0.9)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])

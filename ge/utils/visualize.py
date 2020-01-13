@@ -17,7 +17,7 @@ plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
-from ge.utils.util import dataloader
+from ge.utils.util import dataloader, save_vectors
 from ge.utils.db import Database
 
 
@@ -54,7 +54,6 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
     else:
         _2d_data = embeddings
 
-
     if not labels:
         plt.scatter(x=_2d_data[:, 0], y=_2d_data[:, 1], s=40, marker='o')
     else:
@@ -88,6 +87,7 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
     plt.xticks([])
     plt.yticks([])
     plt.show()
+    return _2d_data
 
 
 def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
