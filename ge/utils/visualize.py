@@ -276,6 +276,57 @@ def time_vs():
     plt.show()
 
 
+def robustness_vis():
+    ratio = [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]
+
+    hsele_accuracy = [0.86666665, 0.860833309, 0.848333321, 0.826666643, 0.817499986, 0.794999906,
+                      0.781666643, 0.744999967, 0.729999976, 0.71833328, 0.687499968]
+
+    hselle_accuracy = [0.925, 0.888333313, 0.875833299, 0.846666646, 0.807499979, 0.80583331,
+                       0.777499976, 0.75999997, 0.716666, 0.69666658, 0.63583322]
+
+    plt.scatter(ratio, hsele_accuracy, marker="*", s=60, c='r', label="HSELE")
+    plt.scatter(ratio, hselle_accuracy, marker="o", s=60, c='b', label="HSELLE")
+    plt.show()
+
+
+def robustness():
+    db = Database()
+    filters = {"evaluate": "LR", "metric": "l1", "ge_name": "HSELE", "data": "europe"}
+    cursor = db.find("scores", filters=filters)
+    LE_records = []
+    for record in cursor:
+        LE_records.append(record)
+    filters['ge_name'] = 'HSELLE'
+    cursor = db.find("scores", filters=filters)
+    LLE_records = []
+    for record in cursor:
+        LLE_records.append(record)
+    print(LE_records)
+    ratio1, ratio2 = [], []
+    LE_scores, LLE_scores = [], []
+    for doc1, doc2 in zip(LE_records, LLE_records):
+        print(doc1)
+        _scores = doc1['scores']
+        LE_scores.extend(_scores)
+        ratio1 += [1.0 - doc1['prob']] * len(_scores)
+        print(doc2)
+        _scores = doc2['scores']
+        LLE_scores.extend(_scores)
+        ratio2 += [1.0 - doc2['prob']] * len(_scores)
+    #scores = scores[::-1]
+    evaluate = ["HSELE"] * len(LE_scores) + ["HSELLE"] * len(LLE_scores)
+    LE_scores.extend(LLE_scores)
+    ratio1.extend(ratio2)
+    print(LE_scores)
+
+    data = pd.DataFrame(data={"Accuracy": LE_scores, "Deletion Ratio": ratio1, "method": evaluate})
+    sns.set(style="ticks")
+    sns.relplot(x="Deletion Ratio", y="Accuracy", hue="method", data=data, kind="line")
+    plt.ylim((0.6, 1))
+    plt.show()
+
+
 if __name__ == '__main__':
-    robustness_knn()
+    robustness_vis()
     #time_vs()
