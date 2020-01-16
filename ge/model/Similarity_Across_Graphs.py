@@ -12,7 +12,6 @@ class SimilarityAcrossGraphs(object):
 
     def __init__(self, graphs: list, metric="wasserstein", n_layers=5):
         """
-
         :param graphs:
         :param metric:
         :param n_layers:

@@ -323,9 +323,21 @@ def read_distance(path, n_nodes):
     return mat
 
 if __name__ == '__main__':
-    path = "../../output/struc2vec_europe.csv"
-    res = read_vectors(path)
-    print(res['252'])
+    fin = open("../../data/europe.edgelist", mode="r", encoding="utf-8")
+    fout = open("../../data/tmp.edgelist", mode="w+", encoding="utf-8")
+
+    while True:
+        line = fin.readline()
+        if not line:
+            break
+        a, b = line.strip().split(" ")
+        c = int(a) + 1190
+        d = int(b) + 1190
+        fout.write("{} {}\n".format(c, d))
+
+    fin.close()
+    fout.close()
+
 
 
 

@@ -204,14 +204,14 @@ def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=2, metric=
         #embedding_dict = hseNode2vec(idx, name=data, graph=_graph, scale=scale, metric=metric,
         #                             dim=dim, percentile=percentile, reuse=False)
 
-        #embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric, dim=dim, percentile=percentile, reuse=False)
-        #method = "HSELLE"
+        embedding_dict = hseLLE(name=data, graph=_graph, scale=scale, method=metric, dim=dim, percentile=percentile, reuse=False)
+        method = "HSELLE"
 
         #embedding_dict = graphWave(name=data, graph=_graph, scale=scale, dim=64, reused=False)
-        #method = "GraphWave"
+        #method = "graphwave"
 
-        embedding_dict = struc2vec(name=data, graph=_graph, walk_length=60, window_size=25, num_walks=10, stay_prob=0.3, dim=64, reused=False)
-        method = "struc2vec"
+        #embedding_dict = struc2vec(name=data, graph=_graph, walk_length=60, window_size=25, num_walks=10, stay_prob=0.3, dim=64, reused=False)
+        #method = "struc2vec"
 
         #embedding_dict = node2vec(name=data, graph=_graph, walk_length=60, num_walks=10, window_size=25, p=1, q=2, dim=64, reused=False)
         #method = "node2vec"
@@ -328,17 +328,16 @@ def mkarate_wavelet():
     mkarate_wavelet_analyse(wavelet34, wavelet51, wavelet17, similarity[index34, index51], similarity[index34, index17])
 
 
-def visulize_via_smilarity_tsne(name, label_class="SIR", perplexity=30, reused=False):
+def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scale = 2, reused=False):
     from sklearn.manifold import TSNE
     graph, label_dict, n_class = dataloader(name, label=label_class, directed=False, similarity=False)
     wave_machine = GraphWave(graph)
     eigenvalues = wave_machine._e
     idx2node, node2idx = wave_machine.nodes, wave_machine.node2idx
 
-    sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
-    scale = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
-    print("recommend scale: ", scale)
-    scale = 1
+    sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
+    s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
+    print("recommend scale: ", s)
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
 
@@ -361,7 +360,25 @@ def visulize_via_smilarity_tsne(name, label_class="SIR", perplexity=30, reused=F
 
     print(type(mat), len(mat), len(mat[0]))
     # 展示2维数据，参数tsne和perplexity没用
-    #evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
+    accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
+
+    res_knn = {"method": "HSD",
+               "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+               "graph": name,
+               "scale": scale,
+               "metric": "wasserstein",
+               "evaluate model": "KNN",
+               "accuracy": accuracy,
+               "balanced_accuracy": balanced_accuracy,
+               "precision": precision,
+               "recall": recall,
+               "macro f1": macro_f1,
+               "micro f1": micro_f1,
+               "label": "SIR_2"
+               }
+
+    db.insert(res_knn, "nodes classification")
+
     plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=False)
 
 
@@ -417,11 +434,17 @@ def bell_scales():
 
 if __name__ == '__main__':
     #start = time.time()
-    #visulize_via_smilarity_tsne("usa", label_class="SIR_2", perplexity=30, reused=False)
+    db = Database()
+    for scale in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24,
+                  0.26, 0.28, 0.3, 0.4, 0.5]:
+        visulize_via_smilarity_tsne("usa", db, label_class="SIR_2", perplexity=30, scale=scale, reused=False)
+
     #bell_scales()
     #embedd("usa", label_class="SIR_2")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
-    robustness("usa", probs=[1.0], cnt=10, metric="wasserstein", label="SIR_2", dim=64, scale=2, percentile=0.9)
+    #for scale in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.4, 0.5]
+    #for scale in [0.01, 0.03, 0.05, 0.07, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2, 2.5, 3, 4, 5]:
+    #    robustness("usa", probs=[1.0], cnt=1, metric="wasserstein", label="SIR_2", dim=64, scale=scale, percentile=0.9)
     #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
