@@ -20,7 +20,7 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 import multiprocessing as mp
 
 
-class GraphWave():
+class GraphWave:
 
     def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=20.0):
         self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."

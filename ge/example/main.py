@@ -132,10 +132,10 @@ def embedd(data_name, label_class="SIR"):
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict = struc2vec(data_name, graph=graph, walk_length=15, window_size=3, num_walks=5, stay_prob=0.3, dim=64, reused=True)
-    embedding_dict = node2vec(data_name, graph, walk_length=60, num_walks=10, window_size=25, p=1, q=2, dim=64, reused=False)
+    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=10, num_walks=10, stay_prob=0.3, dim=32, reused=False), "struc2vec"
+    #embedding_dict, method = node2vec(data_name, graph, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=32, reused=False), "node2vec"
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict = graphWave(data_name, graph, scale=scale, dim=64, reused=False)
+    #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=False), "graphwave"
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
     #embedding_dict = rolx(data_name)
 
@@ -152,12 +152,12 @@ def embedd(data_name, label_class="SIR"):
 
     #cluster_evaluate(embeddings, labels, class_num=n_class)
     #evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
-    _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=30)
+    #evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
+    _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=5)
     tmp = {}
     for idx, node in enumerate(nodes):
         tmp[node] = _2d_data[idx]
-    save_vectors(tmp, "../../output/graphwave_{}_tsne.csv".format(data_name))
+    save_vectors(tmp, "../../output/{}_{}_tsne.csv".format(method, data_name))
     #heat_map(embeddings, labels)
 
 
@@ -338,6 +338,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
     s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
     print("recommend scale: ", s)
+    scale = 0.26
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
 
@@ -347,6 +348,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     else:
         mat = read_distance(path, wave_machine.n_nodes)
 
+    print("t-SNE....")
     res = TSNE(n_components=2, metric="precomputed", perplexity=perplexity).fit_transform(mat)
     tmp = {}
     for idx, node in enumerate(idx2node):
@@ -360,6 +362,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
 
     print(type(mat), len(mat), len(mat[0]))
     # 展示2维数据，参数tsne和perplexity没用
+    """
     accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
 
     res_knn = {"method": "HSD",
@@ -377,8 +380,9 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
                "label": "SIR_2"
                }
 
-    db.insert(res_knn, "nodes classification")
-
+    if db:
+        db.insert(res_knn, "nodes classification")
+    """
     plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=False)
 
 
@@ -434,13 +438,12 @@ def bell_scales():
 
 if __name__ == '__main__':
     #start = time.time()
-    db = Database()
-    for scale in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24,
-                  0.26, 0.28, 0.3, 0.4, 0.5]:
-        visulize_via_smilarity_tsne("usa", db, label_class="SIR_2", perplexity=30, scale=scale, reused=False)
+    #db = Database()
+
+    visulize_via_smilarity_tsne("flight", None, label_class="SIR_2", perplexity=30, reused=True)
 
     #bell_scales()
-    #embedd("usa", label_class="SIR_2")
+    #embedd("bell", label_class="origin")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")

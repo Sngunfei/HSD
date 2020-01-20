@@ -8,8 +8,8 @@ import networkx as nx
 import seaborn as sns
 import pandas as pd
 
-from pyecharts.charts import  Bar
-from pyecharts import options as opts
+#from pyecharts.charts import Bar
+#from pyecharts import options as opts
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -188,7 +188,7 @@ def subway_data_analyze():
     plt.show()
     plt.savefig("../../image/subway_degree.png")
 
-
+"""
 def effectscatter_splitline() -> Bar:
     c = (
         Bar()
@@ -200,6 +200,7 @@ def effectscatter_splitline() -> Bar:
             .set_global_opts(title_opts=opts.TitleOpts(title="LR Classification."))
     )
     return c
+"""
 
 
 def heat_map(embeddings, labels):
