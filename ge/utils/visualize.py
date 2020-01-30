@@ -328,6 +328,22 @@ def robustness():
     plt.show()
 
 
+def robustness_from_excel():
+    import seaborn as sns
+    HSDLE=[0.687499968, 0.71833328, 0.729999976, 0.744999967, 0.781666643, 0.794999906,
+           0.817499986, 0.826666643, 0.848333321, 0.860833309, 0.86666665]
+    HSDLLE=[0.65583322, 0.69666658, 0.7166666, 0.75999997, 0.777499976, 0.80583331,
+            0.807499979, 0.846666646, 0.875833299, 0.888333313, 0.925]
+    delete_ratio=[0.5, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0.0]
+
+    data = pd.DataFrame(data={"Accuracy": HSDLE + HSDLLE, "Deletion Ratio": delete_ratio + delete_ratio,
+                              "method": ['HSDLE']*len(HSDLE) + ['HSDLLE']*len(HSDLLE)})
+    sns.set(style="ticks")
+    sns.relplot(x="Deletion Ratio", y="Accuracy", hue="method", data=data, kind="line")
+    plt.ylim((0.0, 1))
+    plt.show()
+
+
 if __name__ == '__main__':
-    robustness_vis()
+    robustness_from_excel()
     #time_vs()

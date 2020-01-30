@@ -324,13 +324,14 @@ def mkarate_wavelet():
     sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
     scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
     print(sMin, sMax, scale)
+    scale=30
     node1, node2, node3 = '3', '38', '20'
     node2idx, idx2node = wave_machine.node2idx, wave_machine.nodes
-    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=0.085)
+    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=scale)
     index1, index2, index3 = node2idx[node1], node2idx[node2], node2idx[node3]
     wavelet1, wavelet2, wavelet3 = wavelets[index1], wavelets[index2], wavelets[index3]
     similarity = wave_machine.calc_wavelet_similarity(wavelets, method="wasserstein", hierachical=True, layers=5)
-    mkarate_wavelet_analyse(node1, wavelet1, node2, wavelet2, node3, wavelet3,
+    mkarate_wavelet_analyse(scale, node1, wavelet1, node2, wavelet2, node3, wavelet3,
                             similarity[index1, index2], similarity[index1, index3])
 
 
@@ -344,23 +345,27 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
     s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
     print(sMin, sMax)
-    scale = 0.035
+    scale = 0.5
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
-
+    print(coeff_mat[:5, :15])
     path = "../../output/{}_distance_{}_{}.csv".format(name, scale, perplexity)
     if not reused:
-        mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=2, metric="wasserstein",
-                                                    mode="distance", save_path=path)
+        mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=5, metric="wasserstein",
+                                                    mode="distance", save_path=None)
     else:
         mat = read_distance(path, wave_machine.n_nodes)
 
-    print("t-SNE....")
-    res = TSNE(n_components=2, metric="precomputed", perplexity=perplexity).fit_transform(mat)
+    # mkarate, layer=1, scale=0.5, p=5, random=32
+    # mkarate, layer=2, scale=0.5, p=5, random=35
+    # mkarate, layer=3, scale=0.5, p=5, random=25
+    # mkarate, layer=4, scale=0.5, p=5, random=25
+    # mkarate, layer=5, scale=0.5, p=5, random=32
+    res = TSNE(n_components=2, metric="precomputed", perplexity=perplexity, random_state=32).fit_transform(mat)
     tmp = {}
     for idx, node in enumerate(idx2node):
         tmp[node] = res[idx]
-    save_vectors(tmp, "../../output/HSD_{}_{}_{}_layer2.csv".format(name, scale, perplexity))
+    #save_vectors(tmp, "../../output/HSD_{}_{}_{}_layer1.csv".format(name, scale, perplexity))
 
     labels = []
     for idx, node in enumerate(idx2node):
@@ -390,7 +395,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     if db:
         db.insert(res_knn, "nodes classification")
     """
-    plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=True)
+    plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=False)
 
 
 def bell_scales():

@@ -255,8 +255,8 @@ class GraphWave:
                         dist += calc_pq_distance(p, q, method, normalized=normalized)
 
                     #求出距离后，取倒数，用来衡量相似性，但是由于小波系数都很小，取倒数可能会导致数量级爆炸，求其对数
-                    #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = dist
-                    similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
+                    similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = dist
+                    #similarity_mat[idx1, idx2] = similarity_mat[idx2, idx1] = (1.0 / dist) if dist > 1e-3 else 1e3
 
         else:
             similarity_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
