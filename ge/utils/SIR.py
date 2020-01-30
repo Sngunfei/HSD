@@ -128,15 +128,15 @@ class SIR():
 if __name__ == '__main__':
     from utils.util import dataloader
 
-    name = "flight"
+    name = "usa"
     data, _, _ = dataloader(name, directed=False)
     #print("radius", nx.radius(data))
     #print("diameter", nx.diameter(data))
-    model = SIR(data, p=0.9, r=None, t=5, random_state=42)
+    model = SIR(data, p=0.95, r=None, t=4, random_state=42)
     #print(model._get_average_degree())
     model.start()
     labels = model.label_nodes(5, mode=1)
-    fout = open("../../data/{}_SIR_2.label".format(name), mode="w+", encoding="utf8")
+    fout = open("../../data/{}_SIR_3.label".format(name), mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()

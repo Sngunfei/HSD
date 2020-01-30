@@ -20,7 +20,7 @@ from ge.utils.robustness import random_remove_edges
 import warnings
 warnings.filterwarnings("ignore")
 
-def hseLLE(graph=None, name="mkarate", method='wasserstein', percentile=None, dim=16):
+def hseLLE(graph=None, name="mkarate.edgelist", method='wasserstein', percentile=None, dim=16):
     path = "G:\pyworkspace\graph-embedding\similarity\\norm_{}_{}.csv".format(name, method)
     if not os.path.exists(path):
         wave_machine = GraphWave(graph)

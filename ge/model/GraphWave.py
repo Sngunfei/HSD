@@ -379,7 +379,7 @@ class GraphWave:
         return nodes_wavelets
 
 
-    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=10, workers=5, mode="similarity", save_path=None):
+    def parallel_calc_similarity(self, coeff_mat, metric="l1", layers=5, workers=5, mode="similarity", save_path=None):
         print("Start parallelly calculate similarity......")
         nodes_layers = self.get_nodes_layers_bfs(layers)
         metric = str.lower(metric)

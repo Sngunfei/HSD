@@ -132,7 +132,7 @@ def embedd(data_name, label_class="SIR"):
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=10, num_walks=10, stay_prob=0.3, dim=32, reused=False), "struc2vec"
+    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=50, window_size=15, num_walks=10, stay_prob=0.3, dim=64, reused=False), "struc2vec"
     #embedding_dict, method = node2vec(data_name, graph, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=32, reused=False), "node2vec"
     #embedding_dict = LE(graph, dim=64)
     #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=False), "graphwave"
@@ -318,14 +318,20 @@ def scalability_test(datasets=None, cnt=10):
 
 def mkarate_wavelet():
     from utils.guass_charac_analyze import mkarate_wavelet_analyse, mkarate_wavelet_analyse_2
-    data, _, _ = dataloader("europe", directed=False)
-    wave_machine = GraphWave(data, heat_coefficient=0.07)
+    data, _, _ = dataloader("mkarate", directed=False)
+    wave_machine = GraphWave(data)
+    eigenvalues = wave_machine._e
+    sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
+    scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
+    print(sMin, sMax, scale)
+    node1, node2, node3 = '3', '38', '20'
     node2idx, idx2node = wave_machine.node2idx, wave_machine.nodes
-    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=0.07)
-    index34, index51, index17 = node2idx['34'], node2idx['51'], node2idx['17']
-    wavelet34, wavelet51, wavelet17 = wavelets[index34], wavelets[index51], wavelets[index17]
+    wavelets = wave_machine.cal_all_wavelet_coeffs(scale=0.085)
+    index1, index2, index3 = node2idx[node1], node2idx[node2], node2idx[node3]
+    wavelet1, wavelet2, wavelet3 = wavelets[index1], wavelets[index2], wavelets[index3]
     similarity = wave_machine.calc_wavelet_similarity(wavelets, method="wasserstein", hierachical=True, layers=5)
-    mkarate_wavelet_analyse(wavelet34, wavelet51, wavelet17, similarity[index34, index51], similarity[index34, index17])
+    mkarate_wavelet_analyse(node1, wavelet1, node2, wavelet2, node3, wavelet3,
+                            similarity[index1, index2], similarity[index1, index3])
 
 
 def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scale = 2, reused=False):
@@ -337,14 +343,15 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
 
     sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
     s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
-    print("recommend scale: ", s)
-    scale = 0.26
+    print(sMin, sMax)
+    scale = 0.035
     print("scale: ", scale)
     coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
 
     path = "../../output/{}_distance_{}_{}.csv".format(name, scale, perplexity)
     if not reused:
-        mat = wave_machine.parallel_calc_similarity(coeff_mat, metric="wasserstein", mode="distance", save_path=path)
+        mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=2, metric="wasserstein",
+                                                    mode="distance", save_path=path)
     else:
         mat = read_distance(path, wave_machine.n_nodes)
 
@@ -353,7 +360,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     tmp = {}
     for idx, node in enumerate(idx2node):
         tmp[node] = res[idx]
-    save_vectors(tmp, "../../output/HSD_{}_{}_{}.csv".format(name, scale, perplexity))
+    save_vectors(tmp, "../../output/HSD_{}_{}_{}_layer2.csv".format(name, scale, perplexity))
 
     labels = []
     for idx, node in enumerate(idx2node):
@@ -383,7 +390,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     if db:
         db.insert(res_knn, "nodes classification")
     """
-    plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=False)
+    plot_embeddings(idx2node, res, labels=labels, n_class=n_class, method="tsne", perplexity=30, node_text=True)
 
 
 def bell_scales():
@@ -440,14 +447,14 @@ if __name__ == '__main__':
     #start = time.time()
     #db = Database()
 
-    visulize_via_smilarity_tsne("flight", None, label_class="SIR_2", perplexity=30, reused=True)
-
+    visulize_via_smilarity_tsne("mkarate", None, label_class="origin", perplexity=5, reused=False)
+    #mkarate_wavelet()
     #bell_scales()
-    #embedd("bell", label_class="origin")
+    #embedd("europe", label_class="SIR_2")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
     #for scale in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.4, 0.5]
     #for scale in [0.01, 0.03, 0.05, 0.07, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2, 2.5, 3, 4, 5]:
     #    robustness("usa", probs=[1.0], cnt=1, metric="wasserstein", label="SIR_2", dim=64, scale=scale, percentile=0.9)
-    #scalability_test(datasets=['bell', 'mkarate', 'subway', 'railway', 'brazil', 'europe'])
+    #scalability_test(datasets=['bell', 'mkarate.edgelist', 'subway', 'railway', 'brazil', 'europe'])

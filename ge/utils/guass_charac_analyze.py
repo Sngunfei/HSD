@@ -69,7 +69,7 @@ def charac(p:np.array, samples:list):
     return res_real, res_imag
 
 
-def mkarate_wavelet_analyse(w1:list, w2:list, w3:list, s1:float, s2:float):
+def mkarate_wavelet_analyse(node1, w1:list, node2, w2:list, node3, w3:list, s1:float, s2:float):
     """
     以mirror-karate network中的节点举例，其中w1和w2是结构对称的小波系数，而w3是不对称的，
     分析一下它们的特征函数差异
@@ -91,10 +91,10 @@ def mkarate_wavelet_analyse(w1:list, w2:list, w3:list, s1:float, s2:float):
 
     plt.figure()
     #plt.subplot(221)
-    plt.plot(samples, real_1, 'b-', label="Node34 - Real")
-    plt.plot(samples, imag_1, 'r-', label="Node34 - Imag")
-    plt.plot(samples, real_2, 'g-', label="Node51 - Real")
-    plt.plot(samples, imag_2, 'k-', label="Node51 - Imag")
+    plt.plot(samples, real_1, 'b-', label="Node{} - Real".format(node1))
+    plt.plot(samples, imag_1, 'r-', label="Node{} - Imag".format(node1))
+    plt.plot(samples, real_2, 'g-', label="Node{} - Real".format(node2))
+    plt.plot(samples, imag_2, 'k-', label="Node{} - Imag".format(node2))
     plt.xlabel("Sample points", fontdict=font)
     plt.ylabel("Value", fontdict=font)
     #plt.plot(samples, real_3, 'g-', label="real_3")
@@ -104,10 +104,10 @@ def mkarate_wavelet_analyse(w1:list, w2:list, w3:list, s1:float, s2:float):
     #plt.subplot(222)
     plt.figure()
 
-    plt.plot(samples, real_3, 'g-', label="Node17 - Real")
-    plt.plot(samples, imag_3, 'k-', label="Node17 - Imag")
-    plt.plot(samples, real_1, 'b-', label="Node34 - Real")
-    plt.plot(samples, imag_1, 'r-', label="Node34 - Imag")
+    plt.plot(samples, real_3, 'g-', label="Node{} - Real".format(node3))
+    plt.plot(samples, imag_3, 'k-', label="Node{} - Imag".format(node3))
+    plt.plot(samples, real_1, 'b-', label="Node{} - Real".format(node1))
+    plt.plot(samples, imag_1, 'r-', label="Node{} - Imag".format(node1))
     plt.xlabel("Sample points", fontdict=font)
     plt.ylabel("Value", fontdict=font)
 
@@ -122,15 +122,15 @@ def mkarate_wavelet_analyse(w1:list, w2:list, w3:list, s1:float, s2:float):
     imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_2)]
 
     diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
-    plt.plot(samples, diff, 'b-', label="Nodes (34, 57) Euclidean distance")
-    plt.plot(samples, [s1]*len(samples), 'k-', label="Nodes (34, 57) hierachical wasserstein distance")
+    plt.plot(samples, diff, 'b-', label="Nodes ({}, {}) Euclidean distance".format(node1, node2))
+    plt.plot(samples, [s1]*len(samples), 'k-', label="Nodes ({}, {}) hierachical wasserstein distance".format(node1, node2))
 
     #plt.subplot(224)
     real_diff = [abs(i - j) for i, j in zip(real_1, real_3)]
     imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_3)]
     diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
-    plt.plot(samples, diff, 'r-',  label="Nodes (17, 34) Euclidean distance")
-    plt.plot(samples, [s2] * len(samples), 'y-', label="Nodes (17, 34) hierachical wasserstein distance")
+    plt.plot(samples, diff, 'r-',  label="Nodes ({}, {}) Euclidean distance".format(node1, node3))
+    plt.plot(samples, [s2] * len(samples), 'y-', label="Nodes ({}, {}) hierachical wasserstein distance".format(node1, node3))
     plt.xlabel("Sample points", fontdict=font)
     plt.ylabel("Distance", fontdict=font)
     plt.legend(prop=font)

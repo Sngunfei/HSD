@@ -118,7 +118,7 @@ def entropy(graph, scales):
 
 
 if __name__ == '__main__':
-    graph, _, _ = dataloader(name="mkarate")
+    graph, _, _ = dataloader(name="mkarate.edgelist")
     scales = [i*0.01 for i in range(0, 2000)]
     #analyse(graph, scales)
     entropy(graph, scales)

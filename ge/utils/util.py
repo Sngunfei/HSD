@@ -247,7 +247,7 @@ def connect_graph(graph: nx.Graph) -> nx.Graph:
 
 
 def get_metadata_of_networks():
-    networks = ["bell", "mkarate", "europe", "usa"]
+    networks = ["bell", "mkarate.edgelist", "europe", "usa"]
 
     for name in networks:
         data, _, _ = dataloader(name, directed=False)
@@ -322,21 +322,49 @@ def read_distance(path, n_nodes):
     fin.close()
     return mat
 
-if __name__ == '__main__':
-    fin = open("../../data/europe.edgelist", mode="r", encoding="utf-8")
-    fout = open("../../data/tmp.edgelist", mode="w+", encoding="utf-8")
 
+def plot_vectors(path):
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+    import matplotlib.colors as colors
+    import matplotlib.cm as cmx
+
+    label_dict, n_class = read_label("E:\workspace\py\graph-embedding\data\\europe_SIR_2.label")
+    fin = open(path, mode="r", encoding="utf-8")
+    nodes, _2d_data = [], []
+    labels = []
     while True:
         line = fin.readline()
         if not line:
             break
-        a, b = line.strip().split(" ")
-        c = int(a) + 1190
-        d = int(b) + 1190
-        fout.write("{} {}\n".format(c, d))
+        node, xx, yy = line.strip().split(",")
+        nodes.append(int(node))
+        labels.append(label_dict[node])
+        _2d_data.append([float(xx), float(yy)])
 
-    fin.close()
-    fout.close()
+    _2d_data = np.asarray(_2d_data)
+    markers = ['o', '*', 'x', '<', '1', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+
+    cm = plt.get_cmap("nipy_spectral")
+    cNorm = colors.Normalize(vmin=0, vmax=n_class - 1)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+
+    class_dict = defaultdict(list)
+    for idx, node in enumerate(nodes):
+        class_dict[int(labels[idx])].append(idx)
+
+    info = sorted(class_dict.items(), key=lambda item: item[0])
+    for _class, _indices in info:
+        # general case， n_class < 10
+        # plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
+        # mirror karate network, n_class = 34
+        plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)],
+                    c=[scalarMap.to_rgba(_class)], label=_class)
+    plt.show()
+
+
+if __name__ == '__main__':
+    plot_vectors("E:\workspace\py\graph-embedding\output\HSD_europe_1_30.csv")
 
 
 

@@ -144,7 +144,7 @@ def f():
 def save_laplacian_matrix():
     from utils.util import dataloader
     from model.GraphWave import GraphWave
-    graph, _, _ = dataloader("mkarate", directed=False, similarity=False, label="SIR")
+    graph, _, _ = dataloader("mkarate.edgelist", directed=False, similarity=False, label="SIR")
     wave_machine = GraphWave(graph)
     L = np.asarray(wave_machine.L.toarray())
     nodes = wave_machine.nodes
