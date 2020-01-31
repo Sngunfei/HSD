@@ -69,7 +69,7 @@ def charac(p:np.array, samples:list):
     return res_real, res_imag
 
 
-def mkarate_wavelet_analyse(node1, w1:list, node2, w2:list, node3, w3:list, s1:float, s2:float):
+def mkarate_wavelet_analyse(scale, node1, w1:list, node2, w2:list, node3, w3:list, s1:float, s2:float):
     """
     以mirror-karate network中的节点举例，其中w1和w2是结构对称的小波系数，而w3是不对称的，
     分析一下它们的特征函数差异
@@ -84,9 +84,35 @@ def mkarate_wavelet_analyse(node1, w1:list, node2, w2:list, node3, w3:list, s1:f
     real_2, imag_2 = charac(w2, samples)
     real_3, imag_3 = charac(w3, samples)
 
+    fout=open("../../output/samples.txt", mode="a+", encoding="utf-8")
+    fout.write("scale = {}, node{}, node{}, node{}\n".format(scale, node1, node2, node3))
+    fout.write("node{}: \n".format(node1))
+    fout.write(",".join(map(str, samples)))
+    fout.write("\n")
+    fout.write(",".join(map(str, real_1)))
+    fout.write("\n")
+    fout.write(",".join(map(str, imag_1)))
+    fout.write("\n")
+
+    fout.write("node{}: \n".format(node2))
+    fout.write(",".join(map(str, samples)))
+    fout.write("\n")
+    fout.write(",".join(map(str, real_2)))
+    fout.write("\n")
+    fout.write(",".join(map(str, imag_2)))
+    fout.write("\n")
+
+    fout.write("node{}: \n".format(node3))
+    fout.write(",".join(map(str, samples)))
+    fout.write("\n")
+    fout.write(",".join(map(str, real_3)))
+    fout.write("\n")
+    fout.write(",".join(map(str, imag_3)))
+    fout.write("\n\n")
+
     font = {'family': 'Times New Roman',
              'weight': 'normal',
-             'size': 24,
+             'size': 15,
     }
 
     plt.figure()
