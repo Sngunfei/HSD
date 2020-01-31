@@ -132,13 +132,14 @@ def embedd(data_name, label_class="SIR"):
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=50, window_size=15, num_walks=10, stay_prob=0.3, dim=64, reused=False), "struc2vec"
+    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=3, num_walks=5, stay_prob=0.4, dim=64, reused=False), "struc2vec"
     #embedding_dict, method = node2vec(data_name, graph, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=32, reused=False), "node2vec"
     #embedding_dict = LE(graph, dim=64)
     #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=False), "graphwave"
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
     #embedding_dict = rolx(data_name)
 
+    embedding_dict = read_vectors("E:\workspace\py\graph-embedding\output\struc2vec_mkarate_tsne3.csv")
     nodes = []
     labels = []
     embeddings = []
@@ -153,11 +154,13 @@ def embedd(data_name, label_class="SIR"):
     #cluster_evaluate(embeddings, labels, class_num=n_class)
     #evaluate_LR_accuracy(embeddings, labels, random_state=42)
     #evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
-    _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random", perplexity=5)
+
+    _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random",
+                               perplexity=5, node_text=True, random_state=23)
     tmp = {}
     for idx, node in enumerate(nodes):
         tmp[node] = _2d_data[idx]
-    save_vectors(tmp, "../../output/{}_{}_tsne.csv".format(method, data_name))
+    save_vectors(tmp, "../../output/{}_{}_tsne4.csv".format(method, data_name))
     #heat_map(embeddings, labels)
 
 
@@ -447,10 +450,10 @@ if __name__ == '__main__':
     #start = time.time()
     #db = Database()
 
-    visulize_via_smilarity_tsne("mkarate", None, label_class="origin", perplexity=5, reused=False)
-    #mkarate_wavelet()
+    #visulize_via_smilarity_tsne("mkarate", None, label_class="origin", perplexity=5, reused=False)
+    mkarate_wavelet()
     #bell_scales()
-    #embedd("europe", label_class="SIR_2")
+    embedd("mkarate", label_class="origin")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
