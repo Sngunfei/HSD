@@ -109,6 +109,7 @@ def mkarate_wavelet_analyse(scale, node1, w1:list, node2, w2:list, node3, w3:lis
     fout.write("\n")
     fout.write(",".join(map(str, imag_3)))
     fout.write("\n\n")
+    fout.close()
 
     font = {'family': 'Times New Roman',
              'weight': 'normal',
@@ -155,6 +156,19 @@ def mkarate_wavelet_analyse(scale, node1, w1:list, node2, w2:list, node3, w3:lis
     real_diff = [abs(i - j) for i, j in zip(real_1, real_3)]
     imag_diff = [abs(i - j) for i, j in zip(imag_1, imag_3)]
     diff = [np.sqrt(i ** 2 + j ** 2) for i, j in zip(real_diff, imag_diff)]
+
+    fout = open("../../output/distance.txt", mode="a+", encoding="utf-8")
+    fout.write("\nscale = {}, node{}, node{}, node{}\n".format(scale, node1, node2, node3))
+    fout.write("node{}, node{} \n".format(node1, node3))
+    fout.write("x=[" + ",".join(map(str, samples)) + "]")
+    fout.write("\n")
+    fout.write("Euclidean=[" + ",".join(map(str, diff)) + "]")
+    fout.write("\n")
+    fout.write("Wasserstein={}".format(s2))
+    fout.write("\n\n\n")
+    fout.close()
+
+
     plt.plot(samples, diff, 'r-',  label="Nodes ({}, {}) Euclidean distance".format(node1, node3))
     plt.plot(samples, [s2] * len(samples), 'y-', label="Nodes ({}, {}) hierachical wasserstein distance".format(node1, node3))
     plt.xlabel("Sample points", fontdict=font)

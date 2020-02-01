@@ -56,7 +56,7 @@ def LE(graph, dim=32):
 def struc2vec(name, graph, walk_length=10, window_size=10,
               num_walks=15, stay_prob=0.3, dim=16, reused=False):
 
-    path = "../../output/struc2vec_{}.csv".format(name)
+    path = "../../output/struc2vec_{}_length15.csv".format(name)
     if reused and os.path.exists(path):
         embeddings_dict = read_vectors(path)
     else:
@@ -127,19 +127,18 @@ def embedd(data_name, label_class="SIR"):
     sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
     scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
     #scale = 2
-    print(scale)
+    #print(scale)
 
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=3, num_walks=5, stay_prob=0.4, dim=64, reused=False), "struc2vec"
-    #embedding_dict, method = node2vec(data_name, graph, walk_length=15, num_walks=5, window_size=3, p=1, q=2, dim=32, reused=False), "node2vec"
+    #embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=10, num_walks=10, stay_prob=0.5, dim=64, reused=False), "struc2vec"
+    #embedding_dict, method = node2vec(data_name, graph, walk_length=50, num_walks=10, window_size=15, p=1, q=2, dim=64, reused=False), "node2vec"
     #embedding_dict = LE(graph, dim=64)
-    #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=False), "graphwave"
+    #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=True), "graphwave"
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
     #embedding_dict = rolx(data_name)
-
-    embedding_dict = read_vectors("E:\workspace\py\graph-embedding\output\struc2vec_mkarate_tsne3.csv")
+    embedding_dict = read_vectors("C:\\Users\86234\Desktop\论文相关\\tsne\\node2vec_usa.csv")
     nodes = []
     labels = []
     embeddings = []
@@ -156,11 +155,11 @@ def embedd(data_name, label_class="SIR"):
     #evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
 
     _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random",
-                               perplexity=5, node_text=True, random_state=23)
+                               perplexity=30, node_text=False, random_state=42)
     tmp = {}
     for idx, node in enumerate(nodes):
         tmp[node] = _2d_data[idx]
-    save_vectors(tmp, "../../output/{}_{}_tsne4.csv".format(method, data_name))
+    #save_vectors(tmp, "../../output/{}_{}_tsne3.csv".format(method, data_name))
     #heat_map(embeddings, labels)
 
 
@@ -348,14 +347,14 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
     s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
     print(sMin, sMax)
-    scale = 0.5
+    scale = 1
     print("scale: ", scale)
-    coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
-    print(coeff_mat[:5, :15])
     path = "../../output/{}_distance_{}_{}.csv".format(name, scale, perplexity)
     if not reused:
+        coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
+        print(coeff_mat[:5, :15])
         mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=5, metric="wasserstein",
-                                                    mode="distance", save_path=None)
+                                                    mode="distance", save_path=path)
     else:
         mat = read_distance(path, wave_machine.n_nodes)
 
@@ -368,7 +367,7 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     tmp = {}
     for idx, node in enumerate(idx2node):
         tmp[node] = res[idx]
-    #save_vectors(tmp, "../../output/HSD_{}_{}_{}_layer1.csv".format(name, scale, perplexity))
+    save_vectors(tmp, "../../output/HSD_{}_{}_{}_tsne.csv".format(name, scale, perplexity))
 
     labels = []
     for idx, node in enumerate(idx2node):
@@ -455,10 +454,10 @@ if __name__ == '__main__':
     #start = time.time()
     #db = Database()
 
-    #visulize_via_smilarity_tsne("mkarate", None, label_class="origin", perplexity=5, reused=False)
+    #visulize_via_smilarity_tsne("usa", None, label_class="SIR_2", perplexity=100, reused=False)
     mkarate_wavelet()
     #bell_scales()
-    embedd("mkarate", label_class="origin")
+    #embedd("usa", label_class="SIR_2")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
