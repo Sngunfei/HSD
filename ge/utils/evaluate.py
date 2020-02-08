@@ -52,7 +52,7 @@ def evaluate_LR_accuracy(embeddings, labels, random_state=42):
     xtrain, xtest, ytrain, ytest = train_test_split(embeddings, labels, test_size=0.3,
                                                     random_state=random_state, shuffle=True)
 
-    lrc = LogisticRegressionCV(cv=10, solver="lbfgs", penalty='l2', max_iter=500, verbose=0, multi_class='ovr')
+    lrc = LogisticRegressionCV(cv=5, solver="lbfgs", penalty='l2', max_iter=500, verbose=0, multi_class='ovr')
     lrc.fit(xtrain, ytrain)
     preds = lrc.predict(xtest)
 

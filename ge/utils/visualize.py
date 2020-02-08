@@ -61,7 +61,7 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
         import matplotlib.colors as colors
         import matplotlib.cm as cmx
 
-        markers = ['o', '*', 'x', '<', '1', 'x', 'D', '>', '^', "v", '1', '2', '3', '4', 'X', '.']
+        markers = ['o', '*', 'x', '<', '1', 'D', '>', '^', "v", 'p', '2', '3', '4', 'X', '.']
 
         cm = plt.get_cmap("nipy_spectral")
         cNorm  = colors.Normalize(vmin=0, vmax=n_class-1)
@@ -71,12 +71,17 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
         for idx, node in enumerate(nodes):
             class_dict[int(labels[idx])].append(idx)
 
+        for idx in range(10):
+            print(idx, nodes[idx])
+
         info = sorted(class_dict.items(), key=lambda item:item[0])
         for _class, _indices in info:
-            # general case， n_class < 10
-            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=40, marker=markers[_class], cmap=plt.get_cmap("nipy_spectral"))
-            # mirror karate network, n_class = 34
-            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            _index1 = [i for i in _indices if int(nodes[i]) < 393]
+            _index2 = [i for i in _indices if int(nodes[i]) >= 393]
+            print(_class, len(_index1), len(_index2))
+            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            plt.scatter(_2d_data[_index1, 0], _2d_data[_index1, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            plt.scatter(_2d_data[_index2, 0], _2d_data[_index2, 1], s=100, marker=markers[(_class+5) % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
 
         if node_text:
             for idx, (x, y) in enumerate(_2d_data):
@@ -330,14 +335,25 @@ def robustness():
 
 def robustness_from_excel():
     import seaborn as sns
-    HSDLE=[0.687499968, 0.71833328, 0.729999976, 0.744999967, 0.781666643, 0.794999906,
-           0.817499986, 0.826666643, 0.848333321, 0.860833309, 0.86666665]
-    HSDLLE=[0.65583322, 0.69666658, 0.7166666, 0.75999997, 0.777499976, 0.80583331,
-            0.807499979, 0.846666646, 0.875833299, 0.888333313, 0.925]
+    HSDLE=[0.738888863, 0.751388817, 0.746428551, 0.757142813, 0.787037011, 0.803703607,
+           0.820370354, 0.834259237, 0.851851839, 0.870833308, 0.870238073]
+    HSDLLE=[0.70208315, 0.724999867, 0.743749975, 0.774999971, 0.790476166, 0.813541638,
+            0.824999978, 0.868055543, 0.881249961, 0.89999996, 0.925]
+    graphwave=[0.74833333, 0.73666664, 0.748333326, 0.768333312, 0.7883333, 0.754999972,
+               0.76833318, 0.79166662, 0.7933333, 0.80666664, 0.825]
+    struc2vec=[0.744999852, 0.733333324, 0.746666652, 0.748333306, 0.7533333, 0.754999997,
+               0.776666626, 0.789999966, 0.80999998, 0.80833332, 0.814999966]
+    node2vec=[0.443333312, 0.403333318, 0.4283333, 0.451666658, 0.473333324, 0.511666652,
+              0.486666646, 0.513333318, 0.489999972, 0.544999986, 0.544999972]
+
     delete_ratio=[0.5, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10, 0.05, 0.0]
 
-    data = pd.DataFrame(data={"Accuracy": HSDLE + HSDLLE, "Deletion Ratio": delete_ratio + delete_ratio,
-                              "method": ['HSDLE']*len(HSDLE) + ['HSDLLE']*len(HSDLLE)})
+    data = pd.DataFrame(data={"Accuracy": HSDLE + HSDLLE + graphwave + struc2vec + node2vec,
+                              "Deletion Ratio": delete_ratio * 5,
+                              "method": ['HSDLE']*len(HSDLE) + ['HSDLLE']*len(HSDLLE) +
+                                        ['GraphWave']*len(graphwave) + ['Struc2vec']*len(struc2vec) +
+                                        ['Node2vec']*len(node2vec)
+                              })
     sns.set(style="ticks")
     sns.relplot(x="Deletion Ratio", y="Accuracy", hue="method", data=data, kind="line")
     plt.ylim((0.0, 1))

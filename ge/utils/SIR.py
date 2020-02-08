@@ -49,9 +49,7 @@ class SIR():
         :return:
         """
         for idx, node in self.idx2node.items():
-            for _ in range(5): # 重复5次消除随机因素
-                self.influence[node] += self._diffuse_from_node(node)
-            #print(node, self.influence[node])
+            self.influence[node] += self._diffuse_from_node(node)
 
 
     def _diffuse_from_node(self, node):
@@ -72,7 +70,7 @@ class SIR():
                 for neighbor in nx.neighbors(self.G, _node):
                     # 传染
                     if neighbor not in recoverd and neighbor not in infected and random.random() <= self.p:
-                        infected.add((neighbor, _weight-0.1))
+                        infected.add((neighbor, _weight-0.3))
                 # 恢复
                 if random.random() <= self.r:
                     recoverd.add((_node, _weight))
@@ -128,15 +126,15 @@ class SIR():
 if __name__ == '__main__':
     from utils.util import dataloader
 
-    name = "usa"
+    name = "across_europe_reindex"
     data, _, _ = dataloader(name, directed=False)
     #print("radius", nx.radius(data))
     #print("diameter", nx.diameter(data))
-    model = SIR(data, p=0.95, r=None, t=4, random_state=42)
+    model = SIR(data, p=1.0, r=None, t=3, random_state=42)
     #print(model._get_average_degree())
     model.start()
     labels = model.label_nodes(5, mode=1)
-    fout = open("../../data/{}_SIR_3.label".format(name), mode="w+", encoding="utf8")
+    fout = open("../../data/{}_SIR_2.label".format(name), mode="w+", encoding="utf8")
     for node, label in labels.items():
         fout.write("{} {} \n".format(node, label))
     fout.close()

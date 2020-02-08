@@ -35,7 +35,7 @@ def graphWave(name, graph, reused=False, scale=10.0, dim=32):
 
 
 def node2vec(name, graph, reused=False, walk_length=50, window_size=20, num_walks=30, p=1.0, q=2.0, dim=64):
-    path = "../../output/node2vec_{}.csv".format(name)
+    path = "../../output/node2vec_{}_length30.csv".format(name)
     if reused and os.path.exists(path):
         embeddings_dict = read_vectors(path)
     else:
@@ -56,7 +56,7 @@ def LE(graph, dim=32):
 def struc2vec(name, graph, walk_length=10, window_size=10,
               num_walks=15, stay_prob=0.3, dim=16, reused=False):
 
-    path = "../../output/struc2vec_{}_length15.csv".format(name)
+    path = "../../output/struc2vec_{}_length30.csv".format(name)
     if reused and os.path.exists(path):
         embeddings_dict = read_vectors(path)
     else:
@@ -124,21 +124,23 @@ def embedd(data_name, label_class="SIR"):
     graph, label_dict, n_class = dataloader(data_name, directed=False, label=label_class)
     wave_machine = GraphWave(graph)
     eigenvalues = wave_machine._e
-    sMin, sMax = scale_boundary(eigenvalues[1], eigenvalues[-1])
+    print(min(eigenvalues), max(eigenvalues))
+    sMin, sMax = scale_boundary(eigenvalues[3], eigenvalues[-1])
     scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
-    #scale = 2
-    #print(scale)
+    print(sMin, sMax, scale)
+    scale = 0.015
 
     #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
     #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
-    #embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=15, window_size=10, num_walks=10, stay_prob=0.5, dim=64, reused=False), "struc2vec"
-    #embedding_dict, method = node2vec(data_name, graph, walk_length=50, num_walks=10, window_size=15, p=1, q=2, dim=64, reused=False), "node2vec"
+    #embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=20, window_size=10, num_walks=10, stay_prob=0.5, dim=64, reused=True), "struc2vec"
+    embedding_dict, method = node2vec(data_name, graph, walk_length=20, num_walks=10, window_size=10, p=1, q=2, dim=64, reused=True), "node2vec"
     #embedding_dict = LE(graph, dim=64)
     #embedding_dict, method = graphWave(data_name, graph, scale=scale, dim=64, reused=True), "graphwave"
     #embedding_dict = LocallyLinearEmbedding(graph=graph, dim=64).create_embedding()
     #embedding_dict = rolx(data_name)
-    embedding_dict = read_vectors("C:\\Users\86234\Desktop\论文相关\\tsne\\node2vec_usa.csv")
+    #method = "struc2vec"
+    #embedding_dict = read_vectors("C:\\Users\86234\Desktop\论文相关\跨图\\struc2vec_flight.csv")
     nodes = []
     labels = []
     embeddings = []
@@ -152,14 +154,14 @@ def embedd(data_name, label_class="SIR"):
 
     #cluster_evaluate(embeddings, labels, class_num=n_class)
     #evaluate_LR_accuracy(embeddings, labels, random_state=42)
-    #evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
+    evaluate_KNN_accuracy(embeddings, labels, "euclidean", random_state=42,  n_neighbor=20)
 
     _2d_data = plot_embeddings(nodes, embeddings, labels, n_class, method="tsne", init="random",
-                               perplexity=30, node_text=False, random_state=42)
+                               perplexity=50, node_text=False, random_state=35)
     tmp = {}
     for idx, node in enumerate(nodes):
         tmp[node] = _2d_data[idx]
-    #save_vectors(tmp, "../../output/{}_{}_tsne3.csv".format(method, data_name))
+    save_vectors(tmp, "../../output_SIR/{}_{}_tsne.csv".format(method, data_name))
     #heat_map(embeddings, labels)
 
 
@@ -283,6 +285,77 @@ def worker(idx, prob, data, graph, label_dict, n_class, cnt=10, scale=2, metric=
     return True
 
 
+
+def _robustness(data, probs=None, cnt=10, label="SIR"):
+    """
+    测试struc2vec, node2vec, graphwave鲁棒性
+    """
+    graph, label_dict, n_class = dataloader(data, directed=False, label=label)
+    pool = mp.Pool(2)
+    results = []
+    scale = 0.0085
+    for method in ["HSELLE"]:
+        for i, p in enumerate(probs):
+            # _worker(idx, method, prob, data, graph, label_dict, n_class, scale, cnt):
+            _res = pool.apply_async(_worker, args=(i, method, p, data, graph, label_dict, n_class, scale, cnt))
+            results.append(_res)
+
+    pool.close()
+    pool.join()
+    for _res in results:
+        _res.get()
+
+
+def _worker(idx, method, prob, data, graph, label_dict, n_class, scale, cnt):
+    print("idx = {}, prob = {}".format(idx, prob))
+    for cur_cnt in tqdm(range(cnt)):
+        start = time.time()
+
+        if prob == 1.0:
+            _graph = nx.Graph(graph)
+        else:
+            _graph = random_remove_edges(nx.Graph(graph), prob=prob)
+
+        if method == "struc2vec":
+            embedding_dict = struc2vec(name=data, graph=_graph, walk_length=30, window_size=10,
+                                       num_walks=10, stay_prob=0.5, dim=64, reused=False)
+        elif method == "node2vec":
+            embedding_dict = node2vec(name=data, graph=_graph, walk_length=30, window_size=10,
+                                      num_walks=10, p=1, q=2, dim=64, reused=False)
+        elif method == "HSELLE":
+            # def hseLLE(name, graph, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=True):
+            embedding_dict = hseLLE(name=data, graph=_graph, scale=1, method="wasserstein",
+                                    dim=64, percentile=0.9, reuse=False)
+        else:
+            embedding_dict = graphWave(name=data, graph=_graph, scale=scale, dim=64, reused=False)
+
+        _time = time.time() - start
+
+        nodes = []
+        labels = []
+        embeddings = []
+        for node, embedding in embedding_dict.items():
+            nodes.append(node)
+            embeddings.append(embedding)
+            labels.append(label_dict.get(node, str(n_class)))
+
+        accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_LR_accuracy(embeddings,
+                                                                                                  labels,
+                                                                                                  random_state=42)
+
+        fout = open("E:\workspace\py\graph-embedding\output\\robustness.txt", mode="a+", encoding="utf-8")
+
+        fout.write("method: {}, prob: {}, idx: {}, cnt: {}, time:{}\n".format(method, prob, idx, cur_cnt, _time))
+        fout.write("accuracy:{}, balanced_accuracy:{}, precision:{}, recall:{}, "
+                   "macro_f1:{}, micro_f1:{}\n".format(accuracy, balanced_accuracy,
+                                                         precision, recall, macro_f1, micro_f1))
+        fout.write("\n\n")
+        fout.write("--------------------------------------------------------\n")
+        fout.close()
+
+    return True
+
+
 def _time_test(dataset=None, cnt=10):
     """
     在数据集上记录运行时长
@@ -347,13 +420,13 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     sMin, sMax = scale_boundary(eigenvalues[2], eigenvalues[-1])
     s = (sMin + sMax) / 2   # 根据GraphWave论文中推荐的尺度进行设置。
     print(sMin, sMax)
-    scale = 1
+    scale = 0.5
     print("scale: ", scale)
-    path = "../../output/{}_distance_{}_{}.csv".format(name, scale, perplexity)
+    path = "../../output/{}_distance_{}.csv".format(name, scale)
     if not reused:
         coeff_mat = wave_machine.cal_all_wavelet_coeffs(scale=scale)
         print(coeff_mat[:5, :15])
-        mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=5, metric="wasserstein",
+        mat = wave_machine.parallel_calc_similarity(coeff_mat, layers=4, metric="wasserstein",
                                                     mode="distance", save_path=path)
     else:
         mat = read_distance(path, wave_machine.n_nodes)
@@ -363,11 +436,11 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
     # mkarate, layer=3, scale=0.5, p=5, random=25
     # mkarate, layer=4, scale=0.5, p=5, random=25
     # mkarate, layer=5, scale=0.5, p=5, random=32
-    res = TSNE(n_components=2, metric="precomputed", perplexity=perplexity, random_state=32).fit_transform(mat)
+    res = TSNE(n_components=2, metric="precomputed", perplexity=perplexity, random_state=35).fit_transform(mat)
     tmp = {}
     for idx, node in enumerate(idx2node):
         tmp[node] = res[idx]
-    save_vectors(tmp, "../../output/HSD_{}_{}_{}_tsne.csv".format(name, scale, perplexity))
+    save_vectors(tmp, "../../output_SIR/HSD_{}_{}_{}_tsne.csv".format(name, scale, perplexity))
 
     labels = []
     for idx, node in enumerate(idx2node):
@@ -376,9 +449,9 @@ def visulize_via_smilarity_tsne(name, db, label_class="SIR", perplexity=30, scal
 
     print(type(mat), len(mat), len(mat[0]))
     # 展示2维数据，参数tsne和perplexity没用
-    """
-    accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
 
+    accuracy, balanced_accuracy, precision, recall, macro_f1, micro_f1 = evaluate_KNN_accuracy(X=mat, labels=labels, metric="precomputed", n_neighbor=20)
+    """
     res_knn = {"method": "HSD",
                "date": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                "graph": name,
@@ -454,14 +527,16 @@ if __name__ == '__main__':
     #start = time.time()
     #db = Database()
 
-    #visulize_via_smilarity_tsne("usa", None, label_class="SIR_2", perplexity=100, reused=False)
-    mkarate_wavelet()
+    #visulize_via_smilarity_tsne("across_europe_reindex", None, label_class="SIR_2", perplexity=50, reused=True)
+    #mkarate_wavelet()
     #bell_scales()
-    #embedd("usa", label_class="SIR_2")
+    embedd("across_europe_reindex", label_class="SIR_2")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")
+    #probs = [0.5, 0.55, 0.60]
+    #_robustness("europe", probs=probs, cnt=5, label="SIR_2")
     #for scale in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.4, 0.5]
     #for scale in [0.01, 0.03, 0.05, 0.07, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5, 2, 2.5, 3, 4, 5]:
-    #    robustness("usa", probs=[1.0], cnt=1, metric="wasserstein", label="SIR_2", dim=64, scale=scale, percentile=0.9)
+    #robustness("europe", probs=[0.6], cnt=5, metric="wasserstein", label="SIR_2", dim=64, scale=1, percentile=0.9)
     #scalability_test(datasets=['bell', 'mkarate.edgelist', 'subway', 'railway', 'brazil', 'europe'])

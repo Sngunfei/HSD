@@ -247,7 +247,7 @@ def connect_graph(graph: nx.Graph) -> nx.Graph:
 
 
 def get_metadata_of_networks():
-    networks = ["bell", "mkarate.edgelist", "europe", "usa"]
+    networks = ["bell", "mkarate", "europe", "usa"]
 
     for name in networks:
         data, _, _ = dataloader(name, directed=False)
@@ -364,9 +364,38 @@ def plot_vectors(path):
 
 
 if __name__ == '__main__':
-    plot_vectors("E:\workspace\py\graph-embedding\output\HSD_europe_1_30.csv")
+    fin_edge = open("E:\workspace\py\graph-embedding\data\\across_europe.edgelist",
+               mode="r", encoding="utf8")
+    fin_label = open("E:\workspace\py\graph-embedding\data\\across_europe_from.label",
+                mode="r", encoding="utf8")
 
+    fout_edge = open("E:\workspace\py\graph-embedding\data\\across_europe_reindex.edgelist",
+                    mode="w+", encoding="utf8")
+    fout_label = open("E:\workspace\py\graph-embedding\data\\across_europe_reindex_from.label",
+                     mode="w+", encoding="utf8")
 
+    nodes = {}
+    idx = 0
+    while True:
+        line = fin_label.readline()
+        if not line:
+            break
+        node, label = line.strip().split(" ")
+        nodes[node] = idx
+        fout_label.write("{} {}\n".format(idx, label))
+        idx += 1
+
+    while True:
+        line = fin_edge.readline()
+        if not line:
+            break
+        u, v = line.strip().split(" ")
+        fout_edge.write("{} {}\n".format(nodes[u], nodes[v]))
+
+    fin_edge.close()
+    fin_label.close()
+    fout_edge.close()
+    fout_label.close()
 
 
 
