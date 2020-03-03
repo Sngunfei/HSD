@@ -19,36 +19,6 @@ class LaplacianEigenmaps:
         self.embeddings = {}
 
 
-    def _sparse_process(self, threshold=None, percentile=None):
-        """
-        将邻接矩阵稀疏化
-        :param threshold: 权重低于threshold的边将会被删掉
-        :param percentile: 按照百分比删边
-        :return:
-        """
-        del_edges = []
-        edges = nx.edges(self.graph)
-        if threshold:
-            for edge in edges:
-                u, v = edge
-                if self.graph[u][v]['weight'] < threshold:
-                    del_edges.append((u, v))
-        elif percentile:
-            _weights = []
-            for edge in edges:
-                u, v = edge
-                # if one edge's weight very big, then would delete many valuable edges.
-                #thres += 1.0 / n * (self.graph[u][v]['weight'] * percentile - thres)
-                _weights.append(self.graph[u][v]['weight'])
-            threshold = np.percentile(_weights, percentile * 100)
-
-            for edge in edges:
-                u, v = edge
-                if self.graph[u][v]['weight'] < threshold:
-                    del_edges.append((u, v))
-        self.graph.remove_edges_from(del_edges)
-
-
     def spectralEmbedding(self):
         model = SpectralEmbedding(n_components=self.dim, affinity="precomputed", n_neighbors=int(self.n_nodes / 5))
         embeddings = np.asarray(model.fit_transform(self.A))
@@ -58,12 +28,7 @@ class LaplacianEigenmaps:
         return self.embeddings
 
 
-    def create_embedding(self, threshold=None, percentile=None):
-        _n_edge = nx.number_of_edges(self.graph)
-        if threshold or percentile:
-            self._sparse_process(threshold, percentile)
-        _n_edge1 = nx.number_of_edges(self.graph)
-        print("n_edges: before:{}, after:{}\n".format(_n_edge, _n_edge1))
+    def create_embedding(self):
         L_sym = nx.normalized_laplacian_matrix(self.graph)
         w, v = linalg.eigs(L_sym, k=self.dim + 1, which='SM')
         X = v[:, 1:]

@@ -71,17 +71,14 @@ def plot_embeddings(nodes, embeddings, labels=None, n_class=10, node_text=False,
         for idx, node in enumerate(nodes):
             class_dict[int(labels[idx])].append(idx)
 
-        for idx in range(10):
-            print(idx, nodes[idx])
-
         info = sorted(class_dict.items(), key=lambda item:item[0])
         for _class, _indices in info:
-            _index1 = [i for i in _indices if int(nodes[i]) < 393]
-            _index2 = [i for i in _indices if int(nodes[i]) >= 393]
-            print(_class, len(_index1), len(_index2))
-            #plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
-            plt.scatter(_2d_data[_index1, 0], _2d_data[_index1, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
-            plt.scatter(_2d_data[_index2, 0], _2d_data[_index2, 1], s=100, marker=markers[(_class+5) % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            #_index1 = [i for i in _indices if int(nodes[i]) < 393]
+            #_index2 = [i for i in _indices if int(nodes[i]) >= 393]
+            #print(_class, len(_index1), len(_index2))
+            plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            #plt.scatter(_2d_data[_index1, 0], _2d_data[_index1, 1], s=100, marker=markers[_class % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
+            #plt.scatter(_2d_data[_index2, 0], _2d_data[_index2, 1], s=100, marker=markers[(_class+5) % len(markers)], c=[scalarMap.to_rgba(_class)], label=_class)
 
         if node_text:
             for idx, (x, y) in enumerate(_2d_data):

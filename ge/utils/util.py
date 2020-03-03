@@ -7,7 +7,7 @@ import pandas as pd
 import os
 
 
-def dataloader(name="", directed=False, label="origin", similarity=False, scale=None, metric=None):
+def dataloader(name, path="", directed=False, label="origin", similarity=False, scale=None, metric=None):
     """
     Loda graph data by dataset name.
     :param name: dataset name, str
@@ -20,6 +20,12 @@ def dataloader(name="", directed=False, label="origin", similarity=False, scale=
     """
 
     label_path = "../../data/{}_{}.label".format(name, label)
+    label_dict, num_class = read_label(label_path)
+
+    if path:
+        graph = nx.read_edgelist(path=path, create_using=nx.Graph,
+                                 edgetype=float, data=[('weight', float)])
+        return graph, label_dict, num_class
 
     if not similarity:
         edge_path = "../../data/{}.edgelist".format(name)
@@ -34,7 +40,6 @@ def dataloader(name="", directed=False, label="origin", similarity=False, scale=
         graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
                                  edgetype=float, data=[('weight', float)])
 
-    label_dict, num_class = read_label(label_path)
     return graph, label_dict, num_class
 
 

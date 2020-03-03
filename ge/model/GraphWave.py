@@ -23,31 +23,17 @@ import multiprocessing as mp
 class GraphWave:
 
     def __init__(self, graph, heat_coefficient=5.0, sample_number=16, step_size=20.0):
-        self.name = "GraphWave: Learning Structural Node Embeddings via DiffusionWavelets."
+        self.name = "HSD"
         self.graph = graph
         self.heat_coefficient = heat_coefficient
         self.n_nodes = nx.number_of_nodes(graph)
         self.nodes = list(nx.nodes(graph))
         self.A = nx.adjacency_matrix(graph)
-        #self.L = laplacian(self.A)
-        #self.L = nx.normalized_laplacian_matrix(self.graph) # 正则拉普拉斯矩阵
         self.L = nx.laplacian_matrix(self.graph)
         self._e, self._u = np.linalg.eigh(self.L.toarray())
         self.idx2node, self.node2idx = build_node_idx_map(self.graph)
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.embeddings = None
-
-
-    """
-    heat = {i: sc.sparse.csc_matrix((n_nodes, n_nodes)) for i in range(n_filters) }
-        monome = {0: sc.sparse.eye(n_nodes), 1: lap - sc.sparse.eye(n_nodes)}
-        for k in range(2, order + 1):
-             monome[k] = 2 * (lap - sc.sparse.eye(n_nodes)).dot(monome[k-1]) - monome[k - 2]
-        for i in range(n_filters):
-            coeffs = compute_cheb_coeff_basis(taus[i], order)
-            heat[i] = sc.sum([ coeffs[k] * monome[k] for k in range(0, order + 1)])
-            temp = thres(heat[i].A) # cleans up the small coefficients
-            heat[i] = sc.sparse.csc_matrix(temp)"""
 
 
     def calc_wavelet_coeff_chebyshev(self, scale, order):
@@ -163,7 +149,7 @@ class GraphWave:
 
     def cal_all_wavelet_coeffs(self, scale):
         """
-        计算某尺度下的小波系数，以供后续针对小波系数本身进行研究。
+        计算某尺度下的小波系数，以供后续针对小波系数进行研究。
         :param scale: 尺度参数，即heat coefficient, float
         :return: 小波系数矩阵，shape=(n, n), ndarray
         """
@@ -195,18 +181,15 @@ class GraphWave:
     def get_nodes_layers_bfs(self, max_hop=5):
         """
         根据节点间的最短路径，将节点局部邻域进行层次划分，以节点为中心的嵌套环状结构，其他节点分布在对应的环上。
-        :return: dict(dict()), 嵌套字典结构，第一册key为节点，第二层key为距离。
+        :return: dict(dict()), 嵌套字典结构，第k层为k-hop邻居，从1开始计数
         """
-        #print("Start compute node layers. \n")
         res = dict()
         for idx in range(self.n_nodes):
             rings = defaultdict(list)
             origin = self.nodes[idx]
             visited = [origin]
-            neibors = nx.neighbors(self.graph, origin)
-            queue = list(neibors)
-            visited.extend(queue)
-            hop = 0   # 因为小波系数在源节点也有值，所以源节点也当做独立的一环参与计算。
+            queue = [origin]
+            hop = 0
             while queue and hop < max_hop:
                 cur_layer_nodes = len(queue)
                 for _ in range(cur_layer_nodes):
@@ -219,7 +202,6 @@ class GraphWave:
                             visited.append(_neibor)
                 hop += 1
             res[idx] = rings
-        #print("Compute node layers done. \n")
         return res
 
 
@@ -281,7 +263,7 @@ class GraphWave:
 
     def coefficient_elapse_by_scale(self, dataname, scales=None):
         """
-        观测多尺度下的小波系数变化，只关心自己剩下的，然后衡量它们之间的距离。
+        观测多尺度下的小波系数变化，只考虑自身位置，然后衡量它们之间的距离。
 
         CDF -> PDF, 将累积分布函数转化为单峰的概率分布函数，衡量概率分布之间的距离。
         :parameter scales: 多尺度。
@@ -416,7 +398,6 @@ class GraphWave:
                         fout.write("{} {} {}\n".format(node1, node2, mat[idx1, idx2]))
 
         return mat
-
 
 
 def _worker(coeff_mat, idx1, metric="l1", nodes_layers=None):

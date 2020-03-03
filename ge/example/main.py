@@ -77,7 +77,6 @@ def hseLLE(name, graph, scale=10.0, method='l1', dim=16, percentile=0.0, reuse=T
         #wave_machine.parallel_calc_similarity(coeff_mat=coeffs, metric=method, layers=10, mode="similarity", save_path=save_path)
         wave_machine.calc_wavelet_similarity(coeff_mat=coeffs, hierachical=True, method=method, normalized=False, layers=5, save_path=save_path)
 
-
     new_graph, _, _ = dataloader(name, directed=False, similarity=True, scale=scale, metric=method)
     new_graph = sparse_process(new_graph, percentile=percentile)
     model = LocallyLinearEmbedding(new_graph, dim)
@@ -129,9 +128,8 @@ def embedd(data_name, label_class="SIR"):
     scale = (sMin + sMax) / 2  # 根据GraphWave论文中推荐的尺度进行设置。
     print(sMin, sMax, scale)
     scale = 0.015
-
-    #embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
-    #embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
+    embedding_dict = hseLE(name=data_name, graph=graph, scale=scale, method='wasserstein', dim=64, percentile=0.7, reuse=True)
+    embedding_dict = hseLLE(name=data_name, graph=graph, scale=0.1, percentile=0.7, method='wasserstein', dim=64, reuse=True)
     #embedding_dict = hseNode2vec(name=data, graph=graph, scale=10, metric='l1', dim=32, percentile=0.5, reuse=False)
     #embedding_dict, method = struc2vec(data_name, graph=graph, walk_length=20, window_size=10, num_walks=10, stay_prob=0.5, dim=64, reused=True), "struc2vec"
     embedding_dict, method = node2vec(data_name, graph, walk_length=20, num_walks=10, window_size=10, p=1, q=2, dim=64, reused=True), "node2vec"
@@ -530,7 +528,7 @@ if __name__ == '__main__':
     #visulize_via_smilarity_tsne("across_europe_reindex", None, label_class="SIR_2", perplexity=50, reused=True)
     #mkarate_wavelet()
     #bell_scales()
-    embedd("across_europe_reindex", label_class="SIR_2")
+    embedd("mkarate", label_class="origin")
     #mkarate_wavelet()
     #print("all", time.time() - start)
     #_time_test("europe")

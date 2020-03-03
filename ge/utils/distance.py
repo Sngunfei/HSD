@@ -176,3 +176,27 @@ def calc_distance(p, q, metric=None):
     elif metric == 'wasserstein':
         #return wasserstein_distance(p, q)
         return stats.wasserstein_distance(p, q) * len(p)
+
+
+def Hellinger_distance(p, q):
+    """
+    计算两个概率分布之间的hellinger distance
+    wiki：https://en.wikipedia.org/wiki/Bhattacharyya_distance
+    :param p:
+    :param q:
+    :return:
+    """
+    import math
+    assert len(p) == len(q)
+    assert math.isclose(sum(p), 1.0, abs_tol=1e-6)
+    assert math.isclose(sum(q), 1.0, abs_tol=1e-6)
+    BC = 0.0
+    for px, qx in zip(p, q):
+        BC += math.sqrt(px * qx)
+    if math.isclose(BC, 0.0, abs_tol=1e-6):
+        BC = 0.0
+    elif math.isclose(BC, 1.0, abs_tol=1e-6):
+        BC = 1.0
+
+    hellinger_distance = math.sqrt(1.0 - BC)
+    return hellinger_distance
