@@ -1,70 +1,13 @@
 # -*- coding:utf-8 -*-
 
+"""
+一些常用的工具函数
+"""
+
 import numpy as np
 import networkx as nx
 from tqdm import tqdm
-import pandas as pd
-import os
-
-
-def dataloader(name, path="", directed=False, label="origin", similarity=False, scale=None, metric=None):
-    """
-    Loda graph data by dataset name.
-    :param name: dataset name, str
-    :param directed: bool, if True, return directed graph.
-    :param label:
-    :param similarity: similarity data or edgelist.
-    :param scale: i.e. head coefficient, int
-    :param metric: similarity metric, like L1 and L2, etc.
-    :return: graph, node labels, number of node classes.
-    """
-
-    label_path = "../../data/{}_{}.label".format(name, label)
-    label_dict, num_class = read_label(label_path)
-
-    if path:
-        graph = nx.read_edgelist(path=path, create_using=nx.Graph,
-                                 edgetype=float, data=[('weight', float)])
-        return graph, label_dict, num_class
-
-    if not similarity:
-        edge_path = "../../data/{}.edgelist".format(name)
-    else:
-        directed = False
-        edge_path = "../../similarity/{}_{}_{}.csv".format(name, scale, str.lower(metric))
-
-    if directed:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
-                                 edgetype=float, data=[('weight', float)])
-    else:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
-                                 edgetype=float, data=[('weight', float)])
-
-    return graph, label_dict, num_class
-
-
-def read_label(path):
-    """
-    Get graph nodes' label.
-    :param path: label file path.
-    :return: return dict-type, {node:label}, number of class.
-    """
-    try:
-        label_set = set()
-        with open(path, mode="r", encoding="utf-8") as fin:
-            label_dict = dict()
-            while True:
-                line = fin.readline()
-                if not line:
-                    break
-                node, label = line.strip().split(" ")
-                label_dict[node] = label
-                label_set.add(label)
-        return label_dict, len(label_set)
-
-    except FileNotFoundError:
-        print("Warning: Label file: {} not found.".format(path))
-        return None, 0
+import math
 
 
 def write_subway_label(data_path):
@@ -147,6 +90,16 @@ def write_label(name="", max_hop=10, hops_weight=None, percentiles=None):
     return labels
 
 
+def add_inverse_edges(graph: nx.DiGraph):
+    edges = graph.edges()
+    inv_edges = []
+    for edge in edges:
+        u, v = edge[0], edge[1]
+        inv_edges.append((v, u))
+    graph.add_edges_from(inv_edges)
+    return graph
+
+
 def build_node_idx_map(graph):
     """
     建立图节点与标号之间的映射关系，方便采样。
@@ -179,7 +132,13 @@ def partition_dict(vertices, workers):
     return part_list
 
 
-def compute_cheb_coeff_basis(scale, order):
+def compute_chebshev_coeff_basis(scale, order):
+    """
+    GraphWave: Calculate the chebshev coeff.
+    :param scale:
+    :param order:
+    :return:
+    """
     xx = np.array([np.cos((2 * i - 1) * 1.0 / (2 * order) * math.pi)
                    for i in range(1, order + 1)])
     basis = [np.ones((1, order)), np.array(xx)]
@@ -193,7 +152,7 @@ def compute_cheb_coeff_basis(scale, order):
     return list(coeffs)
 
 
-def sparse_process(graph, threshold=None, percentile=None):
+def sparse_graph(graph: nx.Graph, threshold=None, percentile=None) -> nx.Graph:
     """
     将邻接矩阵稀疏化
     :param graph:
@@ -221,8 +180,8 @@ def sparse_process(graph, threshold=None, percentile=None):
             u, v = edge
             if graph[u][v]['weight'] <= threshold:
                 del_edges.append((u, v))
-    graph.remove_edges_from(del_edges)
 
+    graph.remove_edges_from(del_edges)
     return graph
 
 
@@ -262,8 +221,9 @@ def get_metadata_of_networks():
         print("Average Degree:", np.mean([j for _, j in nx.degree(data)]))
 
 
-def classify_nodes_by_degree(data):
-    graph, _, _ = dataloader(data, directed=False, label="SIR")
+
+def classify_nodes_by_degree(graph):
+    graph, _, _ = load_data(data, directed=False, label="SIR")
     node_degree = {}
     for node, degree in nx.degree(graph):
         node_degree[node] = degree
@@ -276,65 +236,13 @@ def classify_nodes_by_degree(data):
     fout.close()
 
 
-def save_vectors(vectors: dict, path) -> bool:
-    """
-    保存嵌入向量, 以csv文件形式保存，有index，没有column
-    :param vectors:
-    :param path:
-    :return:
-    """
-    if not isinstance(vectors, dict):
-        raise TypeError("The vectors type should be dict(node: vector), but {}.".format(type(vectors)))
-    index = []
-    data = []
-    for node, vector in vectors.items():
-        index.append(node)
-        data.append(vector)
-    df = pd.DataFrame(data=data, index=index, columns=None, dtype=float)
-    df.to_csv(path, header=False, float_format="%.8f")
-
-    return True
-
-
-def read_vectors(path) -> dict:
-    """
-    读取嵌入向量, 以csv文件形式保存
-    :param vectors:
-    :param path:
-    :return:
-    """
-    if not os.path.exists(path):
-        raise FileNotFoundError("{} does not exist.".format(path))
-
-    df = pd.read_csv(path, header=None)
-    row, col = df.shape
-    embedding_dict = {}
-    for i in range(row):
-        embedding_dict[str(int(df.iloc[i][0]))] = list(df.iloc[i][1:])
-
-    return embedding_dict
-
-
-def read_distance(path, n_nodes):
-    mat = np.zeros((n_nodes, n_nodes), dtype=np.float)
-    fin = open(path, mode='r', encoding="utf-8")
-    while True:
-        line = fin.readline()
-        if not line:
-            break
-        a, b, c = line.strip().split(" ")
-        mat[int(a), int(b)] = mat[int(b), int(a)] = float(c)
-    fin.close()
-    return mat
-
-
 def plot_vectors(path):
     import matplotlib.pyplot as plt
     from collections import defaultdict
     import matplotlib.colors as colors
     import matplotlib.cm as cmx
 
-    label_dict, n_class = read_label("E:\workspace\py\graph-embedding\data\\europe_SIR_2.label")
+    label_dict, n_class = read_label("E:\workspace\py\graph-embedding\data\\europe_SIR.label")
     fin = open(path, mode="r", encoding="utf-8")
     nodes, _2d_data = [], []
     labels = []
@@ -366,46 +274,3 @@ def plot_vectors(path):
         plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)],
                     c=[scalarMap.to_rgba(_class)], label=_class)
     plt.show()
-
-
-if __name__ == '__main__':
-    fin_edge = open("E:\workspace\py\graph-embedding\data\\across_europe.edgelist",
-               mode="r", encoding="utf8")
-    fin_label = open("E:\workspace\py\graph-embedding\data\\across_europe_from.label",
-                mode="r", encoding="utf8")
-
-    fout_edge = open("E:\workspace\py\graph-embedding\data\\across_europe_reindex.edgelist",
-                    mode="w+", encoding="utf8")
-    fout_label = open("E:\workspace\py\graph-embedding\data\\across_europe_reindex_from.label",
-                     mode="w+", encoding="utf8")
-
-    nodes = {}
-    idx = 0
-    while True:
-        line = fin_label.readline()
-        if not line:
-            break
-        node, label = line.strip().split(" ")
-        nodes[node] = idx
-        fout_label.write("{} {}\n".format(idx, label))
-        idx += 1
-
-    while True:
-        line = fin_edge.readline()
-        if not line:
-            break
-        u, v = line.strip().split(" ")
-        fout_edge.write("{} {}\n".format(nodes[u], nodes[v]))
-
-    fin_edge.close()
-    fin_label.close()
-    fout_edge.close()
-    fout_label.close()
-
-
-
-
-
-
-
-

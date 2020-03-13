@@ -125,21 +125,3 @@ class GraphFactorization:
                     continue
                 adj_mtx_r[v_i, v_j] = self.get_edge_weight(v_i, v_j)
         return adj_mtx_r
-
-
-if __name__ == '__main__':
-    # load Zachary's Karate graph
-    edge_f = 'data/karate.edgelist'
-    G = graph_util.loadGraphFromEdgeListTxt(edge_f, directed=False)
-    G = G.to_directed()
-    res_pre = 'results/testKarate'
-    graph_util.print_graph_stats(G)
-    t1 = time()
-    embedding = GraphFactorization(2, 100000, 1 * 10**-4, 1.0)
-    embedding.learn_embedding(graph=G, edge_f=None,
-                              is_weighted=True, no_python=True)
-    print ('Graph Factorization:\n\tTraining time: %f' % (time() - t1))
-
-    viz.plot_embedding2D(embedding.get_embedding(),
-                         di_graph=G, node_colors=None)
-    plt.show()

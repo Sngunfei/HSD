@@ -87,21 +87,3 @@ class HOPE:
                     continue
                 adj_mtx_r[v_i, v_j] = self.get_edge_weight(v_i, v_j)
         return adj_mtx_r
-
-
-if __name__ == '__main__':
-    # load Zachary's Karate graph
-    edge_f = 'data/karate.edgelist'
-    G = graph_util.loadGraphFromEdgeListTxt(edge_f, directed=False)
-    G = G.to_directed()
-    res_pre = 'results/testKarate'
-    graph_util.print_graph_stats(G)
-    t1 = time()
-    embedding = HOPE(4, 0.01)
-    embedding.learn_embedding(graph=G, edge_f=None,
-                              is_weighted=True, no_python=True)
-    print('HOPE:\n\tTraining time: %f' % (time() - t1))
-
-    viz.plot_embedding2D(embedding.get_embedding()[:, :2],
-                         di_graph=G, node_colors=None)
-    plt.show()

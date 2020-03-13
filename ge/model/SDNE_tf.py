@@ -1,9 +1,6 @@
 # -*- coding:utf-8 -*-
 import numpy as np
 import tensorflow as tf
-import time
-import copy
-import random
 import networkx as nx
 from rbm import *
 
@@ -196,7 +193,7 @@ if __name__ == '__main__':
     model.train(window_size=7, iter=500)
 
     embeddings_dict = model.get_embeddings()
-    labels = util.read_label("../../data/bell_origin.label")
+    labels = util.read_label("../../data/barbell_origin.label")
     nodes = []
     embeddings = []
     for node, embedding in embeddings_dict.items():

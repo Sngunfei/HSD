@@ -8,7 +8,6 @@ Set of functions to compute the RolX featurization
 
 import sys
 import math
-import igraph
 import numpy as np
 from numpy.linalg import lstsq
 from numpy import dot

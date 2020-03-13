@@ -9,10 +9,10 @@ from sklearn.manifold import SpectralEmbedding
 
 class LaplacianEigenmaps:
 
-    def __init__(self, graph, dim=16):
+    def __init__(self, graph, n_neighbors=10, dim=16):
         self.graph = graph
         self.dim = dim
-
+        self.n_neighbors = n_neighbors
         self.n_nodes = graph.number_of_nodes()
         self.A = np.asarray(csr_matrix(nx.adjacency_matrix(graph)).toarray())
         self.nodes = list(graph.nodes())
@@ -20,7 +20,7 @@ class LaplacianEigenmaps:
 
 
     def spectralEmbedding(self):
-        model = SpectralEmbedding(n_components=self.dim, affinity="precomputed", n_neighbors=int(self.n_nodes / 5))
+        model = SpectralEmbedding(n_components=self.dim, affinity="precomputed", n_neighbors=self.n_neighbors)
         embeddings = np.asarray(model.fit_transform(self.A))
         for idx, node in enumerate(self.nodes):
             embedding = embeddings[idx, :]

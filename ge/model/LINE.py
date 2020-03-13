@@ -7,9 +7,8 @@ import tensorflow as tf
 import networkx as nx
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from ge.utils.alias_sample import create_alias_table, alias_sample
+from random_walker.alias_sample import create_alias_table
 
 
 class _LINE(object):

@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
 
 """
-    Test robustness for edge removel.
+Test robustness for edge removel.
 """
+
 import networkx as nx
 import random
 
