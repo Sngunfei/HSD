@@ -44,13 +44,13 @@ class GraphWave:
         chebyshev = pygsp.filters.approximations.compute_cheby_coeff(heat_filter, m=order)
 
         wavelet_coeffs = []
-        for idx in tqdm(range(self.n_nodes)):
+        for idx in range(self.n_nodes):
             impulse = np.zeros(self.n_nodes, dtype=np.float)
             impulse[idx] = 1.0
             coeff = pygsp.filters.approximations.cheby_op(G, chebyshev, impulse)
             wavelet_coeffs.append(coeff)
 
-        return np.asarray(wavelet_coeffs)
+        return np.asarray(wavelet_coeffs, dtype=np.float)
 
 
     def _calculate_node_coefficients(self, node_idx, scale):
@@ -134,16 +134,14 @@ class GraphWave:
         :param scale: 尺度参数，即heat coefficient, float
         :return: 小波系数矩阵，shape=(n, n), ndarray
         """
-        if scale is None:
-            scale = self.scale
+        scale = self.scale if scale is None else scale
 
         coeff_mat = []
         for node_idx in range(self.n_nodes):
             coeff = self._calculate_node_coefficients(node_idx, scale)
             coeff_mat.append(coeff)
 
-        self.wavelet_coeff = np.asarray(coeff_mat, dtype=np.float32)
-        return self.wavelet_coeff
+        return np.asarray(coeff_mat, dtype=np.float)
 
 
 def laplacian(adj):

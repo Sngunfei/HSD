@@ -12,7 +12,7 @@ sys.path.append(rootPath)
 
 from ge.utils.dataloader import load_data, load_data_from_distance
 from ge.utils.visualize import plot_embeddings
-from ge.utils.rw import save_vectors, save_results
+from ge.utils.rw import save_vectors, save_results, read_distance
 from ge.utils.util import sparse_graph
 from example.parser import HSDParameterParser, tab_printer
 from ge.model.HSD import HSD
@@ -27,32 +27,45 @@ warnings.filterwarnings("ignore")
 
 def run(hsd, label_dict, n_class, params):
 
-    if str.lower(params.multi_scales) == "no":
-        # single scale
-        hsd.initialize()
-        distMat = hsd.calculateDistanceParallel(metric=model.metric, n_workers=params.workers, save=True)
-        save_path = "../tsne_results/HSD_{}_scale{}_hop{}_{}_tsne{}.csv".format(
-                    hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
-        figure_path = "../figures/HSD_{}_scale{}_hop{}_{}_tsne{}.png".format(
-                    hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
-    elif str.lower(params.multi_scales) == "yes":
-        # multi scales
-        distMat = hsd.multi_scales_wavelet()
+
+    if str.lower(params.multi_scales) == "yes":
+        hsd.initialize(multi=True)
+        file_path = "../distance/HSD_multi_{}_{}_hop{}.edgelist".format(params.graph, params.metric, params.hop)
         save_path = "../tsne_results/HSD_multi_{}_hop{}_{}_tsne{}.csv".format(
-            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
-        figure_path = "../tsne_results/HSD_multi_{}_hop{}_{}_tsne{}.png".format(
-            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
+            hsd.graph_name, hsd.hop, hsd.metric, params.tsne)
+        figure_path = "../figures/HSD_multi_{}_hop{}_{}_tsne{}.png".format(
+            hsd.graph_name, hsd.hop, hsd.metric, params.tsne)
     else:
-        raise ValueError("multi scales mode should be yes/no.")
+        hsd.initialize(multi=False)
+        file_path = "../distance/HSD_{}_{}_scale{}_hop{}.edgelist".format(params.graph, params.metric,
+                                                                          params.scale, params.hop)
+        save_path = "../tsne_results/HSD_{}_scale{}_hop{}_{}_tsne{}.csv".format(
+            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
+        figure_path = "../figures/HSD_{}_scale{}_hop{}_{}_tsne{}.png".format(
+            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
+
+    # reuse，直接读取距离
+    if params.reuse == "yes" and os.path.exists(path=file_path):
+        distMat = read_distance(file_path, hsd.n_nodes)
+        print("reused.")
+    else:
+        # 需要计算
+        if str.lower(params.multi_scales) == "no":
+            # single scale
+            distMat = hsd.calculateDistanceParallel(metric=model.metric, n_workers=params.workers, save=True)
+        elif str.lower(params.multi_scales) == "yes":
+            # multi scales
+            distMat = hsd.parallel_multi_scales_wavelet(n_scales=100)
+        else:
+            raise ValueError("multi scales mode should be yes/no.")
 
     labels = [label_dict[node] for node in hsd.nodes]
-
     if hsd.graph_name in ["europe", "usa"]:
-        knn_res = KNN_evaluate(distMat, metric="precomputed", labels=labels, cv=params.cv, n_neighbor=params.neighbors)
+        knn_res = KNN_evaluate(distMat, metric="precomputed", labels=labels, cv=params.cv,
+                               n_neighbor=params.neighbors)
         knn_res['scale'] = hsd.scale
         knn_res['hop'] = hsd.hop
         knn_res['metric'] = hsd.metric
-
         save_results(knn_res, "../results/knn/HSD_{}.txt".format(graph_name))
 
     tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=50.0, n_iter=2000,
@@ -83,13 +96,15 @@ def run(hsd, label_dict, n_class, params):
         save_vectors(nodes=hsd.nodes, vectors=embeddings, path="../embeddings/{}_{}.csv".format(method, graph_name))
 
         if hsd.graph_name in ['europe', 'usa']:
-            knn_res = LR_evaluate(embeddings, labels, cv=params.cv, test_size=params.test_size, random_state=params.random)
+            knn_res = LR_evaluate(embeddings, labels, cv=params.cv, test_size=params.test_size,
+                                  random_state=params.random)
             knn_res['scale'] = hsd.scale
             knn_res['hop'] = hsd.hop
             knn_res['metric'] = hsd.metric
             save_results(knn_res, "../results/knn/HSD{}_{}.txt".format(str.upper(method), graph_name))
 
-            lr_res = KNN_evaluate(embeddings, labels, cv=params.cv, n_neighbor=params.neighbors, random_state=params.random)
+            lr_res = KNN_evaluate(embeddings, labels, cv=params.cv, n_neighbor=params.neighbors,
+                                  random_state=params.random)
             lr_res['scale'] = hsd.scale
             lr_res['hop'] = hsd.hop
             lr_res['metric'] = hsd.metric
@@ -113,10 +128,10 @@ if __name__ == '__main__':
     else: # europe, usa
         graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
 
-    assert params.metric in ["wasserstein", "hellinger"], "Distance metric not supported."
-    model = HSD(graph, graph_name, scale=params.scale, hop=params.hop, metric=params.metric)
+    assert str.lower(params.metric) in ["wasserstein", "hellinger"], "Distance metric not supported."
+    model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
+                metric=params.metric, n_walkers=params.workers)
 
     run(model, label_dict, n_class, params)
-
 
 

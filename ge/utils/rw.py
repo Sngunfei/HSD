@@ -54,7 +54,6 @@ def read_distance(path: str, n_nodes: int) -> np.ndarray:
                 break
             u, v, dist = line.strip().split(" ")
             mat[int(u), int(v)] = mat[int(v), int(u)] = float(dist)
-
     return mat
 
 

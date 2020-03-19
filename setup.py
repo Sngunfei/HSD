@@ -9,5 +9,5 @@ setup(
     packages=['ge'],
     install_requires=['torch', 'numpy', 'gensim', 'networkx', 'tqdm', 'joblib', 'matplotlib', 'scikit-learn',
                       'scipy', 'tensorflow', 'keras', 'pandas', 'fastdtw', 'pyecharts', 'pygsp', 'texttable',
-                      'pymongo']
+                      'pymongo', 'torch']
 )
