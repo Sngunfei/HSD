@@ -40,10 +40,10 @@ def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="n
     :return: graph, node labels, number of node classes.
     """
     if multi == "yes":
-        edge_path = "../distance/HSD_multi_{}_{}_hop{}.edgelist".format(
+        edge_path = "../distance/{}/HSD_multi_{}_hop{}.edgelist".format(
                     graph_name, metric, hop)
     else:
-        edge_path = "../distance/HSD_{}_{}_scale{}_hop{}.edgelist".format(
+        edge_path = "../distance/{}/HSD_{}_scale{}_hop{}.edgelist".format(
                     graph_name, metric, scale, hop)
 
     label_path = "../data/label/{}_{}.label".format(graph_name, label_name)

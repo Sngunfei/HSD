@@ -181,17 +181,17 @@ def RolxParameterParser():
 
     parser.add_argument("--recursive-features-output",
                         nargs="?",
-                        default="./output/features/tvhsow_features.csv",
+                        default="./rolX/features/{}_features.csv",
                         help="Embeddings path.")
 
     parser.add_argument("--embedding-output",
                         nargs="?",
-                        default="./output/embeddings/tvshow_embedding.csv",
+                        default="./rolX/embeddings/{}_embedding.csv",
                         help="Embeddings path.")
 
     parser.add_argument("--log-output",
                         nargs="?",
-                        default="./output/logs/tvshow_log.json",
+                        default="./rolX/logs/{}_log.json",
                         help="Log path.")
 
     # -----------------------------------------------------------------------
@@ -247,6 +247,9 @@ def RolxParameterParser():
 
     parser.add_argument('--cv', type=int, default=5,
                         help="Cross validation in evaluate process, default is 5.")
+
+    parser.add_argument('--random', type=int, default=42,
+                        help="random seed.")
 
     return parser.parse_args()
 

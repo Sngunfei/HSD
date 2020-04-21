@@ -4,6 +4,7 @@
 Hierarchically Structural Distance model.
 """
 from collections import defaultdict
+import logging
 import networkx as nx
 import numpy as np
 import copy
@@ -12,12 +13,12 @@ import pandas as pd
 from tqdm import tqdm
 from ge.model.GraphWave import GraphWave
 from ge.utils.distance import calculate_distance
-from ge.utils.rw import save_distance_csv, save_distance_edgelist
+from ge.utils.rw import save_distance_csv, save_distance_edgelist, save_vectors_dict, read_vectors
 import math
 
 
 class HSD:
-    def __init__(self, graph, graph_name, scale, hop, metric, n_walkers, **kwargs):
+    def __init__(self, graph, graph_name, scale, hop, metric, n_workers, **kwargs):
         """
         Hierarchicall Structural Distance model.
         :param graph: nx.Graph
@@ -32,7 +33,7 @@ class HSD:
         self.scale = scale
         self.hop = hop
         self.metric = metric
-        self.n_workers = n_walkers
+        self.n_workers = n_workers
         self.args = kwargs
 
         # initialize the GraphWave model
@@ -45,18 +46,12 @@ class HSD:
         self.distMat = None
 
 
-    def initialize(self, multi):
+    def initialize(self, multi=False):
         if self.waveletCoeff and self.nodeLayers:
             return
-
         if not multi:
-            print("Start calculate wavelet coefficients, scale={}.\n".format(self.scale))
-            self.waveletCoeff = self.wavelet.cal_all_wavelet_coeffs(self.scale)
-            print("done.")
-
-        print("Start construct hierarchiy of neighborhoods, maxHop={}.\n".format(self.hop))
+            self.waveletCoeff = self.wavelet.calculate_wavelet_coeff(self.scale)
         self.nodeLayers = self.constructNodeLayers_BFS()
-        print("done.")
 
 
     def constructHierarchicalRepresentation_dijkstra(self, nodes=None):
@@ -85,14 +80,18 @@ class HSD:
         利用广搜BFS构建节点的局部层级拓扑结构。
         :return: dict(dict()), 嵌套字典结构，第0层是节点自身，第k层是节点的k-hop邻居。
         """
-        res = defaultdict(dict)
+        logging.info("Start construct hierarchiy of neighborhoods, graph={}, max-hop={}.\n".format(
+            self.graph_name, self.hop))
+
+        hierarchy = defaultdict(dict)
         for idx, node in enumerate(self.nodes):
             rings = defaultdict(list)
             visited = set()
             queue = [node]
             visited.add(node)
-            for hop in range(self.hop):
-                rings[hop] = copy.deepcopy(queue)
+            rings[0] = copy.deepcopy(queue)
+            # if hop=3, then the hierarchical representation will be {0:node, 1:1-hop nodes, 2:2-hop, 3:3-hop}
+            for hop in range(1, self.hop + 1):
                 size = len(queue)
                 for _ in range(size):
                     curNode = queue.pop(0)
@@ -101,31 +100,31 @@ class HSD:
                         if _neighbor not in visited:
                             visited.add(_neighbor)
                             queue.append(_neighbor)
-            res[node] = rings
-        return res
+                rings[hop] = copy.deepcopy(queue)
+
+            hierarchy[node] = rings
+        return hierarchy
 
 
-    def calculateStructuralDistance(self, metric=None, savePath=None):
+    def calculate_structural_distance(self, metric=None,):
         """
         单线程 两两计算节点之间的结构距离
         :param metric:
-        :param savePath:
         :return:
         """
         if not metric:
             metric = self.metric
 
         if self.waveletCoeff is None or self.nodeLayers is None:
-            print("Not initialize model yet, start init...")
-            self.initialize()
+            self.initialize(multi=False)
 
         self.distMat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
         for idx1, node1 in enumerate(self.nodes):
-            for idx2 in range(idx1, self.n_nodes):
+            for idx2 in range(idx1 + 1, self.n_nodes):
                 node2 = self.nodes[idx2]
                 rings1, rings2 = self.nodeLayers[node1], self.nodeLayers[node2]
-                dist = 0.0
-                for hop in range(self.hop):
+                d = 0.0
+                for hop in range(self.hop + 1):
                     r1, r2 = rings1[hop], rings2[hop]
                     p, q = [], []
                     for neighbor in r1:
@@ -134,39 +133,30 @@ class HSD:
                     for neighbor in r2:
                         _idx = self.node2idx[neighbor]
                         q.append(self.waveletCoeff[idx2, _idx])
-                    dist += calculate_distance(p, q, metric)
 
-                self.distMat[idx1, idx2] = self.distMat[idx2, idx1] = dist
+                    d += calculate_distance(p, q, metric)
+                self.distMat[idx1, idx2] = self.distMat[idx2, idx1] = d
 
-        if savePath:
-            with open(savePath, mode='w+', encoding='utf-8') as fout:
-                for idx1 in range(self.n_nodes):
-                    node1 = self.nodes[idx1]
-                    for idx2 in range(idx1 + 1, self.n_nodes):
-                        node2 = self.nodes[idx2]
-                        fout.write("{} {} {}\n".format(node1, node2, self.distMat[idx1, idx2]))
+        dist_path = "../distance/{}/HSD_{}_scale{}_hop{}".format(
+            self.graph_name, metric, self.scale, self.hop)
+        save_distance_edgelist(dist_path+".edgelist", self.nodes, self.distMat)
+        save_distance_csv(dist_path+".csv", self.nodes, self.distMat)
         return self.distMat
 
 
-    def calculateDistanceParallel(self, metric=None, n_workers=4, save=False):
+    def parallel_calculate_distance(self, metric=None,):
         """
-        多进程并行计算结构距离
-        :param metric:
-        :param n_workers:
-        :param save:
-        :return:
+        Calculate structural distance parallelly in one single scale.
         """
-        if self.distMat:
-            return self.distMat
-
         if not metric:
             metric = self.metric
-        if self.waveletCoeff is None or self.nodeLayers is None:
-            self.initialize()
 
-        print("Start parallelly calculate structural distance, n_workers={}.\n".format(n_workers))
+        if self.waveletCoeff is None or self.nodeLayers is None:
+            self.initialize(multi=False)
+
+        print("Start parallelly calculate structural distance, n_workers={}.\n".format(self.n_workers))
         self.distMat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        pool = multiprocessing.Pool(n_workers)
+        pool = multiprocessing.Pool(self.n_workers)
         result = {}
         for idx in range(self.n_nodes):
             res = pool.apply_async(self._calculateDistanceWorker,
@@ -182,27 +172,23 @@ class HSD:
             for idx2, distance in dists.items():
                 self.distMat[idx1, idx2] = self.distMat[idx2, idx1] = distance
 
-        if save:
-            #　construct new graph using structural distance
-            save_distance_edgelist("../distance/HSD_{}_{}_scale{}_hop{}.edgelist"\
-                .format(self.graph_name, self.metric, self.scale, self.hop), self.nodes, self.distMat)
+        dist_file_path = "../distance/{}/HSD_{}_scale{}_hop{}".format(
+            self.graph_name, self.metric, self.scale, self.hop)
+        save_distance_edgelist(dist_file_path+".edgelist", self.nodes, self.distMat)
+        save_distance_csv(dist_file_path+".csv", self.nodes, self.distMat)
 
-            save_distance_csv("../distance/HSD_{}_{}_scale{}_hop{}.csv".format(
-                self.graph_name, self.metric, self.scale, self.hop), self.nodes, self.distMat)
-            print("Save distance information successfully.\n")
-        print("done.")
         return self.distMat
 
 
     def _calculateDistanceWorker(self, start, metric):
         dist = dict()
-        node = self.nodes[start]
-        rings1 = self.nodeLayers[node]
-        for idx in range(start+1, self.n_nodes):
+        node1 = self.nodes[start]
+        rings1 = self.nodeLayers[node1]
+        for idx in range(start + 1, self.n_nodes):
             _neighbor = self.nodes[idx]
             rings2 = self.nodeLayers[_neighbor]
-            distance = 0.0
-            for hop in range(self.hop):
+            d = 0.0
+            for hop in range(self.hop + 1):
                 r1, r2 = rings1[hop], rings2[hop]
                 p, q = [], []
                 for _neighbor in r1:
@@ -211,39 +197,50 @@ class HSD:
                 for _neighbor in r2:
                     _idx = self.node2idx[_neighbor]
                     q.append(self.waveletCoeff[idx, _idx])
-                distance += calculate_distance(p, q, metric)
-            dist[idx] = distance
+                d += calculate_distance(p, q, metric)
+            dist[idx] = d
 
         return dist
 
 
-    def multi_scales_wavelet(self):
+    def multi_scales_wavelet(self, metric=None, n_scales=200):
+        """
+        单线程 多尺度分析
+        :param n_scales:
+        :return:
+        """
         eigenvalues = self.wavelet.e
-        print("min eigenvalues: {} \n max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
-        scales = np.exp(np.linspace(np.log(0.01), np.log(max(eigenvalues)), 200))
+        print("min eigenvalues: {}, max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
+        scales = np.exp(np.linspace(np.log(0.01), np.log(max(eigenvalues)), n_scales))
         print("selected scales: [{}]".format(",".join(map(str, scales))))
 
+        if metric is None:
+            metric = self.metric
+
         data = dict()  # 各尺度下的数据汇总
-        hierarchy = self.constructNodeLayers_BFS()
+        hierarchy = self.nodeLayers
+        vectors = defaultdict(list)
         for scale in tqdm(scales):
-            coeffs = self.wavelet.cal_all_wavelet_coeffs(scale)
+            coeffs = self.wavelet.calculate_wavelet_coeff(scale)
             state = dict()
             for idx, node in enumerate(self.nodes):
                 p = [coeffs[idx, idx]]
                 for k_hop in range(1, self.hop + 1):
-                    k_hop_neighbors = hierarchy[idx].get(k_hop, [])
-                    if not k_hop_neighbors:
+                    k_hop_neighbors = hierarchy[node].get(k_hop, [])
+                    if len(k_hop_neighbors) == 0:
                         k_hop_sum = 0.0
                     else:
-                        k_hop_sum = np.sum([coeffs[idx][neighbor] for neighbor in k_hop_neighbors])
+                        k_hop_sum = np.sum([coeffs[idx][self.node2idx[neighbor]] for neighbor in k_hop_neighbors])
                     p.append(k_hop_sum)
-
                 if math.isclose(1.0 - sum(p), 0.0, abs_tol=1e-6):
                     p.append(0.0)
                 else:
                     p.append(1.0 - sum(p))
                 state[idx] = p
+                vectors[node].extend(p)
             data[scale] = state
+
+        save_vectors_dict(vectors, path="../../coeff/{}_hop{}_scales{}.csv")
 
         # 各尺度下分别计算距离
         dist_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=np.float)
@@ -251,35 +248,35 @@ class HSD:
             for idx1 in range(self.n_nodes):
                 for idx2 in range(idx1 + 1, self.n_nodes):
                     p, q = state[idx1], state[idx2]
-                    d = calculate_distance(p, q, metric=self.metric)
+                    d = calculate_distance(p, q, metric)
                     dist_mat[idx1, idx2] += d
                     dist_mat[idx2, idx1] += d
-        dist_mat = dist_mat / len(scales)  # 取均值
+        dist_mat = dist_mat / n_scales  # 取均值
 
-        save_distance_csv("../distance/HSD_multi_{}_{}_hop{}.csv".format(
-            self.graph_name, self.metric, self.hop), self.nodes, dist_mat)
-        save_distance_edgelist("../distance/HSD_multi_{}_{}_hop{}.edgelist".format(
-            self.graph_name, self.metric, self.hop), self.nodes, dist_mat)
+        dist_file_path = "../distance/{}/HSD_multi_{}_hop{}".format(
+            self.graph_name, metric, self.hop)
+        save_distance_edgelist(dist_file_path+".edgelist", self.nodes, dist_mat)
+        save_distance_csv(dist_file_path+".csv", self.nodes, dist_mat)
 
         return dist_mat
 
 
-    def parallel_multi_scales_wavelet(self, n_scales=200):
+    def parallel_calculate_coeff_sum(self, n_scales) -> dict:
+        """
+        并行计算多尺度下的小波系数，然后分层求和后，拼接起来，
+        :param n_scales:
+        :return: dict{node：coeffs}
+        """
         eigenvalues = self.wavelet.e
-        print("min eigenvalues: {} \n max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
+        print("min eigenvalues: {}, max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
         scales = np.exp(np.linspace(np.log(0.01), np.log(max(eigenvalues)), n_scales))
-        #print("selected scales: [{}]".format(",".join(map(str, scales))))
 
-        data = dict()  # 各尺度下的数据汇总
-        if self.nodeLayers is None:
-            self.initialize()
-
-        print("Start multi-scales wavelet computation parallelly.")
+        print("Start compute multi-scales wavelet parallelly.")
         pool = multiprocessing.Pool(self.n_workers)
         result = {}
         for idx, scale in enumerate(scales):
-            #res = pool.apply_async(self.wavelet.calculate_wavelet_coeff_chebyshev, args=(scale, 30))
-            res = pool.apply_async(self.wavelet.cal_all_wavelet_coeffs, args=(scale,))
+            # res = pool.apply_async(self.wavelet.calculate_wavelet_coeff_chebyshev, args=(scale, 30))
+            res = pool.apply_async(self.wavelet.calculate_wavelet_coeff, args=(scale,))
             result[idx] = res
         pool.close()
         pool.join()
@@ -287,44 +284,87 @@ class HSD:
         for idx, _ in result.items():
             result[idx] = result[idx].get()
 
+        vectors = defaultdict(list)
         for i, scale in enumerate(scales):
             coeffs = result[i]
-            state = dict()
             for idx, node in enumerate(self.nodes):
                 p = [coeffs[idx, idx]]
                 for k_hop in range(1, self.hop + 1):
-                    k_hop_neighbors = self.nodeLayers[idx].get(k_hop, [])
-                    if not k_hop_neighbors:
+                    k_hop_neighbors = self.nodeLayers[node].get(k_hop, [])
+                    if len(k_hop_neighbors) == 0:
                         k_hop_sum = 0.0
                     else:
-                        k_hop_sum = np.sum([coeffs[idx][neighbor] for neighbor in k_hop_neighbors])
+                        k_hop_sum = np.sum([coeffs[idx][self.node2idx[neighbor]] for neighbor in k_hop_neighbors])
                     p.append(k_hop_sum)
-
                 if math.isclose(1.0 - sum(p), 0.0, abs_tol=1e-6):
                     p.append(0.0)
                 else:
                     p.append(1.0 - sum(p))
-                state[idx] = p
-            data[scale] = state
+                vectors[node].extend(p)
 
-        # 各尺度下分别计算距离
-        print("Start calculate structural distance.")
+        save_vectors_dict(vectors, path="../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales))
+        return vectors
+
+
+    def parallel_multi_scales_wavelet(self, metric=None, n_scales=200) -> np.ndarray:
+        """
+        多尺度分析，并行计算距离
+        :param metric:
+        :param n_scales:
+        :return:
+        """
+        path = "../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales)
+        vectors = read_vectors(path)
+        if vectors is None:
+            vectors = self.parallel_calculate_coeff_sum(n_scales)
+
+        if metric is None:
+            metric = self.metric
+
+        pool = multiprocessing.Pool(self.n_workers)
+        result = {}
+        for idx, node in enumerate(self.nodes):
+            res = pool.apply_async(self._calculate_distance_worker, args=(idx, vectors, n_scales))
+            result[idx] = res
+        pool.close()
+        pool.join()
+        for idx, _ in result.items():
+            result[idx] = result[idx].get()
+
         dist_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=np.float)
-        for scale, state in tqdm(data.items()):
-            for idx1 in range(self.n_nodes):
-                for idx2 in range(idx1 + 1, self.n_nodes):
-                    p, q = state[idx1], state[idx2]
-                    d = calculate_distance(p, q, metric=self.metric)
-                    dist_mat[idx1, idx2] += d
-                    dist_mat[idx2, idx1] += d
-        dist_mat = dist_mat / len(scales)  # 取均值
+        for idx, dist_info in result.items():
+            for idx2, dist in dist_info.items():
+                dist_mat[idx, idx2] = dist_mat[idx2, idx] = dist
 
-        save_distance_csv("../distance/HSD_multi_{}_{}_hop{}.csv".format(
-            self.graph_name, self.metric, self.hop), self.nodes, dist_mat)
-        save_distance_edgelist("../distance/HSD_multi_{}_{}_hop{}.edgelist".format(
-            self.graph_name, self.metric, self.hop), self.nodes, dist_mat)
-        print("done.")
+        dist_mat = dist_mat / n_scales
+
+        dist_file_path = "../distance/{}/HSD_multi_{}_hop{}".format(
+            self.graph_name, metric, self.hop)
+
+        save_distance_csv(dist_file_path+".csv", self.nodes, dist_mat)
+        save_distance_edgelist(dist_file_path+".edgelist", self.nodes, dist_mat)
         return dist_mat
 
 
+    def _calculate_distance_worker(self, start, vectors, n_scales,) -> dict:
+        """
+        多尺度并行计算距离的worker，在多尺度下，每个节点有一个vector，
+        :param start:
+        :param vectors:
+        :return:
+        """
+        node1 = self.nodes[start]
+        v1 = vectors[node1]
+        dist = dict()
+        seg = len(v1) // n_scales
+        for idx in range(start + 1, self.n_nodes):
+            node2 = self.nodes[idx]
+            v2 = vectors[node2]
+            d = 0.0
+            for i in range(n_scales):
+                p = v1[i * seg : (i + 1) * seg]
+                q = v2[i * seg : (i + 1) * seg]
+                d += calculate_distance(p, q, self.metric)
+            dist[idx] = d
 
+        return dist

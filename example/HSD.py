@@ -6,6 +6,7 @@ HSD
 
 import sys
 import os
+import logging
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
@@ -21,67 +22,83 @@ from ge.model.LocallyLinearEmbedding import LocallyLinearEmbedding
 from ge.evaluate.evaluate import KNN_evaluate, LR_evaluate
 from sklearn.manifold import TSNE
 import pandas as pd
+import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
+
+import networkx as nx
 
 
 def run(hsd, label_dict, n_class, params):
 
-
+    # 多尺度
     if str.lower(params.multi_scales) == "yes":
         hsd.initialize(multi=True)
-        file_path = "../distance/HSD_multi_{}_{}_hop{}.edgelist".format(params.graph, params.metric, params.hop)
-        save_path = "../tsne_results/HSD_multi_{}_hop{}_{}_tsne{}.csv".format(
-            hsd.graph_name, hsd.hop, hsd.metric, params.tsne)
-        figure_path = "../figures/HSD_multi_{}_hop{}_{}_tsne{}.png".format(
-            hsd.graph_name, hsd.hop, hsd.metric, params.tsne)
-    else:
+        # 结构距离存储路径
+        dist_file_path = "../distance/{}/HSD_multi_{}_hop{}.edgelist".format(
+            hsd.graph_name, params.metric, params.hop)
+        # tsne得到的2维向量存储路径
+        tsne_vect_path = "../tsne_results/{}/HSD_multi_{}_hop{}_tsne{}.csv".format(
+            hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
+        # tsne得到的图片存储路径
+        tsne_figure_path = "../figures/{}/HSD_multi_{}_hop{}_tsne{}.png".format(
+            hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
+    else: # 单尺度
         hsd.initialize(multi=False)
-        file_path = "../distance/HSD_{}_{}_scale{}_hop{}.edgelist".format(params.graph, params.metric,
-                                                                          params.scale, params.hop)
-        save_path = "../tsne_results/HSD_{}_scale{}_hop{}_{}_tsne{}.csv".format(
-            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
-        figure_path = "../figures/HSD_{}_scale{}_hop{}_{}_tsne{}.png".format(
-            hsd.graph_name, hsd.scale, hsd.hop, hsd.metric, params.tsne)
+        dist_file_path = "../distance/{}/HSD_{}_scale{}_hop{}.edgelist".format(
+            hsd.graph_name, params.metric, params.scale, params.hop)
+        tsne_vect_path = "../tsne_results/{}/HSD_{}_scale{}_hop{}_tsne{}.csv".format(
+            hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
+        tsne_figure_path = "../figures/{}/HSD_{}_scale{}_hop{}_tsne{}.png".format(
+            hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
 
-    # reuse，直接读取距离
-    if params.reuse == "yes" and os.path.exists(path=file_path):
-        distMat = read_distance(file_path, hsd.n_nodes)
-        print("reused.")
+    # reuse，直接读取之前已经计算好的距离
+    if params.reuse == "yes" and os.path.exists(path=dist_file_path):
+        dist_info = read_distance(dist_file_path, hsd.n_nodes)
+        distMat = np.zeros((hsd.n_nodes, hsd.n_nodes), dtype=np.float)
+        for idx, node in enumerate(hsd.nodes):
+            node = int(node)
+            for idx2 in range(idx + 1, hsd.n_nodes):
+                node2 = int(hsd.nodes[idx2])
+                distMat[idx, idx2] = distMat[idx2, idx] = dist_info[node, node2]
+        logging.info("Reuse distance information.")
     else:
-        # 需要计算
+        # Need to compute
         if str.lower(params.multi_scales) == "no":
-            # single scale
-            distMat = hsd.calculateDistanceParallel(metric=model.metric, n_workers=params.workers, save=True)
+            distMat = hsd.parallel_calculate_distance()
         elif str.lower(params.multi_scales) == "yes":
-            # multi scales
             distMat = hsd.parallel_multi_scales_wavelet(n_scales=100)
         else:
-            raise ValueError("multi scales mode should be yes/no.")
+            raise ValueError("Multi-scales mode should be yes/no.")
 
     labels = [label_dict[node] for node in hsd.nodes]
+
+    result_args = {"multi-scales": params.multi_scales,
+                   "scale": hsd.scale,
+                   "hop": hsd.hop,
+                   "metric": hsd.metric,
+                   "dim": params.dim,
+                   "sparse": params.sparse}
     if hsd.graph_name in ["europe", "usa"]:
-        knn_res = KNN_evaluate(distMat, metric="precomputed", labels=labels, cv=params.cv,
+        knn_res = KNN_evaluate(distMat, labels, metric="precomputed", cv=params.cv,
                                n_neighbor=params.neighbors)
-        knn_res['scale'] = hsd.scale
-        knn_res['hop'] = hsd.hop
-        knn_res['metric'] = hsd.metric
-        save_results(knn_res, "../results/knn/HSD_{}.txt".format(graph_name))
+        knn_res.update(result_args)
+        save_results(knn_res, "../results/knn/HSD_{}.txt".format(hsd.graph_name))
 
     tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=50.0, n_iter=2000,
                     perplexity=params.tsne, random_state=params.random).fit_transform(distMat)
 
-    df = pd.DataFrame(data=tsne_res, index=hsd.nodes, columns=None, dtype=float)
-    df.to_csv(save_path, header=False, float_format="%.8f")
-
-    plot_embeddings(hsd.nodes, tsne_res, labels=labels, n_class=n_class, save_path=figure_path)
+    save_vectors(hsd.nodes, vectors=tsne_res, path=tsne_vect_path)
+    plot_embeddings(hsd.nodes, tsne_res, labels=labels, n_class=n_class, save_path=tsne_figure_path)
 
     method = str.lower(params.embedding_method)
     if method in ['le', 'lle']:
         print("Start graph embedding.")
-        new_graph, _, _, = load_data_from_distance(hsd.graph_name, label_name="SIR", metric=params.metric,
-                                hop=hsd.hop, scale=hsd.scale, multi=params.multi_scales, directed=False)
+        new_graph, _, _, = load_data_from_distance(hsd.graph_name, label_name="SIR",
+                                        metric=params.metric, hop=hsd.hop, scale=hsd.scale,
+                                        multi=params.multi_scales, directed=False)
         _sparsed_graph = sparse_graph(new_graph, percentile=params.sparse)
+        test_graph(_sparsed_graph)
         if method == "le":
             LE = LaplacianEigenmaps(_sparsed_graph, n_neighbors=params.neighbors, dim=params.dim)
             embeddings_dict = LE.create_embedding()
@@ -90,32 +107,47 @@ def run(hsd, label_dict, n_class, params):
             embeddings_dict = LLE.sklearn_lle(random_state=params.random)
 
         embeddings = []
+        labels = []
         for idx, node in enumerate(hsd.nodes):
             embeddings.append(embeddings_dict[node])
+            labels.append(label_dict[node])
 
-        save_vectors(nodes=hsd.nodes, vectors=embeddings, path="../embeddings/{}_{}.csv".format(method, graph_name))
+        save_vectors(nodes=hsd.nodes, vectors=embeddings,
+                     path="../embeddings/{}_{}_{}.csv".format(method, hsd.graph_name, hsd.metric))
 
         if hsd.graph_name in ['europe', 'usa']:
-            knn_res = LR_evaluate(embeddings, labels, cv=params.cv, test_size=params.test_size,
+            lr_res = LR_evaluate(embeddings, labels, cv=params.cv, test_size=params.test_size,
                                   random_state=params.random)
-            knn_res['scale'] = hsd.scale
-            knn_res['hop'] = hsd.hop
-            knn_res['metric'] = hsd.metric
-            save_results(knn_res, "../results/knn/HSD{}_{}.txt".format(str.upper(method), graph_name))
-
-            lr_res = KNN_evaluate(embeddings, labels, cv=params.cv, n_neighbor=params.neighbors,
-                                  random_state=params.random)
-            lr_res['scale'] = hsd.scale
-            lr_res['hop'] = hsd.hop
-            lr_res['metric'] = hsd.metric
+            lr_res.update(result_args)
             save_results(lr_res, "../results/lr/HSD{}_{}.txt".format(str.upper(method), graph_name))
+
+            knn_res = KNN_evaluate(embeddings, labels, cv=params.cv, n_neighbor=params.neighbors,
+                                  random_state=params.random)
+            knn_res.update(result_args)
+            save_results(knn_res, "../results/knn/HSD{}_{}.txt".format(str.upper(method), graph_name))
 
         tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=50.0, n_iter=2000,
                         perplexity=params.tsne, random_state=params.random).fit_transform(embeddings)
 
-        df = pd.DataFrame(data=tsne_res, index=hsd.nodes, columns=None, dtype=float)
-        df.to_csv("../tsne_results/HSD_{}_{}_tsne{}.csv".format(str.upper(method), graph_name, params.tsne),
-                  header=False, float_format="%.8f")
+        save_vectors(hsd.nodes, tsne_res, path="../tsne_results/{}/HSD_{}_{}_tsne{}.csv".format(
+                                            graph_name, str.upper(method), hsd.metric, params.tsne))
+        plot_embeddings(hsd.nodes, tsne_res, labels, n_class,
+                        save_path="../figures/{}/HSD_{}_{}_tsne{}.png".format(
+                            hsd.graph_name, method, hsd.metric, params.tsne))
+
+
+def test_graph(sparsed_graph: nx.Graph):
+    """
+    发现sparse处理过的图，效果会很差，专门开个函数测一下相关属性
+    :return:
+    """
+    print("Number of edges: {}".format(nx.number_of_edges(sparsed_graph)))
+    print("Number of nodes: {}".format(nx.number_of_nodes(sparsed_graph)))
+    print("Number of nodes without neighbor: {}".format(nx.number_of_isolates(sparsed_graph)))
+    print("Number of component: {}".format(nx.number_connected_components(sparsed_graph)))
+
+    average_degree = sum([d for _, d in nx.degree(sparsed_graph)]) / nx.number_of_nodes(sparsed_graph)
+    print("Average degree: {}".format(average_degree))
 
 
 if __name__ == '__main__':
@@ -123,15 +155,19 @@ if __name__ == '__main__':
     tab_printer(params)
 
     graph_name = params.graph
-    if graph_name in ["barbell", "mkarate"]:
-        graph, label_dict, n_class = load_data(graph_name, label_name="origin")
-    else: # europe, usa
+    if graph_name in ["europe", "usa"]:
         graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
-
-    assert str.lower(params.metric) in ["wasserstein", "hellinger"], "Distance metric not supported."
+    else: # europe, usa
+        graph, label_dict, n_class = load_data(graph_name, label_name="origin")
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
-                metric=params.metric, n_walkers=params.workers)
-
+                metric=params.metric, n_workers=params.workers)
+    #print(model.nodes)
+    """
+    res = model.constructNodeLayers_BFS()
+    node1, node2 = '3', '20'
+    print(len(res[node1][1]), len(res[node1][2]), len(res[node1][3]), len(res[node1].get(4, [])))
+    print(len(res[node2][1]), len(res[node2][2]), len(res[node2][3]), len(res[node2].get(4, [])))
+    """
     run(model, label_dict, n_class, params)
 
 

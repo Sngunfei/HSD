@@ -1,0 +1,3 @@
+
+
+barbell, perplexity=5, hsd_multiscales_random_seed = 22

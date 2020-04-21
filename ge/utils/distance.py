@@ -46,8 +46,8 @@ def check_probablity_distribution(p, q):
     if len(p) != len(q):
         raise TypeError("Length of p({}) must be equal to length of q({})".format(len(p), len(q)))
 
-    if not math.isclose(np.sum(p) - 1.0, 0.0, abs_tol=1e-6) or \
-        not math.isclose(np.sum(q) - 1.0, 0.0, abs_tol=1e-6):
+    if not math.isclose(np.sum(p) - 1.0, 0.0, abs_tol=1e-4) or \
+        not math.isclose(np.sum(q) - 1.0, 0.0, abs_tol=1e-4):
         raise ValueError("The sum of probability distribution must be 1.0.")
 
 
@@ -122,7 +122,7 @@ def hellinger_distance(p, q):
     :param q:
     :return:
     """
-    check_probablity_distribution(p, q)
+    #check_probablity_distribution(p, q)
 
     BC = 0.0
     for px, qx in zip(p, q):
@@ -164,7 +164,7 @@ def calculate_distance(p, q, metric):
     if metric not in supported_metrics:
         raise NotImplementedError("{} metric is not implemented.".format(metric))
 
-    p, q = align_probablity_distribution(p, q)
+    #p, q = align_probablity_distribution(p, q)
     if len(p) == 0 and len(q) == 0:
         return 0.0
 
@@ -182,6 +182,7 @@ def calculate_distance(p, q, metric):
     elif metric == 'wasserstein_guass':
         return wasserstein_guass_distance(p, q)
     elif metric == 'wasserstein':
+        p, q = align_probablity_distribution(p, q)
         return stats.wasserstein_distance(p, q) * len(p)
     elif metric == 'hellinger':
         return hellinger_distance(p, q)

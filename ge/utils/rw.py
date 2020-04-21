@@ -20,16 +20,24 @@ def save_vectors(nodes: list, vectors: list, path: str):
     df = pd.DataFrame(data=vectors, index=nodes, columns=None, dtype=float)
     df.to_csv(path, header=False, float_format="%.8f")
 
+def save_vectors_dict(vectors: dict, path: str):
+    vs = []
+    ns = []
+    for n, v in vectors.items():
+        ns.append(n)
+        vs.append(v)
+    save_vectors(ns, vs, path)
 
-def read_vectors(path: str) -> dict:
+
+def read_vectors(path: str):
     """
     read embedding vectors from csv file.
     :param path:
     :return:
     """
     if not os.path.exists(path):
-        raise FileNotFoundError("{} does not exist.".format(path))
-
+        return None
+    print("Reuse multi-scales wavelet coefficients.\n")
     df = pd.read_csv(path, header=None)
     row, col = df.shape
     embedding_dict = {}

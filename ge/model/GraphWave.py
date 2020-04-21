@@ -3,7 +3,7 @@
 """
 GraphWave model
 """
-
+import logging
 import numpy as np
 from scipy import sparse
 import networkx as nx
@@ -128,19 +128,20 @@ class GraphWave:
         return multi_embeddings
 
 
-    def cal_all_wavelet_coeffs(self, scale=None):
+    def calculate_wavelet_coeff(self, scale=None):
         """
         计算某尺度下的小波系数，以供后续针对小波系数进行研究。
         :param scale: 尺度参数，即heat coefficient, float
         :return: 小波系数矩阵，shape=(n, n), ndarray
         """
+        logging.info("Start calculate {} wavelet coefficients, scale={}.\n".format(
+            self.graph_name, self.scale))
         scale = self.scale if scale is None else scale
-
         coeff_mat = []
         for node_idx in range(self.n_nodes):
             coeff = self._calculate_node_coefficients(node_idx, scale)
             coeff_mat.append(coeff)
-
+        logging.info("Calculate wavelet coefficients, done.")
         return np.asarray(coeff_mat, dtype=np.float)
 
 

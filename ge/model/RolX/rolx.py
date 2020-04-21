@@ -1,4 +1,6 @@
 import math
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import time
 import random
 import numpy as np
@@ -8,7 +10,7 @@ import tensorflow as tf
 from ge.model.RolX.layers import Factorization
 from ge.model.RolX.refex import RecursiveExtractor
 from ge.model.RolX.print_and_read import log_setup, tab_printer, epoch_printer, log_updater, data_reader, data_saver
-
+from ge.utils.util import build_node_idx_map
 
 class RolX:
     """
@@ -24,6 +26,8 @@ class RolX:
         self.user_size = self.dataset.shape[0]
         self.feature_size = self.dataset.shape[1]
         self.nodes = list(nx.nodes(graph))
+        self.dim = dim
+        _, self.node2idx = build_node_idx_map(graph)
         self.true_step_size = (self.user_size * self.args.epochs) / self.args.batch_size
         self.build()
 
@@ -52,9 +56,9 @@ class RolX:
         """
         left_nodes = np.array(nodes)
         right_nodes = np.array([i for i in range(0,self.feature_size)])
-
-        targets = self.dataset[nodes,:]
-
+        indices = [self.node2idx[t] for t in nodes]
+        #targets = self.dataset[nodes,:]
+        targets = self.dataset[indices, :]
         feed_dict = {self.factorization_layer.edge_indices_left: left_nodes,
                      self.factorization_layer.edge_indices_right: right_nodes,
                      self.factorization_layer.target: targets,
@@ -73,12 +77,12 @@ class RolX:
             self.init.run()
             print("Model Initialized.")
             for repetition in range(0, self.args.epochs):
-                random.shuffle(self.nodes)
+                #random.shuffle(self.nodes)
                 self.optimization_time = 0 
                 self.average_loss = 0
 
                 epoch_printer(repetition)
-                for i in tqdm(range(0,len(self.nodes)/self.args.batch_size)):
+                for i in tqdm(range(0,len(self.nodes) // self.args.batch_size + 1)):
                     self.current_step = self.current_step + 1
                     feed_dict = self.feed_dict_generator(self.nodes[i*self.args.batch_size:(i+1)*self.args.batch_size], self.current_step)
                     start = time.time()
@@ -88,7 +92,7 @@ class RolX:
                     self.average_loss = self.average_loss + loss
 
                 print("")
-                self.average_loss = (self.average_loss/i)
+                self.average_loss = (self.average_loss / i)
                 self.log = log_updater(self.log, repetition, self.average_loss, self.optimization_time)
                 tab_printer(self.log)
             self.features = self.factorization_layer.embedding_node.eval()

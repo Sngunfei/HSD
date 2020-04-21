@@ -162,6 +162,7 @@ def sparse_graph(graph: nx.Graph, threshold=None, percentile=None) -> nx.Graph:
     """
     del_edges = []
     edges = nx.edges(graph)
+    sparsed_graph = nx.Graph(graph, sparse="true")
     if threshold:
         for edge in edges:
             u, v = edge
@@ -171,18 +172,22 @@ def sparse_graph(graph: nx.Graph, threshold=None, percentile=None) -> nx.Graph:
         _weights = []
         for edge in edges:
             u, v = edge
-            # if one edge's weight very big, then would delete many valuable edges.
-            #thres += 1.0 / n * (self.graph[u][v]['weight'] * percentile - thres)
             _weights.append(graph[u][v]['weight'])
-        threshold = np.percentile(_weights, percentile * 100)
-
+        # 保留权重较小的边，表示距离相近
+        threshold = np.percentile(_weights, (1 - percentile) * 100)
+        """
+        print("sparse: min: {}, max: {}".format(min(_weights), max(_weights)))
+        print("sparse: mean: ", np.mean(_weights))
+        print("sparse: median: ", np.median(_weights))
+        print("sparse: thereshold: ", threshold)
+        """
         for edge in edges:
             u, v = edge
-            if graph[u][v]['weight'] <= threshold:
+            if graph[u][v]['weight'] > threshold:
                 del_edges.append((u, v))
 
-    graph.remove_edges_from(del_edges)
-    return graph
+    sparsed_graph.remove_edges_from(del_edges)
+    return sparsed_graph
 
 
 def connect_graph(graph: nx.Graph) -> nx.Graph:
