@@ -11,15 +11,15 @@ from collections import defaultdict
 
 
 class SIR:
-    def __init__(self, graph, p=1.0, r=None, t=25, random_state=42):
+    def __init__(self, g, p=1.0, r=None, t=25, random_state=42):
         """
-        :param graph:
+        :param g:
         :param p: infect probability
         :param r: recover probability, default：1 / (average degree)
         :param t: spread time
         """
 
-        self.G = graph
+        self.G = g
         self.p = p
         if r is None:
             self.r = 1.0 / self._calculate_average_degree()
@@ -28,7 +28,7 @@ class SIR:
 
         self.t = t
         self.random_state = random_state
-        self.idx2node, self.node2idx = build_node_idx_map(graph)
+        self.idx2node, self.node2idx = build_node_idx_map(g)
         self.influence = defaultdict(int)
 
 
@@ -44,8 +44,9 @@ class SIR:
         Susceptible - Infected - Recover Model
         :return:
         """
-        for idx, node in self.idx2node.items():
-            self.influence[node] += self._diffuse_from_node(node)
+        for _ in range(5): # 运行多次取平均传染能力
+            for idx, node in self.idx2node.items():
+                self.influence[node] += self._diffuse_from_node(node)
 
 
     def _diffuse_from_node(self, origin):
@@ -63,7 +64,7 @@ class SIR:
             for _node, _weight in current_infectd:
                 for neighbor in nx.neighbors(self.G, _node):
                     if neighbor not in recoverd and neighbor not in infected and random.random() <= self.p:
-                        infected.add((neighbor, _weight - 0.3)) # decay
+                        infected.add((neighbor, max(_weight - 0.2, 0))) # decay 重要性随着范围的扩大而降低
 
                 if random.random() <= self.r:
                     recoverd.add((_node, _weight))
@@ -76,7 +77,7 @@ class SIR:
 
     def label_nodes(self, n_class):
         """
-        divide all nodes into some different groups by structural influence.
+        Split all nodes into different groups using structural influence.
         :param n_class: number of class
         :return:
         """
@@ -112,6 +113,22 @@ def split_nodes(name, graph, n_class, infect_prob=0.9, recover_prob=None, t=5, s
             for node, label in labels.items():
                 fout.write("{} {] \n".format(node, label))
 
+    return labels
+
+
+def SIR_labels(g: nx.Graph, n: int, t: int, infect_p, recover_p) -> dict:
+    """
+    快速得到一张图的SIR标签信息。
+    :param g:
+    :param n:
+    :param t:
+    :param infect_p:
+    :param recover_p:
+    :return:
+    """
+    sir = SIR(g, infect_p, recover_p, t,)
+    sir.start()
+    labels = sir.label_nodes(n_class=n)
     return labels
 
 

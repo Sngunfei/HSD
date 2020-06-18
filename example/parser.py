@@ -214,13 +214,13 @@ def RolxParameterParser():
     # Factor model parameters.
     # ------------------------------------------------------------------
 
-    parser.add_argument("--dim", type=int, default=16,
+    parser.add_argument("--dim", type=int, default=64,
                         help="Number of dimensions. Default is 16.")
 
     parser.add_argument("--batch-size", type=int, default=32,
                         help="Number of edges in batch. Default is 128.")
 
-    parser.add_argument("--epochs", type=int, default=5,
+    parser.add_argument("--epochs", type=int, default=10,
                         help="Number of epochs. Default is 50.")
 
     parser.add_argument("--initial-learning-rate", type=float, default=0.01,

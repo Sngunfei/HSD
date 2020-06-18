@@ -26,6 +26,8 @@ class GraphWave:
         self.e, self.u = np.linalg.eigh(self.L.toarray())
         self.idx2node, self.node2idx = build_node_idx_map(self.graph)
 
+        self.sample_number = sample_number
+        self.step_size = step_size
         self.sample_points = list(map(lambda x: x * step_size, range(0, sample_number)))
         self.wavelet_coeff = None
         self.embeddings = None

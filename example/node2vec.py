@@ -13,7 +13,7 @@ from example.parser import Node2vecParameterParser, tab_printer
 from ge.utils.dataloader import load_data
 from ge.model.node2vec import Node2Vec
 from ge.utils.rw import save_results
-from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate
+from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate
 import pandas as pd
 from sklearn.manifold import TSNE
 from ge.utils.visualize import plot_embeddings
@@ -60,6 +60,37 @@ def run(model, label_dict, n_class, params):
     figure_path = "../figures/node2vec_{}_length{}_num{}.png".format(
         model.graph_name, model.walk_length, model.walk_num)
     plot_embeddings(nodes, tsne_res, labels=labels, n_class=n_class, node_text=False, save_path=figure_path)
+
+
+def exec(graph, labels, n_class, perp=10):
+    import networkx as nx
+
+    g = nx.Graph()
+    for edge in nx.edges(graph):
+        g.add_edge(str(edge[0]), str(edge[1]))
+
+    model = Node2Vec(nx.DiGraph(g), "varied_graph", dim=64, walk_length=10, walk_num=10, window_size=5,
+                     p=1.0, q=2.0, workers=1, iter=10)
+    model.train()
+    embedding_dict = model.get_embeddings()
+
+    nodes, embeddings = [], []
+    for node, embedding_vector in embedding_dict.items():
+        nodes.append(node)
+        embeddings.append(embedding_vector)
+
+    tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=50.0, n_iter=2000,
+                    perplexity=perp, random_state=42).fit_transform(embeddings)
+
+    res = dict()
+    for name, label_dict in labels.items():
+        _labels = [label_dict[int(node)] for node in nodes]
+        h, c, v, s = cluster_evaluate(embeddings, _labels, n_class)
+        _res = KNN_evaluate(embeddings, _labels, cv=5, n_neighbor=4)
+        res[name] = [h, c, v, s, _res['accuracy'], _res['macro f1'], _res['micro f1']]
+        plot_embeddings(nodes, tsne_res, labels=_labels, n_class=n_class, save_path=
+        f"E:\workspace\py\graph-embedding\\figures\graphwave-{name}-{perp}.png")
+    return res
 
 
 if __name__ == '__main__':

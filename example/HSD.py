@@ -12,14 +12,16 @@ rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
 from ge.utils.dataloader import load_data, load_data_from_distance
+from ge.utils.robustness import add_noise
 from ge.utils.visualize import plot_embeddings
 from ge.utils.rw import save_vectors, save_results, read_distance
 from ge.utils.util import sparse_graph
+from ge.model.GraphWave import scale_boundary
 from example.parser import HSDParameterParser, tab_printer
 from ge.model.HSD import HSD
 from ge.model.LaplacianEigenmaps import LaplacianEigenmaps
 from ge.model.LocallyLinearEmbedding import LocallyLinearEmbedding
-from ge.evaluate.evaluate import KNN_evaluate, LR_evaluate
+from ge.evaluate.evaluate import KNN_evaluate, LR_evaluate, cluster_evaluate
 from sklearn.manifold import TSNE
 import pandas as pd
 import numpy as np
@@ -65,9 +67,18 @@ def run(hsd, label_dict, n_class, params):
     else:
         # Need to compute
         if str.lower(params.multi_scales) == "no":
+            e1, en = 0, hsd.wavelet.e[-1]
+            for e in hsd.wavelet.e:
+                if e > 0.001:
+                    e1 = e
+                    break
+            scale_min, scale_max = scale_boundary(e1, en)
+            scale = (scale_min + scale_max) / 2
+            print("scale: ", scale)
+            hsd.scale = scale
             distMat = hsd.parallel_calculate_distance()
         elif str.lower(params.multi_scales) == "yes":
-            distMat = hsd.parallel_multi_scales_wavelet(n_scales=100)
+            distMat = hsd.parallel_multi_scales_wavelet(n_scales=100, reuse=False)
         else:
             raise ValueError("Multi-scales mode should be yes/no.")
 
@@ -79,6 +90,17 @@ def run(hsd, label_dict, n_class, params):
                    "metric": hsd.metric,
                    "dim": params.dim,
                    "sparse": params.sparse}
+
+    if hsd.graph_name in ["varied_graph"]:
+        h, c, v, s = cluster_evaluate(distMat, labels, n_class, metric="precomputed")
+        res = KNN_evaluate(distMat, labels, metric="precomputed", cv=10, n_neighbor=4)
+        tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=50.0, n_iter=2000,
+                        perplexity=params.tsne, random_state=params.random).fit_transform(distMat)
+
+        save_vectors(hsd.nodes, vectors=tsne_res, path=tsne_vect_path)
+        plot_embeddings(hsd.nodes, tsne_res, labels=labels, n_class=n_class, save_path=tsne_figure_path)
+        return h, c, v, s, res['accuracy'], res['macro f1'], res['micro f1']
+
     if hsd.graph_name in ["europe", "usa"]:
         knn_res = KNN_evaluate(distMat, labels, metric="precomputed", cv=params.cv,
                                n_neighbor=params.neighbors)
@@ -150,6 +172,40 @@ def test_graph(sparsed_graph: nx.Graph):
     print("Average degree: {}".format(average_degree))
 
 
+def exec(graph, labels, n_class, mode, perp=10):
+    """
+
+    :param graph:
+    :param labels: dict{label_name: label_dict}
+    :param mode:
+    :param n_class:
+    :return:
+    """
+    model = HSD(graph, "varied_graph", scale=1, hop=2, metric=None, n_workers=3)
+    if mode == 0:
+        # 单尺度
+        model.initialize(multi=False)
+        distMat = model.parallel_calculate_distance(metric="wasserstein")
+    else:
+        # 多尺度
+        model.initialize(multi=True)
+        distMat = model.parallel_multi_scales_wavelet(n_scales=100, metric="hellinger", reuse=False)
+
+    tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=50.0, n_iter=2000,
+                    perplexity=perp, random_state=42).fit_transform(distMat)
+
+    res = dict()
+    for name, label_dict in labels.items():
+        _labels = [label_dict[node] for node in model.nodes]
+        h, c, v, s = cluster_evaluate(distMat, _labels, n_class, metric="precomputed")
+        _res = KNN_evaluate(distMat, _labels, metric="precomputed", cv=5, n_neighbor=4)
+        res[name] = [h, c, v, s, _res['accuracy'], _res['macro f1'], _res['micro f1']]
+        plot_embeddings(model.nodes, tsne_res, labels=_labels, n_class=n_class, save_path=
+        f"E:\workspace\py\graph-embedding\\figures\HSD-{mode}-{name}-{perp}.png")
+
+    return res
+
+
 if __name__ == '__main__':
     params = HSDParameterParser()
     tab_printer(params)
@@ -157,8 +213,31 @@ if __name__ == '__main__':
     graph_name = params.graph
     if graph_name in ["europe", "usa"]:
         graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
-    else: # europe, usa
-        graph, label_dict, n_class = load_data(graph_name, label_name="origin")
+    elif graph_name in ["varied_graph"]:
+        from collections import defaultdict
+        from tqdm import tqdm
+        res = defaultdict(list)
+        for _ in tqdm(range(25)):
+            graph, label_dict, n_class = load_data(graph_name)
+            print(nx.number_of_edges(graph))
+            graph = add_noise(graph, ratio=0.1)
+            print(nx.number_of_edges(graph))
+            model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
+                        metric=params.metric, n_workers=params.workers)
+            h, c, v, s, acc, macro, micro = run(model, label_dict, n_class, params)
+            res["h"].append(h)
+            res["c"].append(c)
+            res["v"].append(v)
+            res["s"].append(s)
+            res["acc"].append(acc)
+            res["macro"].append(macro)
+            res["micro"].append(micro)
+        for k, v in res.items():
+            print(k, v, np.mean(v), "\n")
+        assert False
+    else:
+        graph, label_dict, n_class = load_data(graph_name)
+
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
                 metric=params.metric, n_workers=params.workers)
     #print(model.nodes)

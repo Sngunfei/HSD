@@ -7,7 +7,7 @@ Load graph data and labels.
 import networkx as nx
 
 
-def load_data(graph_name, label_name, distance=False, directed=False):
+def load_data(graph_name, label_name=None, distance=False, directed=False):
     """
     Loda graph data by dataset name.
     :param graph_name: graph name, e.g. mkarate
@@ -17,7 +17,10 @@ def load_data(graph_name, label_name, distance=False, directed=False):
     """
 
     edge_path = "../data/graph/{}.edgelist".format(graph_name)
-    label_path = "../data/label/{}_{}.label".format(graph_name, label_name)
+    if label_name is None:
+        label_path = "../data/label/{}.label".format(graph_name)
+    else:
+        label_path = f"../data/label/{graph_name}_{label_name}.label"
 
     label_dict, n_class = read_label(label_path)
 
@@ -75,7 +78,7 @@ def read_label(path):
                 if not line:
                     break
                 node, label = line.strip().split(" ")
-                label_dict[node] = label
+                label_dict[node] = int(label)
                 n_label.add(label)
         return label_dict, len(n_label)
 

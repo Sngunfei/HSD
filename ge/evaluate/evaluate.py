@@ -13,7 +13,7 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn import svm
 
 
-def cluster_evaluate(embeddings=None, labels=None, n_class=None):
+def cluster_evaluate(embeddings, labels, n_class, metric="euclidean"):
     """
         Unsupervised setting: We assess the ability of each method to embed close together nodes
         with the same ground-truth structural role. We use agglomerative clustering (with single linkage)
@@ -27,10 +27,14 @@ def cluster_evaluate(embeddings=None, labels=None, n_class=None):
         based on its 4-nearest neighbors in the training set as determined by the embedding space.
         The reported score is then the average accuracy and F1-score over 25 trials.
     """
-    clusters = AgglomerativeClustering(n_clusters=n_class, linkage='single').fit_predict(embeddings)
+    clusters = AgglomerativeClustering(n_clusters=n_class, linkage='single', affinity=metric).fit_predict(embeddings)
     h, c, v = metrics.homogeneity_completeness_v_measure(labels, clusters)
     s = metrics.silhouette_score(embeddings, clusters)
+    acc = accuracy_score(labels, clusters)
+    macro_f1 = f1_score(labels, clusters, average="macro")
     print("cluster:", clusters, "labels:", labels)
+    print("accuracy: ", acc)
+    print("macro_score: ", macro_f1)
     print("homogeneity: ", h)
     print("completeness: ", c)
     print("v-score: ", v)

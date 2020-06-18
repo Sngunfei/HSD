@@ -306,7 +306,7 @@ class HSD:
         return vectors
 
 
-    def parallel_multi_scales_wavelet(self, metric=None, n_scales=200) -> np.ndarray:
+    def parallel_multi_scales_wavelet(self, metric=None, n_scales=200, reuse=True) -> np.ndarray:
         """
         多尺度分析，并行计算距离
         :param metric:
@@ -314,7 +314,9 @@ class HSD:
         :return:
         """
         path = "../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales)
-        vectors = read_vectors(path)
+        vectors = None
+        if reuse:
+            vectors = read_vectors(path)
         if vectors is None:
             vectors = self.parallel_calculate_coeff_sum(n_scales)
 
@@ -324,7 +326,7 @@ class HSD:
         pool = multiprocessing.Pool(self.n_workers)
         result = {}
         for idx, node in enumerate(self.nodes):
-            res = pool.apply_async(self._calculate_distance_worker, args=(idx, vectors, n_scales))
+            res = pool.apply_async(self._calculate_distance_worker, args=(idx, vectors, n_scales, metric))
             result[idx] = res
         pool.close()
         pool.join()
@@ -346,7 +348,7 @@ class HSD:
         return dist_mat
 
 
-    def _calculate_distance_worker(self, start, vectors, n_scales,) -> dict:
+    def _calculate_distance_worker(self, start, vectors, n_scales, metric, ) -> dict:
         """
         多尺度并行计算距离的worker，在多尺度下，每个节点有一个vector，
         :param start:
@@ -364,7 +366,7 @@ class HSD:
             for i in range(n_scales):
                 p = v1[i * seg : (i + 1) * seg]
                 q = v2[i * seg : (i + 1) * seg]
-                d += calculate_distance(p, q, self.metric)
+                d += calculate_distance(p, q, metric)
             dist[idx] = d
 
         return dist

@@ -96,3 +96,15 @@ def save_distance_edgelist(path:str, nodes:list, mat):
                 node2 = nodes[j]
                 fout.write("{} {} {}\n".format(node1, node2, mat[i, j]))
 
+
+def save_edgelist(path: str, edgelist):
+    """
+
+    :param path:
+    :param edgelist:
+    :return:
+    """
+    with open(path, mode="w+", encoding="utf-8") as fout:
+        for edge in edgelist:
+            fout.write(f"{edge[0]} {edge[1]}\n")
+
