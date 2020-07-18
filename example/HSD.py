@@ -15,6 +15,7 @@ from ge.utils.dataloader import load_data, load_data_from_distance
 from ge.utils.robustness import add_noise
 from ge.utils.visualize import plot_embeddings
 from ge.utils.rw import save_vectors, save_results, read_distance
+from ge.utils import util
 from ge.utils.util import sparse_graph
 from ge.model.GraphWave import scale_boundary
 from example.parser import HSDParameterParser, tab_printer
@@ -32,7 +33,6 @@ import networkx as nx
 
 
 def run(hsd, label_dict, n_class, params):
-
     # 多尺度
     if str.lower(params.multi_scales) == "yes":
         hsd.initialize(multi=True)
@@ -65,25 +65,18 @@ def run(hsd, label_dict, n_class, params):
                 distMat[idx, idx2] = distMat[idx2, idx] = dist_info[node, node2]
         logging.info("Reuse distance information.")
     else:
-        # Need to compute
         if str.lower(params.multi_scales) == "no":
-            e1, en = 0, hsd.wavelet.e[-1]
-            for e in hsd.wavelet.e:
-                if e > 0.001:
-                    e1 = e
-                    break
-            scale_min, scale_max = scale_boundary(e1, en)
-            scale = (scale_min + scale_max) / 2
+            scale = util.recommend_scale(hsd.wavelet.e)
             print("scale: ", scale)
-            hsd.scale = scale
-            distMat = hsd.parallel_calculate_distance()
+            hsd.scale = 1.0
+            #distMat = hsd.parallel_calculate_distance()
+            distMat = hsd.calculate_structural_distance()
         elif str.lower(params.multi_scales) == "yes":
             distMat = hsd.parallel_multi_scales_wavelet(n_scales=100, reuse=False)
         else:
             raise ValueError("Multi-scales mode should be yes/no.")
 
     labels = [label_dict[node] for node in hsd.nodes]
-
     result_args = {"multi-scales": params.multi_scales,
                    "scale": hsd.scale,
                    "hop": hsd.hop,
@@ -101,13 +94,13 @@ def run(hsd, label_dict, n_class, params):
         plot_embeddings(hsd.nodes, tsne_res, labels=labels, n_class=n_class, save_path=tsne_figure_path)
         return h, c, v, s, res['accuracy'], res['macro f1'], res['micro f1']
 
-    if hsd.graph_name in ["europe", "usa"]:
+    if hsd.graph_name not in ["mkarate", "barbell"]:
         knn_res = KNN_evaluate(distMat, labels, metric="precomputed", cv=params.cv,
                                n_neighbor=params.neighbors)
         knn_res.update(result_args)
         save_results(knn_res, "../results/knn/HSD_{}.txt".format(hsd.graph_name))
 
-    tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=50.0, n_iter=2000,
+    tsne_res = TSNE(n_components=2, metric="precomputed", learning_rate=5.0, n_iter=2000,
                     perplexity=params.tsne, random_state=params.random).fit_transform(distMat)
 
     save_vectors(hsd.nodes, vectors=tsne_res, path=tsne_vect_path)
@@ -236,7 +229,7 @@ if __name__ == '__main__':
             print(k, v, np.mean(v), "\n")
         assert False
     else:
-        graph, label_dict, n_class = load_data(graph_name)
+        graph, label_dict, n_class = load_data(graph_name, label_name=None)
 
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
                 metric=params.metric, n_workers=params.workers)
@@ -247,6 +240,8 @@ if __name__ == '__main__':
     print(len(res[node1][1]), len(res[node1][2]), len(res[node1][3]), len(res[node1].get(4, [])))
     print(len(res[node2][1]), len(res[node2][2]), len(res[node2][3]), len(res[node2].get(4, [])))
     """
+    import time
+    start = time.time()
     run(model, label_dict, n_class, params)
-
+    print("time: ", time.time() - start)
 

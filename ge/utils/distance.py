@@ -182,8 +182,8 @@ def calculate_distance(p, q, metric):
     elif metric == 'wasserstein_guass':
         return wasserstein_guass_distance(p, q)
     elif metric == 'wasserstein':
-        p, q = align_probablity_distribution(p, q)
-        return stats.wasserstein_distance(p, q) * len(p)
+        #p, q = align_probablity_distribution(p, q)
+        return stats.wasserstein_distance(p, q)
     elif metric == 'hellinger':
         return hellinger_distance(p, q)
 

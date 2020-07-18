@@ -9,7 +9,7 @@ sys.path.append(rootPath)
 from example.parser import GraphWaveParameterParser, tab_printer
 from ge.model.GraphWave import GraphWave, scale_boundary
 from ge.utils.dataloader import load_data
-from ge.utils.rw import save_results
+from ge.utils.rw import save_results, save_vectors_dict
 import pandas as pd
 from sklearn.manifold import TSNE
 from ge.utils.visualize import plot_embeddings
@@ -29,6 +29,7 @@ def run(model, label_dict, n_class, params=None):
     scale_min, scale_max = scale_boundary(e1, en)
     scale = (scale_min + scale_max) / 2
     print(scale)
+    model.scale = scale
     embedding_dict = model.single_scale_embedding(scale)
 
     nodes, labels, embeddings = [], [], []
@@ -36,6 +37,9 @@ def run(model, label_dict, n_class, params=None):
         nodes.append(node)
         labels.append(label_dict[node])
         embeddings.append(embedding_vector)
+
+    save_vectors_dict(embedding_dict,
+                      path=f"E:\workspace\py\graph-embedding\embeddings\graphwave_{model.graph_name}.csv")
 
     if model.graph_name in ["varied_graph"]:
         h, c, v, s = cluster_evaluate(embeddings, labels, n_class)
@@ -46,7 +50,7 @@ def run(model, label_dict, n_class, params=None):
             'samples': model.sample_number,
             'step_size':model.step_size}
 
-    if model.graph_name in ['europe', 'usa']:
+    if model.graph_name not in ['barbell', 'mkarate']:
         lr_res = LR_evaluate(embeddings, labels)
         lr_res.update(_res)
         save_results(lr_res, "../results/lr/graphwave_{}.txt".format(graph_name))
@@ -65,10 +69,10 @@ def run(model, label_dict, n_class, params=None):
 
     df = pd.DataFrame(data=tsne_res, index=nodes, columns=None, dtype=float)
     df.to_csv("../tsne_results/graphwave_{}_scale{}_perp{}.csv".format(
-        graphwave.graph_name, graphwave.scale, params.tsne))
+        model.graph_name, model.scale, params.tsne))
 
     figure_path = "../figures/graphwave_{}_scale{}_tsne{}.png".format(
-        graphwave.graph_name, graphwave.scale, params.tsne)
+        model.graph_name, model.scale, params.tsne)
     plot_embeddings(nodes, tsne_res, labels=labels, n_class=n_class, node_text=False, save_path=figure_path)
 
 

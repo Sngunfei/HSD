@@ -34,7 +34,7 @@ def run(model, label_dict, n_class, params):
             'walk_num': model.walk_num,
             'stay_prob': model.stay_prob}
 
-    if model.graph_name in ['europe', 'usa', 'varied_graph']:
+    if model.graph_name in ['europe', 'usa', 'varied_graph', 'bio_dmela', 'bio_grid_human']:
         cluster_evaluate(embeddings, labels, n_class)
 
         lr_res = LR_evaluate(embeddings, labels)
@@ -94,13 +94,12 @@ def exec(graph, labels, n_class, perp=10):
 
 if __name__ == '__main__':
     params = Struc2vecParameterParser()
-    tab_printer(params)
+    params.graph = "bio_grid_human"
 
+    tab_printer(params)
     graph_name = params.graph
-    if graph_name in ["europe", "usa"]:
-        graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
-    else:
-        graph, label_dict, n_class = load_data(graph_name, label_name=None)
+
+    graph, label_dict, n_class = load_data(graph_name, label_name=None)
 
     model = Struc2Vec(graph, graph_name, walk_length=params.walk_length, num_walks=params.walk_num,
                       stay_prob=params.stay_prob)

@@ -14,7 +14,9 @@ from tqdm import tqdm
 from ge.model.GraphWave import GraphWave
 from ge.utils.distance import calculate_distance
 from ge.utils.rw import save_distance_csv, save_distance_edgelist, save_vectors_dict, read_vectors
+from ge.hierarchy.hierarchical import read_hierarchical_representation
 import math
+
 
 
 class HSD:
@@ -46,12 +48,18 @@ class HSD:
         self.distMat = None
 
 
-    def initialize(self, multi=False):
+    def initialize(self, multi=False, ):
         if self.waveletCoeff and self.nodeLayers:
             return
         if not multi:
-            self.waveletCoeff = self.wavelet.calculate_wavelet_coeff(self.scale)
-        self.nodeLayers = self.constructNodeLayers_BFS()
+            if self.n_nodes > 5000:
+                self.waveletCoeff = self.wavelet.calculate_wavelet_coeff_chebyshev(self.scale, order=8)
+            else:
+                self.waveletCoeff = self.wavelet.calculate_wavelet_coeff(self.scale)
+
+        self.nodeLayers = read_hierarchical_representation(self.graph_name, layer_cnt=3)
+        print("HSD model init done.")
+        #self.nodeLayers = self.constructNodeLayers_BFS()
 
 
     def constructHierarchicalRepresentation_dijkstra(self, nodes=None):
@@ -107,24 +115,19 @@ class HSD:
 
 
     def calculate_structural_distance(self, metric=None,):
-        """
-        单线程 两两计算节点之间的结构距离
-        :param metric:
-        :return:
-        """
-        if not metric:
+        # 单线程 两两计算节点之间的结构距离
+        if not metric: # 优先使用临时指定的metric
             metric = self.metric
 
         if self.waveletCoeff is None or self.nodeLayers is None:
             self.initialize(multi=False)
-
         self.distMat = np.zeros((self.n_nodes, self.n_nodes), dtype=float)
-        for idx1, node1 in enumerate(self.nodes):
+        for idx1, node1 in tqdm(enumerate(self.nodes)):
             for idx2 in range(idx1 + 1, self.n_nodes):
                 node2 = self.nodes[idx2]
                 rings1, rings2 = self.nodeLayers[node1], self.nodeLayers[node2]
                 d = 0.0
-                for hop in range(self.hop + 1):
+                for hop in range(self.hop):
                     r1, r2 = rings1[hop], rings2[hop]
                     p, q = [], []
                     for neighbor in r1:
@@ -133,7 +136,6 @@ class HSD:
                     for neighbor in r2:
                         _idx = self.node2idx[neighbor]
                         q.append(self.waveletCoeff[idx2, _idx])
-
                     d += calculate_distance(p, q, metric)
                 self.distMat[idx1, idx2] = self.distMat[idx2, idx1] = d
 
@@ -150,7 +152,6 @@ class HSD:
         """
         if not metric:
             metric = self.metric
-
         if self.waveletCoeff is None or self.nodeLayers is None:
             self.initialize(multi=False)
 
@@ -164,9 +165,9 @@ class HSD:
             result[idx] = res
         pool.close()
         pool.join()
-
         for idx in range(self.n_nodes):
             result[idx] = result[idx].get()
+        print("Calculate structural distance Done! \n")
 
         for idx1, dists in result.items():
             for idx2, distance in dists.items():
@@ -188,7 +189,7 @@ class HSD:
             _neighbor = self.nodes[idx]
             rings2 = self.nodeLayers[_neighbor]
             d = 0.0
-            for hop in range(self.hop + 1):
+            for hop in range(self.hop):
                 r1, r2 = rings1[hop], rings2[hop]
                 p, q = [], []
                 for _neighbor in r1:

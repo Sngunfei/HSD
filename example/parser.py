@@ -11,7 +11,7 @@ def GraphWaveParameterParser():
     """
     parser = argparse.ArgumentParser(prog="GraphWave", description = "Run WaveletMachine.")
 
-    parser.add_argument('--graph', type=str,
+    parser.add_argument('--graph', type=str, default="bio_grid_human",
 	                    help = 'Network graph name.')
 
     parser.add_argument('--scale', type = float, default = 2,
@@ -20,13 +20,13 @@ def GraphWaveParameterParser():
     parser.add_argument('--sample-number', type = int, default = 50,
 	                    help = 'Number of characteristic function sample points. Default is 50.')
 
-    parser.add_argument('--step-size', type=int, default=20,
+    parser.add_argument('--step-size', type=int, default=10,
                         help='Step size, default is 20.')
 
     parser.add_argument('--approximation', type = int, default = 100,
 	                    help = 'Number of Chebyshev approximation. Default is 100.')
 
-    parser.add_argument('--tsne', type=int, default=10,
+    parser.add_argument('--tsne', type=int, default=30,
                         help='TSNE perplexity, default is 10.')
 
     parser.add_argument('--random', type=int, default=42,
@@ -40,16 +40,16 @@ def HSDParameterParser():
     HSD命令行参数
     """
     parser = argparse.ArgumentParser(prog="HSD", description="Hierarchically Structural Distance")
-    parser.add_argument("--graph", type=str,
+    parser.add_argument("--graph", type=str, default="bio_dmela",
                         help='Network graph name: barbell, mkarate, europe, usa')
 
-    parser.add_argument("--scale", type=float, default=2.0,
+    parser.add_argument("--scale", type=float, default=1.0,
                         help='Heat-coefficent, i.e, the scale, default is 2.')
 
     parser.add_argument("--metric", type=str, default="wasserstein",
                         help='Distance metric: wasserstein, hellinger, default is wasserstein.')
 
-    parser.add_argument("--hop", type=int, default=5,
+    parser.add_argument("--hop", type=int, default=3,
                         help="Max hop of local neighborhood, default is 5.")
 
     parser.add_argument("--tsne", type=int, default=30,
@@ -73,7 +73,7 @@ def HSDParameterParser():
     parser.add_argument('--multi_scales', type=str, default='no',
                         help="Employ multi scales analysis, default is No.")
 
-    parser.add_argument('--embedding_method', type=str, default='no',
+    parser.add_argument('--embedding_method', type=str, default='LE',
                         help="Embedding methods, LE - Laplacian Eigenmaps, LLE - Locally Linear Embedding")
 
     parser.add_argument('--dim', type=int, default=64,
@@ -94,7 +94,7 @@ def Struc2vecParameterParser():
     struc2vec
     """
     parser = argparse.ArgumentParser(prog="Struc2vec", description="")
-    parser.add_argument('--graph', type=str, default='barbell',
+    parser.add_argument('--graph', type=str, default='bio_dmela',
                         help='Network graph name: barbell, mkarate, europe, usa')
 
     parser.add_argument('--walk_length', type=int, default=15,
@@ -118,10 +118,10 @@ def Struc2vecParameterParser():
     parser.add_argument('--random', type=int, default=42,
                         help="Random seed, default is 42.")
 
-    parser.add_argument('--workers', type=int, default=2,
+    parser.add_argument('--workers', type=int, default=3,
                         help="Number of process workers.")
 
-    parser.add_argument('--iter', type=int, default=5,
+    parser.add_argument('--iter', type=int, default=10,
                         help="Number of iteration in word2vec.")
 
     return parser.parse_args()
@@ -132,7 +132,7 @@ def Node2vecParameterParser():
     node2vec
     """
     parser = argparse.ArgumentParser(prog="Node2vec", description="")
-    parser.add_argument('--graph', type=str, default='barbell',
+    parser.add_argument('--graph', type=str, default='bio_grid_human',
                         help='Network graph name: barbell, mkarate, europe, usa')
 
     parser.add_argument('--walk_length', type=int, default=15,
@@ -176,7 +176,7 @@ def RolxParameterParser():
 
     parser = argparse.ArgumentParser(description="Run RolX.")
 
-    parser.add_argument("--graph", type=str, default="mkarate",
+    parser.add_argument("--graph", type=str, default="bio_dmela",
                         help="Network graph name: barbell, mkarate, europe, usa")
 
     parser.add_argument("--recursive-features-output",
@@ -220,7 +220,7 @@ def RolxParameterParser():
     parser.add_argument("--batch-size", type=int, default=32,
                         help="Number of edges in batch. Default is 128.")
 
-    parser.add_argument("--epochs", type=int, default=10,
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Number of epochs. Default is 50.")
 
     parser.add_argument("--initial-learning-rate", type=float, default=0.01,

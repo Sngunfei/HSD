@@ -5,9 +5,10 @@ Susceptible - Infected - Recover Model.
 """
 
 import networkx as nx
-from utils.util import build_node_idx_map
+from ge.utils.util import build_node_idx_map, ExecWithTimer
 import copy, random
 from collections import defaultdict
+from tqdm import tqdm
 
 
 class SIR:
@@ -44,8 +45,8 @@ class SIR:
         Susceptible - Infected - Recover Model
         :return:
         """
-        for _ in range(5): # 运行多次取平均传染能力
-            for idx, node in self.idx2node.items():
+        for _ in tqdm(range(1)): # 运行多次取平均传染能力
+            for idx, node in tqdm(self.idx2node.items()):
                 self.influence[node] += self._diffuse_from_node(node)
 
 
@@ -97,12 +98,15 @@ class SIR:
         return labels
 
 
-def split_nodes(name, graph, n_class, infect_prob=0.9, recover_prob=None, t=5, save_path=None):
+def split_nodes(name=None, graph=None, n_class=None, infect_prob=0.9, recover_prob=None, t=5, save_path=None):
+    import time
+    startTime = time.time()
     print("Start SIR process, graph:{}, number of class: {}, infect prob: {}, recover prob: {}, time: {}"
           .format(name, n_class, infect_prob, recover_prob, t))
 
-    print("Graph radius: {}".format(nx.radius(graph)))
-    print("Graph diameter: {}".format(nx.diameter(graph)))
+    #print("Graph radius: {}".format(nx.radius(graph)))
+    #print("Graph diameter: {}".format(nx.diameter(graph)))
+    print(f"number of components: {nx.number_connected_components(graph)}")
 
     model = SIR(graph, p=infect_prob, r=recover_prob, t=t)
     model.start()
@@ -111,8 +115,8 @@ def split_nodes(name, graph, n_class, infect_prob=0.9, recover_prob=None, t=5, s
     if save_path:
         with open(save_path, mode="w+", encoding="utf8") as fout:
             for node, label in labels.items():
-                fout.write("{} {] \n".format(node, label))
-
+                fout.write("{} {} \n".format(node, label))
+    print(time.time() - startTime)
     return labels
 
 
@@ -133,10 +137,16 @@ def SIR_labels(g: nx.Graph, n: int, t: int, infect_p, recover_p) -> dict:
 
 
 if __name__ == '__main__':
-    name = "mkarate"
-    graph = nx.read_edgelist(path="../../data/mkarate.edgelist", create_using=nx.Graph,
+    #name = "mkarate"
+    graphName = "bio_dmela"
+    #graphName = "house"
+    graphName = "bio_grid_human"
+    save_path = f'E:\workspace\py\graph-embedding\data\label\\{graphName}.label'
+    graph = nx.read_edgelist(path=f"E:\workspace\py\graph-embedding\data\graph\\{graphName}.edgelist", create_using=nx.Graph,
                             edgetype=float, data=[('weight', float)])
-    split_nodes(name, graph, n_class=5, infect_prob=1.0, recover_prob=0.2, t=3)
+    split_nodes(graphName, graph, n_class=5, infect_prob=1.0, recover_prob=0.2, t=3, save_path=save_path)
+    #ExecWithTimer(split_nodes, name=name, graph=graph, n_class=5,
+    #              infect_prob=1.0, recover_prob=0.2, t=5, save_path=save_path)
 
 
 

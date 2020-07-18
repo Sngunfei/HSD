@@ -68,10 +68,7 @@ if __name__ == '__main__':
     tab_printer(params)
 
     graph_name = params.graph
-    if graph_name in ["barbell", "mkarate"]:
-        graph, label_dict, n_class = load_data(graph_name, label_name="origin")
-    else:  # europe, usa
-        graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
+    graph, label_dict, n_class = load_data(graph_name, label_name=None)
 
     model = RolX(graph, graph_name, params.dim, params)
     run(model, label_dict, n_class, params)

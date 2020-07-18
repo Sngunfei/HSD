@@ -101,11 +101,8 @@ if __name__ == '__main__':
     node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
     """
     graph_name = params.graph
-    if graph_name in ["barbell", "mkarate"]:
-        graph, label_dict, n_class = load_data(graph_name, label_name="origin", directed=True)
-    else:  # europe, usa
-        graph, label_dict, n_class = load_data(graph_name, label_name="SIR", directed=True)
 
+    graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
     graph = add_inverse_edges(graph)
 
     model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,

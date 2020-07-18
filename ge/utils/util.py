@@ -190,6 +190,33 @@ def sparse_graph(graph: nx.Graph, threshold=None, percentile=None) -> nx.Graph:
     return sparsed_graph
 
 
+def recommend_scale(eignvalues: list) -> float:
+    eignvalues = sorted(eignvalues)
+    e1, en = eignvalues[0], eignvalues[-1]
+    for e in eignvalues:
+        if e > 0.001:
+            e1 = e
+            break
+    scale_min, scale_max = scale_boundary(e1, en)
+    scale = (scale_min + scale_max) / 2
+    return scale
+
+
+def scale_boundary(e1, eN, eta=0.85, gamma=0.95):
+    """
+    calculate the scale of heat diffusion wavelets.
+    :param e1:
+    :param eN:
+    :param eta:
+    :param gamma:
+    :return:
+    """
+    t = np.sqrt(e1 * eN)
+    sMax = - np.log(eta) / t
+    sMin = - np.log(gamma) / t
+    return sMin, sMax
+
+
 def connect_graph(graph: nx.Graph) -> nx.Graph:
     """
     一个图可能有多个连通分量，为了使其之间能够有路径到达，在不同连通分量之间添加一条边，使其连通
@@ -279,3 +306,37 @@ def plot_vectors(path):
         plt.scatter(_2d_data[_indices, 0], _2d_data[_indices, 1], s=100, marker=markers[_class % len(markers)],
                     c=[scalarMap.to_rgba(_class)], label=_class)
     plt.show()
+
+def ExecWithTimer(func, **kwargs):
+    import time
+    startTime = time.time()
+    startDay = time.asctime(time.localtime(startTime))
+    print(kwargs)
+    func(kwargs)
+    endTime = time.time()
+    endDay = time.asctime(time.localtime(endTime))
+    cost = endTime - startTime
+    print(f"StartTime: {startDay}, EndTime:{endDay}, CostTime: {cost}\n")
+
+
+def compare_labels_difference():
+    # 同一张图可能有多种标签，比如SIR随时间变化的标签，这个函数用来对比这些标签的不同
+    from ge.utils.dataloader import read_label
+    from sklearn.metrics import classification_report
+    label_first, length_first = read_label("E:\workspace\py\graph-embedding\data\label\\bio_dmela.label")
+    label_second, length_second = read_label("E:\workspace\py\graph-embedding\data\label\\bio_dmela_t5.label")
+    assert length_first == length_second, "compare_labels_difference: 两种标签的规模不一致！"
+    label_list_1, label_list_2 = [], []
+    for node, label_1 in label_first.items():
+        label_2 = label_second[node]
+        label_list_1.append(label_1)
+        label_list_2.append(label_2)
+
+    report = classification_report(label_list_1, label_list_2)
+    print(report)
+
+
+if __name__ == '__main__':
+    #graph = nx.read_edgelist(path="../../data/graph/bio_grid_human.edgelist", create_using=nx.Graph,
+    #                         edgetype=float, data=[('weight', float)])
+    compare_labels_difference()

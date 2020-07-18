@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 """
-Load graph data and labels.
+加载数据
 """
 
 import networkx as nx
@@ -12,6 +12,7 @@ def load_data(graph_name, label_name=None, distance=False, directed=False):
     Loda graph data by dataset name.
     :param graph_name: graph name, e.g. mkarate
     :param label_name: label name, e.g. mkarate_origin
+    :param distance:
     :param directed: bool, if True, return directed graph.
     :return: graph, node labels, number of node classes.
     """
@@ -63,7 +64,7 @@ def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="n
     return graph, label_dict, n_class
 
 
-def read_label(path):
+def read_label(path) -> (dict, int):
     """
     read graph node labels.
     :param path: label file path.
@@ -81,7 +82,6 @@ def read_label(path):
                 label_dict[node] = int(label)
                 n_label.add(label)
         return label_dict, len(n_label)
-
     except FileNotFoundError:
         print("Warning: Label file: {} not found.".format(path))
         return None, 0

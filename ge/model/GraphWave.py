@@ -33,7 +33,7 @@ class GraphWave:
         self.embeddings = None
 
 
-    def calculate_wavelet_coeff_chebyshev(self, scale, order):
+    def calculate_wavelet_coeff_chebyshev(self, scale, order=8):
         """
         Given the Chebyshev polynomial, graph the approximate wavelet coefficients is calculated.
         :param scale:
@@ -46,7 +46,7 @@ class GraphWave:
         chebyshev = pygsp.filters.approximations.compute_cheby_coeff(heat_filter, m=order)
 
         wavelet_coeffs = []
-        for idx in range(self.n_nodes):
+        for idx in tqdm(range(self.n_nodes)):
             impulse = np.zeros(self.n_nodes, dtype=np.float)
             impulse[idx] = 1.0
             coeff = pygsp.filters.approximations.cheby_op(G, chebyshev, impulse)
@@ -108,9 +108,10 @@ class GraphWave:
             scale = self.scale
 
         self.embeddings = {}
+        wavelet_coeff = self.calculate_wavelet_coeff_chebyshev(scale, 10)
         for node_idx in tqdm(range(self.n_nodes)):
-            node_wave_coeff = self._calculate_node_coefficients(node_idx, scale)
-            node_embedding = self._calculate_embedding(node_wave_coeff, mode)
+            #node_wave_coeff = self._calculate_node_coefficients(node_idx, scale)
+            node_embedding = self._calculate_embedding(wavelet_coeff[node_idx], mode)
             self.embeddings[self.nodes[node_idx]] = node_embedding
 
         return self.embeddings
@@ -130,7 +131,7 @@ class GraphWave:
         return multi_embeddings
 
 
-    def calculate_wavelet_coeff(self, scale=None):
+    def calculate_wavelet_coeff(self, scale=None) -> np.ndarray:
         """
         计算某尺度下的小波系数，以供后续针对小波系数进行研究。
         :param scale: 尺度参数，即heat coefficient, float
