@@ -336,6 +336,31 @@ def compare_labels_difference():
     print(report)
 
 
+def filter_edgelist(edgelist_path, save_path, ratio=0.05):
+    """
+    过滤边，只保留权重前5%大的边，其他边的权重按0处理。
+    :return:
+    """
+    edgelist = []
+    with open(edgelist_path, mode="r", encoding="utf-8") as fin:
+        while True:
+            line = fin.readline().strip()
+            if not line:
+                break
+            node1, node2, dist = line.split(' ')
+            edgelist.append((node1, node2, float(dist)))
+    edgelist.sort(key=lambda x: x[2], reverse=True)
+    edgelist = edgelist[:int(len(edgelist) * ratio) + 1]
+
+    if save_path is not None:
+        with open(save_path, mode="w+", encoding="utf-8") as fout:
+            for edge in edgelist:
+                node1, node2, dist = edge
+                fout.write(f"{node1} {node2} {dist}\n")
+    return edgelist
+
+
+
 if __name__ == '__main__':
     #graph = nx.read_edgelist(path="../../data/graph/bio_grid_human.edgelist", create_using=nx.Graph,
     #                         edgetype=float, data=[('weight', float)])
