@@ -3,25 +3,25 @@
 """
 Struc2vec experiments setup.
 """
-import sys
 import os
+import sys
+
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
 from example.parser import Node2vecParameterParser, tab_printer
-from ge.utils.dataloader import load_data
+from ge.tools.dataloader import load_data
 from ge.model.node2vec import Node2Vec
-from ge.utils.rw import save_results
+from ge.tools.rw import save_results
 from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate
 import pandas as pd
 from sklearn.manifold import TSNE
-from ge.utils.visualize import plot_embeddings
-from ge.utils.util import add_inverse_edges
+from ge.tools.visualize import plot_embeddings
+from ge.tools.util import add_inverse_edges
 
 
 def run(model, label_dict, n_class, params):
-
     model.train()
     embedding_dict = model.get_embeddings()
 

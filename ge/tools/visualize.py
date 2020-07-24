@@ -4,13 +4,15 @@
 Visualization for embedding vectors.
 """
 
-from sklearn.manifold import TSNE
-import networkx as nx
 from collections import defaultdict
+
 import matplotlib
-import matplotlib.colors as colors
 import matplotlib.cm as cmx
+import matplotlib.colors as colors
 import matplotlib.pyplot as plt
+import networkx as nx
+from sklearn.manifold import TSNE
+
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']

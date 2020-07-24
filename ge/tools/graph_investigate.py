@@ -4,7 +4,6 @@
 研究图本身的一些性质，工具函数放在这，比如对连通分量规模等等
 """
 
-from ge.utils.dataloader import load_data
 import networkx as nx
 
 #todo

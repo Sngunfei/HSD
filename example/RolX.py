@@ -1,17 +1,17 @@
-
-import sys
 import os
+import sys
+
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 from example.parser import RolxParameterParser, tab_printer
 from ge.model.RolX.rolx import RolX
-from ge.utils.dataloader import load_data
+from ge.tools.dataloader import load_data
 from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate
-from ge.utils.rw import save_results
+from ge.tools.rw import save_results
 import pandas as pd
 from sklearn.manifold import TSNE
-from ge.utils.visualize import plot_embeddings
+from ge.tools.visualize import plot_embeddings
 
 
 def run(model, label_dict, n_class, params):

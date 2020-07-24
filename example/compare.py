@@ -2,13 +2,14 @@
 综合对比各算法之间的性能
 """
 
-from example import graphwave, HSD, node2vec, struc2vec, RolX
-from ge.graph.random_graph import VariedGraph
-from ge.utils.robustness import random_add_edges
-from ge.SIR.SIR import SIR_labels
 import networkx as nx
-from tqdm import tqdm
 from sklearn import metrics
+from tqdm import tqdm
+
+from example import graphwave, HSD, node2vec, struc2vec, RolX
+from ge.SIR.SIR import SIR_labels
+from ge.graph.random_graph import VariedGraph
+from ge.tools.robustness import random_add_edges
 
 
 def _single_run(graph, labels, fout, idx, perp=10):

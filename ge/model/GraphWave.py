@@ -4,12 +4,15 @@
 GraphWave model
 """
 import logging
-import numpy as np
-from scipy import sparse
+
 import networkx as nx
-from tqdm import tqdm
+import numpy as np
 import pygsp
-from ge.utils.util import compute_chebshev_coeff_basis, build_node_idx_map
+from scipy import sparse
+from tqdm import tqdm
+
+from ge.tools.util import build_node_idx_map
+
 np.set_printoptions(suppress=True, precision=5)
 
 

@@ -5,14 +5,14 @@ PRD：对图的层级划分不应该内嵌到具体的模型中，而是抽象�
 能够实现对图的层级处理，比如io操作，省去每次模型run的时候都去重构一套
 """
 
-import networkx as nx
 import copy
-from tqdm import tqdm
 import os
 
-from ge.utils.dataloader import load_data
+import networkx as nx
+from tqdm import tqdm
 
-Path = "E:\workspace\py\graph-embedding\data\hierarchy\{}.hie"
+Path_Format = "../../data/hierarchy/{}.hie"
+
 
 def get_hierarchical_representation(graph: nx.DiGraph, layer_cnt=5):
     """
@@ -82,8 +82,7 @@ def save_hierarchical_representation(graph_name: str, graph):
     """
     nodes = nx.nodes(graph)
     layer_cnt = 5
-#    hierarchy = get_hierarchical_representation(graph, layer_cnt=10)
-    file_path = Path.format(graph_name)
+    file_path = Path_Format.format(graph_name)
     with open(file_path, encoding="utf-8", mode="w+") as fout:
         # 每个节点占一行，行首node为自己，同时也为第一层
         # 然后每一层之间的节点，由#分隔，层内节点由逗号分隔
@@ -104,7 +103,7 @@ def save_hierarchical_representation(graph_name: str, graph):
 
 
 def read_hierarchical_representation(graph_name: str, layer_cnt=5) -> dict:
-    path = Path.format(graph_name)
+    path = Path_Format.format(graph_name)
     hierarchy = {}
     if not os.path.exists(path):
         return hierarchy
@@ -122,16 +121,11 @@ def read_hierarchical_representation(graph_name: str, layer_cnt=5) -> dict:
             hierarchy[rings[0][0]] = rings
     return hierarchy
 
+
 if __name__ == '__main__':
-    graphs =["europe", "bio_dmela", "bio_grid_human"]
+    graphs = ["bio_dmela", "bio_grid_human"]
     for graph_name in graphs:
-        ring_avg_cap = [0] * 10
-        res = read_hierarchical_representation(graph_name, layer_cnt=5)
-        n_nodes = len(res)
-        for node, rings in res.items():
-            for idx, ring in enumerate(rings):
-                ring_avg_cap[idx] += len(ring)
-        print([degree / n_nodes for degree in ring_avg_cap])
-        # graph = nx.read_edgelist(path=f"E:\workspace\py\graph-embedding\data\graph\\{graph_name}.edgelist", create_using=nx.Graph,
-        #                          edgetype=float, data=[('weight', float)])
-        # save_hierarchical_representation(graph_name, graph)
+        # res = read_hierarchical_representation(graph_name, layer_cnt=5)
+        graph = nx.read_edgelist(path=f"../../data/graph/{graph_name}.edgelist", create_using=nx.Graph,
+                                 edgetype=float, data=[('weight', float)])
+        save_hierarchical_representation(graph_name, graph)

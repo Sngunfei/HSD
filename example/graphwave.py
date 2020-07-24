@@ -1,20 +1,21 @@
 # -*- encoding: utf-8 -*-
 
-import sys
 import os
+import sys
+
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
 from example.parser import GraphWaveParameterParser, tab_printer
 from ge.model.GraphWave import GraphWave, scale_boundary
-from ge.utils.dataloader import load_data
-from ge.utils.rw import save_results, save_vectors_dict
+from ge.tools.dataloader import load_data
+from ge.tools.rw import save_results, save_vectors_dict
 import pandas as pd
 from sklearn.manifold import TSNE
-from ge.utils.visualize import plot_embeddings
+from ge.tools.visualize import plot_embeddings
 from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate
-from ge.utils.robustness import add_noise
+from ge.tools.robustness import add_noise
 
 import networkx as nx
 import numpy as np

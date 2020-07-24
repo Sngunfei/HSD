@@ -1,11 +1,13 @@
 # -*- coding:utf-8 -*-
 
-import pymongo
 import logging
+
+import pymongo
 
 """
 连接MongoDB，存储实验结果
 """
+
 
 class Mongo:
 

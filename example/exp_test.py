@@ -1,11 +1,12 @@
-
-from ge.utils.rw import read_vectors
-from ge.utils.dataloader import load_data
-from ge.utils.distance import calculate_distance
-import matplotlib.pyplot as plt
-import numpy as np
-import networkx as nx
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+
+from ge.tools.dataloader import load_data
+from ge.tools.distance import calculate_distance
+from ge.tools.rw import read_vectors
 
 
 def multiscales_analyse(graph_name, n_hop, n_scales, metric="hellinger"):

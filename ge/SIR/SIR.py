@@ -4,11 +4,14 @@
 Susceptible - Infected - Recover Model.
 """
 
-import networkx as nx
-from ge.utils.util import build_node_idx_map, ExecWithTimer
-import copy, random
+import copy
+import random
 from collections import defaultdict
+
+import networkx as nx
 from tqdm import tqdm
+
+from ge.tools.util import build_node_idx_map
 
 
 class SIR:

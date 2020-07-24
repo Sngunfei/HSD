@@ -1,39 +1,17 @@
 # -*- coding:utf-8 -*-
 
 """
-一些常用的工具函数
+常用的工具函数
 """
 
-import numpy as np
-import networkx as nx
-from tqdm import tqdm
 import math
+import time
 
+import networkx as nx
+import numpy as np
+from tqdm import tqdm
 
-def write_subway_label(data_path):
-    graph = nx.read_edgelist(path=data_path, create_using=nx.Graph, nodetype=str, edgetype=float, data=[('weight', float)])
-    fout = open("G:\pyworkspace\graph-embedding\out\subway_label_2.txt", mode="w+", encoding="utf-8")
-    nodes = list(nx.nodes(graph))
-    rings = dict()
-    for node1 in nodes:
-        hop1, hop2 = 0, 0
-        for node2 in nodes:
-            length = nx.dijkstra_path_length(graph, node1, node2)
-            if length > 2:
-                continue
-            elif length == 1:
-                hop1 += 1
-            elif length == 2:
-                hop2 += 1
-        rings[node1] = [hop1, hop2]
-
-    for node, hop in rings.items():
-        hop1 = min(hop[0], 4)
-        hop2 = min(hop[1], 6) // 3 + 1
-        label = (hop1 - 1) * 3 + hop2
-        fout.write("{} {}\n".format(node, label))
-
-    fout.close()
+from ge.tools import rw
 
 
 def write_label(name="", max_hop=10, hops_weight=None, percentiles=None):
@@ -100,7 +78,7 @@ def add_inverse_edges(graph: nx.DiGraph):
     return graph
 
 
-def build_node_idx_map(graph):
+def build_node_idx_map(graph) -> (dict, dict):
     """
     建立图节点与标号之间的映射关系，方便采样。
     :param graph:
@@ -109,7 +87,7 @@ def build_node_idx_map(graph):
     node2idx = {}
     idx2node = {}
     node_size = 0
-    for node in graph.nodes():
+    for node in nx.nodes(graph):
         node2idx[node] = node_size
         idx2node[node_size] = node
         node_size += 1
@@ -204,12 +182,7 @@ def recommend_scale(eignvalues: list) -> float:
 
 def scale_boundary(e1, eN, eta=0.85, gamma=0.95):
     """
-    calculate the scale of heat diffusion wavelets.
-    :param e1:
-    :param eN:
-    :param eta:
-    :param gamma:
-    :return:
+    根据graphwave给出的方法计算推荐的小波尺度。
     """
     t = np.sqrt(e1 * eN)
     sMax = - np.log(eta) / t
@@ -223,12 +196,8 @@ def connect_graph(graph: nx.Graph) -> nx.Graph:
     :param graph: 原图
     :return: 连通图
     """
-
-    # if graph is connected already.
     if nx.is_connected(graph):
         return graph
-
-    # n_components > 1
     components = nx.connected_components(graph)
     node = None
     edges = []
@@ -251,7 +220,6 @@ def get_metadata_of_networks():
         print("radius", nx.radius(data))
         print("diameter", nx.diameter(data))
         print("Average Degree:", np.mean([j for _, j in nx.degree(data)]))
-
 
 
 def classify_nodes_by_degree(graph):
@@ -307,8 +275,14 @@ def plot_vectors(path):
                     c=[scalarMap.to_rgba(_class)], label=_class)
     plt.show()
 
+
 def ExecWithTimer(func, **kwargs):
-    import time
+    """
+    对函数进行封装，加入计时功能
+    :param func:
+    :param kwargs:
+    :return:
+    """
     startTime = time.time()
     startDay = time.asctime(time.localtime(startTime))
     print(kwargs)
@@ -321,7 +295,7 @@ def ExecWithTimer(func, **kwargs):
 
 def compare_labels_difference():
     # 同一张图可能有多种标签，比如SIR随时间变化的标签，这个函数用来对比这些标签的不同
-    from ge.utils.dataloader import read_label
+    from ge.tools.dataloader import read_label
     from sklearn.metrics import classification_report
     label_first, length_first = read_label("E:\workspace\py\graph-embedding\data\label\\bio_dmela.label")
     label_second, length_second = read_label("E:\workspace\py\graph-embedding\data\label\\bio_dmela_t5.label")
@@ -336,32 +310,36 @@ def compare_labels_difference():
     print(report)
 
 
-def filter_edgelist(edgelist_path, save_path, ratio=0.05):
+def filter_edgelist(edgelist: list, save_path: str, ratio=0.05) -> list:
     """
     过滤边，只保留权重前5%大的边，其他边的权重按0处理。
     :return:
     """
-    edgelist = []
-    with open(edgelist_path, mode="r", encoding="utf-8") as fin:
-        while True:
-            line = fin.readline().strip()
-            if not line:
-                break
-            node1, node2, dist = line.split(' ')
-            edgelist.append((node1, node2, float(dist)))
     edgelist.sort(key=lambda x: x[2], reverse=True)
     edgelist = edgelist[:int(len(edgelist) * ratio) + 1]
 
     if save_path is not None:
-        with open(save_path, mode="w+", encoding="utf-8") as fout:
-            for edge in edgelist:
-                node1, node2, dist = edge
-                fout.write(f"{node1} {node2} {dist}\n")
+        rw.save_edgelist(save_path, edgelist)
+
     return edgelist
 
 
+def filter_distance_matrix(dist_mat: np.ndarray, nodes: list, save_path: str, ratio=0.05) -> list:
+    # 对距离矩阵进行过滤，返回过滤后的边集
+    assert dist_mat.shape[0] == dist_mat.shape[1], "距离矩阵必须是方阵"
+    assert dist_mat.shape[0] == len(nodes), "距离矩阵的宽度必须和节点数量一致"
+
+    edgelist = []
+    for idx1, node1 in enumerate(nodes):
+        for idx2 in range(idx1 + 1, len(nodes)):
+            node2 = nodes[idx2]
+            distance = float(dist_mat[idx1, idx2])
+            edgelist.append((node1, node2, distance))
+
+    return filter_edgelist(edgelist, save_path, ratio)
+
 
 if __name__ == '__main__':
-    #graph = nx.read_edgelist(path="../../data/graph/bio_grid_human.edgelist", create_using=nx.Graph,
+    # graph = nx.read_edgelist(path="../../data/graph/bio_grid_human.edgelist", create_using=nx.Graph,
     #                         edgetype=float, data=[('weight', float)])
     compare_labels_difference()

@@ -10,8 +10,9 @@ Distance metric functions:
 - Hellinger distance
 """
 
-import numpy as np
 import math
+
+import numpy as np
 from scipy import stats
 
 

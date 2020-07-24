@@ -5,11 +5,11 @@
 分析两个高斯分布之间的特征函数，之间的距离。
 
 """
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 def guass_charac():
-
     first = np.random.normal(20, 5, 100)
     second = np.random.normal(50, 10, 100)
 

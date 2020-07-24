@@ -1,16 +1,16 @@
-import math
 import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import time
-import random
 import numpy as np
 import networkx as nx
 from tqdm import tqdm
 import tensorflow as tf
 from ge.model.RolX.layers import Factorization
 from ge.model.RolX.refex import RecursiveExtractor
-from ge.model.RolX.print_and_read import log_setup, tab_printer, epoch_printer, log_updater, data_reader, data_saver
-from ge.utils.util import build_node_idx_map
+from ge.model.RolX.print_and_read import log_setup, tab_printer, epoch_printer, log_updater
+from ge.tools.util import build_node_idx_map
+
 
 class RolX:
     """

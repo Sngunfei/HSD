@@ -3,11 +3,13 @@
 """
 分析小波系数的方差
 """
-from ge.model.GraphWave import GraphWave, scale_boundary
-import matplotlib.pyplot as plt
 from collections import defaultdict
-from ge.utils.util import dataloader
+
+import matplotlib.pyplot as plt
 import numpy as np
+
+from ge.model.GraphWave import GraphWave, scale_boundary
+from ge.tools.util import dataloader
 
 
 def delta_a(wavelet_coeff, N):

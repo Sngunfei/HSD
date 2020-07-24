@@ -14,7 +14,7 @@ from gensim.models import Word2Vec
 from joblib import Parallel, delayed
 from fastdtw import fastdtw
 
-from ge.utils.util import build_node_idx_map, partition_dict
+from ge.tools.util import build_node_idx_map, partition_dict
 from ge.random_walker.walker import BiasedWalker
 from ge.random_walker.alias_sample import create_alias_table
 
