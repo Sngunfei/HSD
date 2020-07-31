@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import argparse
+
 from texttable import Texttable
 
 """
@@ -137,7 +138,7 @@ def Node2vecParameterParser():
     parser.add_argument('--graph', type=str, default='bio_grid_human',
                         help='Network graph name: barbell, mkarate, europe, usa')
 
-    parser.add_argument('--walk_length', type=int, default=15,
+    parser.add_argument('--walk_length', type=int, default=10,
                         help='Random walk length, default is 10')
 
     parser.add_argument('--walk_num', type=int, default=10,
@@ -152,7 +153,7 @@ def Node2vecParameterParser():
     parser.add_argument('--dim', type=int, default=64,
                         help="Dimension of embedding vectors.")
 
-    parser.add_argument('--window_size', type=int, default=10,
+    parser.add_argument('--window_size', type=int, default=7,
                         help="Skip-gram model, window size for training.")
 
     parser.add_argument('--tsne', type=int, default=30,
@@ -164,7 +165,7 @@ def Node2vecParameterParser():
     parser.add_argument('--workers', type=int, default=2,
                         help="Number of process workers.")
 
-    parser.add_argument('--iter', type=int, default=5,
+    parser.add_argument('--iter', type=int, default=20,
                         help="Number of iteration in word2vec.")
 
     return parser.parse_args()

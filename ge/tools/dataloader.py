@@ -18,19 +18,10 @@ def load_data(graph_name, label_name=None, distance=False, directed=False):
     """
 
     edge_path = "../data/graph/{}.edgelist".format(graph_name)
-    if label_name is None:
-        label_path = "../data/label/{}.label".format(graph_name)
-    else:
-        label_path = f"../data/label/{graph_name}_{label_name}.label"
-
+    label_path = "../data/label/{}.label".format(graph_name)
     label_dict, n_class = read_label(label_path)
-
-    if directed:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph,
-                                 edgetype=float, data=[('weight', float)])
-    else:
-        graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
-                                 edgetype=float, data=[('weight', float)])
+    graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph if directed else nx.Graph,
+                             edgetype=float, data=[('weight', float)])
     print("load graph data done.")
     return graph, label_dict, n_class
 

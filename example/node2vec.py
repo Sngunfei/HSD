@@ -19,6 +19,8 @@ import pandas as pd
 from sklearn.manifold import TSNE
 from ge.tools.visualize import plot_embeddings
 from ge.tools.util import add_inverse_edges
+import datetime
+import time
 
 
 def run(model, label_dict, n_class, params):
@@ -31,33 +33,36 @@ def run(model, label_dict, n_class, params):
         labels.append(label_dict[node])
         embeddings.append(embedding_vector)
 
-    if model.graph_name in ['europe', 'usa']:
+    result_args = {
+        'date': datetime.datetime.now() - datetime.timedelta(hours=8),
+        'walk_length': model.walk_length,
+        'walk_num': model.walk_num,
+        'p': model.p,
+        'q': model.q
+    }
+
+    if model.graph_name not in ['barbell', 'mkarate']:
         lr_res = LR_evaluate(embeddings, labels)
-        lr_res['walk_length'] = model.walk_length
-        lr_res['walk_num'] = model.walk_num
-        lr_res['p'] = model.p
-        lr_res['q'] = model.q
+        lr_res.update(result_args)
         save_results(lr_res, "../results/lr/node2vec_{}.txt".format(graph_name))
+
         knn_res = KNN_evaluate(embeddings, labels)
-        knn_res['walk_length'] = model.walk_length
-        knn_res['walk_num'] = model.walk_num
-        knn_res['p'] = model.p
-        knn_res['q'] = model.q
+        knn_res.update(result_args)
         save_results(knn_res, "../results/knn/node2vec_{}.txt".format(graph_name))
 
     df = pd.DataFrame(data=embeddings, index=nodes, columns=None, dtype=float)
     # file_name: node2vec_mkarate_walklength_numwalks.csv
-    df.to_csv("../embeddings/node2vec_{}_length{}_num{}.csv".format(
+    df.to_csv("../embeddings/{}/node2vec_length{}_num{}.csv".format(
         model.graph_name, model.walk_length, model.walk_num), header=False, float_format="%.8f")
 
-    tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=50.0, n_iter=2000,
+    tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=10.0, n_iter=2000,
                     perplexity=params.tsne, random_state=params.random).fit_transform(embeddings)
 
     df = pd.DataFrame(data=tsne_res, index=nodes, columns=None, dtype=float)
-    df.to_csv("../tsne_results/node2vec_{}_length{}_num{}.csv".format(
+    df.to_csv("../tsne_vectors/{}/node2vec_length{}_num{}.csv".format(
         model.graph_name, model.walk_length, model.walk_num))
 
-    figure_path = "../figures/node2vec_{}_length{}_num{}.png".format(
+    figure_path = "../tsne_figures/{}/node2vec_length{}_num{}.png".format(
         model.graph_name, model.walk_length, model.walk_num)
     plot_embeddings(nodes, tsne_res, labels=labels, n_class=n_class, node_text=False, save_path=figure_path)
 
@@ -94,21 +99,24 @@ def exec(graph, labels, n_class, perp=10):
 
 
 if __name__ == '__main__':
+    start = time.time()
+
     params = Node2vecParameterParser()
+    params.graph = "bio_dmela"
     tab_printer(params)
-
-    """
-    node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
-    """
     graph_name = params.graph
-
     graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
-    graph = add_inverse_edges(graph)
-
+    graph = add_inverse_edges(graph)  # node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
     model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,
-                      p=params.p, q=params.q, workers=params.workers, iter=params.iter)
-
+                     p=params.p, q=params.q, workers=params.workers, iter=params.iter)
     run(model, label_dict, n_class, params)
 
-
-
+    params.graph = "bio_grid_human"
+    tab_printer(params)
+    graph_name = params.graph
+    graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
+    graph = add_inverse_edges(graph)  # node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
+    model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,
+                     p=params.p, q=params.q, workers=params.workers, iter=params.iter)
+    run(model, label_dict, n_class, params)
+    print("cost time: ", time.time() - start)
