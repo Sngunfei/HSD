@@ -127,13 +127,15 @@ def hellinger_distance(p, q):
 
     BC = 0.0
     for px, qx in zip(p, q):
-        BC += math.sqrt(px * qx)
+        if px < 0 or qx < 0:
+            continue
+        BC += math.sqrt(max(px * qx, 0))
     if math.isclose(BC, 0.0, abs_tol=1e-6):
         BC = 0.0
     elif math.isclose(BC, 1.0, abs_tol=1e-6):
         BC = 1.0
 
-    distance = math.sqrt(1.0 - BC)
+    distance = math.sqrt(max(1.0 - BC, 0))
     return distance
 
 
@@ -184,6 +186,8 @@ def calculate_distance(p, q, metric):
         return wasserstein_guass_distance(p, q)
     elif metric == 'wasserstein':
         #p, q = align_probablity_distribution(p, q)
+        if len(p) == 0 or len(q) == 0:
+            return sum(p) + sum(q)
         return stats.wasserstein_distance(p, q)
     elif metric == 'hellinger':
         return hellinger_distance(p, q)

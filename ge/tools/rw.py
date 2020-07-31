@@ -5,7 +5,6 @@
 """
 
 import os
-
 import numpy as np
 import pandas as pd
 
@@ -15,12 +14,14 @@ def get_file_paths(params: dict) -> dict:
     paths = {
         "embedding": None,  # 训练结果向量的存储路径, csv
         "distance": None,  # 各节点之间的存储路径，csv
-        "tsne": None,  # t-SNE可视化产生的向量，csv
+        "tsne_vector": None,  # t-SNE可视化产生的向量，csv
+        "tsne_figure": None, # t-SNE可视化结果
         "wavelet_coeff": None,  # 小波系数路径，csv
         "edgelist": None,  # 图, edge list
         "label": None,  # 标签文件路径，dict
-        "hierarchy": None,  # 层级结构存储路径，
+        "hierarchy": None,  # 层级结构存储路径
     }
+    embedding_path = "../"
 
     return {}
 
@@ -130,3 +131,7 @@ def save_edgelist(path: str, edgelist: list):
             elif len(edge) == 3:
                 edge_str = f"{edge[0]} {edge[1]} {edge[2]}"
             fout.write(f"{edge_str}\n")
+
+
+if __name__ == '__main__':
+    print(CUR_DIR)

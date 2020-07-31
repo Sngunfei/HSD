@@ -11,8 +11,7 @@ import os
 import networkx as nx
 from tqdm import tqdm
 
-Path_Format = "../../data/hierarchy/{}.hie"
-
+Path_Format = "../data/hierarchy/{}.hie"
 
 def get_hierarchical_representation(graph: nx.DiGraph, layer_cnt=5):
     """
@@ -25,8 +24,8 @@ def get_hierarchical_representation(graph: nx.DiGraph, layer_cnt=5):
     hierarchy = {}
     for node in tqdm(nodes):
         rings = [[node]]
-        queue = [node] # 利用队列进行层级遍历
-        visited = [] # 记录已经查过的，按最短路径划分层次
+        queue = [node]  # 利用队列进行层级遍历
+        visited = []  # 记录已经查过的，按最短路径划分层次
         for layer in range(layer_cnt):
             capacity = len(queue)
             if capacity == 0:
@@ -43,7 +42,6 @@ def get_hierarchical_representation(graph: nx.DiGraph, layer_cnt=5):
             rings.append(copy.deepcopy(queue))
         hierarchy[node] = rings
     return hierarchy
-
 
 def get_node_hierarchical_structure(graph: nx.DiGraph, node, layer_cnt=5):
     """
@@ -97,6 +95,7 @@ def save_hierarchical_representation(graph_name: str, graph):
                         record += str(neighbor) + '#'
                     else:
                         record += str(neighbor) + ','
+            print(f"{node}: {record}")
             fout.write(record + '\n')
             fout.flush()
     print("Save hierarchical representation done!\n")
@@ -119,11 +118,11 @@ def read_hierarchical_representation(graph_name: str, layer_cnt=5) -> dict:
                 neighbors = ring.split(",")
                 rings[idx] = neighbors
             hierarchy[rings[0][0]] = rings
+    print(f"load hierarhy done. number of nodes: {len(hierarchy)}")
     return hierarchy
 
-
 if __name__ == '__main__':
-    graphs = ["bio_dmela", "bio_grid_human"]
+    graphs = ["bio_dmela"]#, "bio_grid_human"]
     for graph_name in graphs:
         # res = read_hierarchical_representation(graph_name, layer_cnt=5)
         graph = nx.read_edgelist(path=f"../../data/graph/{graph_name}.edgelist", create_using=nx.Graph,

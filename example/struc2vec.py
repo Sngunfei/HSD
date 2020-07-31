@@ -10,7 +10,7 @@ curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
-from example.parser import Struc2vecParameterParser, tab_printer
+from example.params_parser import Struc2vecParameterParser, tab_printer
 from ge.tools.dataloader import load_data
 from ge.model.struc2vec import Struc2Vec
 from ge.tools.rw import save_results
@@ -18,6 +18,7 @@ from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate
 import pandas as pd
 from sklearn.manifold import TSNE
 from ge.tools.visualize import plot_embeddings
+import datetime
 
 
 def run(model, label_dict, n_class, params):
@@ -31,12 +32,15 @@ def run(model, label_dict, n_class, params):
         labels.append(label_dict[node])
         embeddings.append(embedding_vector)
 
-    _res = {'walk_length': model.walk_length,
-            'walk_num': model.walk_num,
-            'stay_prob': model.stay_prob}
+    _res = {
+        'date': datetime.datetime.now(),
+        'walk_length': model.walk_length,
+        'walk_num': model.walk_num,
+        'stay_prob': model.stay_prob
+    }
 
-    if model.graph_name in ['europe', 'usa', 'varied_graph', 'bio_dmela', 'bio_grid_human']:
-        cluster_evaluate(embeddings, labels, n_class)
+    if model.graph_name not in ['barbell', 'mkarate']:
+        #cluster_evaluate(embeddings, labels, n_class)
 
         lr_res = LR_evaluate(embeddings, labels)
         lr_res.update(_res)
@@ -51,14 +55,14 @@ def run(model, label_dict, n_class, params):
     df.to_csv("../embeddings/struc2vec_{}_length{}_num{}.csv".format(
         model.graph_name, model.walk_length, model.walk_num), header=False, float_format="%.8f")
 
-    tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=50.0, n_iter=2000,
+    tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=5.0, n_iter=2000,
                     perplexity=params.tsne, random_state=params.random).fit_transform(embeddings)
 
     df = pd.DataFrame(data=tsne_res, index=nodes, columns=None, dtype=float)
-    df.to_csv("../tsne_results/struc2vec_{}_length{}_num{}.csv".format(
+    df.to_csv("../tsne_vectors/struc2vec_{}_length{}_num{}.csv".format(
         model.graph_name, model.walk_length, model.walk_num))
 
-    figure_path = "../figures/struc2vec_{}_length{}_num{}.png".format(
+    figure_path = "../tsne_figures/struc2vec_{}_length{}_num{}.png".format(
         model.graph_name, model.walk_length, model.walk_num)
     plot_embeddings(nodes, tsne_res, labels=labels, n_class=n_class, node_text=False, save_path=figure_path)
 

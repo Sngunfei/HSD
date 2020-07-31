@@ -35,6 +35,8 @@ class GraphWave:
         self.wavelet_coeff = None
         self.embeddings = None
 
+        print("initialize GraphWave model done.")
+
 
     def calculate_wavelet_coeff_chebyshev(self, scale, order=8):
         """

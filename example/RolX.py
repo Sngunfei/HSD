@@ -4,7 +4,7 @@ import sys
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
-from example.parser import RolxParameterParser, tab_printer
+from example.params_parser import RolxParameterParser, tab_printer
 from ge.model.RolX.rolx import RolX
 from ge.tools.dataloader import load_data
 from ge.evaluate.evaluate import LR_evaluate, KNN_evaluate, cluster_evaluate

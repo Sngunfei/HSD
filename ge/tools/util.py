@@ -339,6 +339,15 @@ def filter_distance_matrix(dist_mat: np.ndarray, nodes: list, save_path: str, ra
     return filter_edgelist(edgelist, save_path, ratio)
 
 
+
+conf = None
+def parse_conf():
+    # 对ge.conf进行解析，供后续使用
+    if conf is None:
+        pass
+    else:
+        return conf
+
 if __name__ == '__main__':
     # graph = nx.read_edgelist(path="../../data/graph/bio_grid_human.edgelist", create_using=nx.Graph,
     #                         edgetype=float, data=[('weight', float)])

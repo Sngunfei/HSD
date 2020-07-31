@@ -10,7 +10,7 @@ curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
-from example.parser import Node2vecParameterParser, tab_printer
+from example.params_parser import Node2vecParameterParser, tab_printer
 from ge.tools.dataloader import load_data
 from ge.model.node2vec import Node2Vec
 from ge.tools.rw import save_results

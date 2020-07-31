@@ -75,11 +75,13 @@ class HSD:
                     r1, r2 = rings1[hop], rings2[hop]
                     p, q = [], []
                     for neighbor in r1:
-                        _idx = self.node2idx[neighbor]
-                        p.append(self.wavelet_coeff[idx1, _idx])
+                        if neighbor != '':
+                            _idx = self.node2idx[neighbor]
+                            p.append(self.wavelet_coeff[idx1, _idx])
                     for neighbor in r2:
-                        _idx = self.node2idx[neighbor]
-                        q.append(self.wavelet_coeff[idx2, _idx])
+                        if neighbor != '':
+                            _idx = self.node2idx[neighbor]
+                            q.append(self.wavelet_coeff[idx2, _idx])
                     distance += calculate_distance(p, q, metric)
                 self.dist_mat[idx1, idx2] = self.dist_mat[idx2, idx1] = distance
 
@@ -191,6 +193,34 @@ class HSD:
 
         return self.dist_mat
 
+    def calculate_multi_scales_coeff_sum(self, n_scales):
+        self.initialize(multi=True)
+        eigenvalues = self.wavelet.e
+        print("min eigenvalues: {}, max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
+        scales = np.exp(np.linspace(np.log(0.01), np.log(max(eigenvalues)), n_scales))
+        print("start calculate multi scales wavelet.")
+        vectors = defaultdict(list)
+        for _, scale in tqdm(enumerate(scales)):
+            #coeffs = self.wavelet.calculate_wavelet_coeff_chebyshev(scale, order=10)
+            coeffs = self.wavelet.calculate_wavelet_coeff(scale)
+            for idx, node in enumerate(self.nodes):
+                p = [coeffs[idx, idx]]
+                for k_hop in range(1, self.hop):
+                    k_hop_neighbors = self.node_layers[node].get(k_hop, [])
+                    if len(k_hop_neighbors) == 0:
+                        k_hop_sum = 0.0
+                    else:
+                        k_hop_sum = np.sum([coeffs[idx][self.node2idx[neighbor]] if neighbor != '' else 0 for neighbor in k_hop_neighbors])
+                    p.append(k_hop_sum)
+                if math.isclose(1.0 - sum(p), 0.0, abs_tol=1e-6):
+                    p.append(0.0)
+                else:
+                    p.append(1.0 - sum(p))
+                vectors[node].extend(p)
+            del coeffs
+        save_vectors_dict(vectors, path="../coeff/precise_{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales))
+        print("done")
+        return vectors
 
     def parallel_calculate_coeff_sum(self, n_scales) -> dict:
         """
@@ -206,8 +236,8 @@ class HSD:
         pool = multiprocessing.Pool(self.n_workers)
         result = {}
         for idx, scale in enumerate(scales):
-            # res = pool.apply_async(self.wavelet.calculate_wavelet_coeff_chebyshev, args=(scale, 30))
-            res = pool.apply_async(self.wavelet.calculate_wavelet_coeff, args=(scale,))
+            res = pool.apply_async(self.wavelet.calculate_wavelet_coeff_chebyshev, args=(scale, 10))
+            #res = pool.apply_async(self.wavelet.calculate_wavelet_coeff, args=(scale,))
             result[idx] = res
         pool.close()
         pool.join()
@@ -232,10 +262,41 @@ class HSD:
                 else:
                     p.append(1.0 - sum(p))
                 vectors[node].extend(p)
-
+        print("compute multi-scales coeffs done.")
         save_vectors_dict(vectors, path="../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales))
         return vectors
 
+    def single_multi_scales_wavelet(self, metric=None, n_scales=200, reuse=True) -> np.ndarray:
+        # 多尺度分析，并行计算距离
+        path = "../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales)
+        if metric is None:
+            metric = self.metric
+        vectors = None
+        if reuse:
+            vectors = read_vectors(path)
+            print(f"reuse multi-scale wavelt coeff. number of scales {(len(vectors))}.")
+        if vectors is None:
+            print("start calculate multi-scale wavelet coeff.")
+            vectors = self.parallel_calculate_coeff_sum(n_scales)
+
+        dist_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=np.float)
+        for idx1, node1 in tqdm(enumerate(self.nodes)):
+            v1 = vectors[node1]
+            seg = len(v1) // n_scales
+            for idx2 in range(idx1 + 1, self.n_nodes):
+                node2 = self.nodes[idx2]
+                v2 = vectors[node2]
+                d = 0.0
+                for i in range(n_scales):
+                    p = v1[i * seg: (i + 1) * seg]
+                    q = v2[i * seg: (i + 1) * seg]
+                    #wasser_dist = sum([abs(x - y) for x, y in zip(sorted(p), sorted(q))])
+                    #d += wasser_dist
+                    #print(node1,node2, p, q)
+                    d += calculate_distance(p, q, metric)
+                dist_mat[idx1, idx2] = dist_mat[idx2, idx1] = d
+        print("done.")
+        return dist_mat
 
     def parallel_multi_scales_wavelet(self, metric=None, n_scales=200, reuse=True) -> np.ndarray:
         # 多尺度分析，并行计算距离
@@ -247,7 +308,9 @@ class HSD:
         vectors = None
         if reuse:
             vectors = read_vectors(path)
+            print(f"reuse multi-scale wavelt coeff. number of scales {(len(vectors))}.")
         if vectors is None:
+            print("start calculate multi-scale wavelet coeff.")
             vectors = self.parallel_calculate_coeff_sum(n_scales)
 
         pool = multiprocessing.Pool(self.n_workers)

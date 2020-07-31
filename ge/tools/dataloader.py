@@ -31,7 +31,7 @@ def load_data(graph_name, label_name=None, distance=False, directed=False):
     else:
         graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph,
                                  edgetype=float, data=[('weight', float)])
-
+    print("load graph data done.")
     return graph, label_dict, n_class
 
 
@@ -50,8 +50,7 @@ def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="n
         edge_path = "../distance/{}/HSD_{}_scale{}_hop{}.edgelist".format(
                     graph_name, metric, scale, hop)
 
-    label_path = "../data/label/{}_{}.label".format(graph_name, label_name)
-
+    label_path = f"../data/label/{graph_name}.label"
     label_dict, n_class = read_label(label_path)
 
     if directed:

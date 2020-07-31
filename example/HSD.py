@@ -5,6 +5,7 @@ HSD
 """
 
 import logging
+import datetime
 import os
 import sys
 
@@ -16,7 +17,7 @@ from ge.tools.robustness import add_noise
 from ge.tools.visualize import plot_embeddings
 from ge.tools import rw
 from ge.tools import util
-from example.parser import HSDParameterParser, tab_printer
+from example.params_parser import  HSDParameterParser, tab_printer
 from ge.model.HSD import HSD
 from ge.model.LaplacianEigenmaps import LaplacianEigenmaps
 from ge.model.LocallyLinearEmbedding import LocallyLinearEmbedding
@@ -26,35 +27,39 @@ import numpy as np
 import networkx as nx
 import time
 import warnings
-
+from tqdm import tqdm
 warnings.filterwarnings("ignore")
-
 
 # todo
 def get_file_path() -> dict:
     # 根据参数组装各个中间状态的存储路径信息
     return {}
 
-
 def run(hsd, label_dict: dict, n_class: int, params):
+    if params.graph == "bio_dmela":
+        scale = util.recommend_scale(hsd.wavelet.e)
+    else:
+        scale = 1
+    params.scale = scale
+    hsd.scale = scale
     if str.lower(params.multi_scales) == "yes":  # 多尺度
         hsd.initialize(multi=True)
         # 结构距离存储路径
         dist_file_path = "../distance/{}/HSD_multi_{}_hop{}.edgelist".format(
             hsd.graph_name, params.metric, params.hop)
         # tsne得到的2维向量存储路径
-        tsne_vect_path = "../tsne_results/{}/HSD_multi_{}_hop{}_tsne{}.csv".format(
+        tsne_vect_path = "../tsne_vectors/{}/HSD_multi_{}_hop{}_tsne{}.csv".format(
             hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
         # tsne得到的图片存储路径
-        tsne_figure_path = "../figures/{}/HSD_multi_{}_hop{}_tsne{}.png".format(
+        tsne_figure_path = "../tsne_figures/{}/HSD_multi_{}_hop{}_tsne{}.png".format(
             hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
-    else: # 单尺度
+    else:  # 单尺度
         hsd.initialize(multi=False)
         dist_file_path = "../distance/{}/HSD_{}_scale{}_hop{}.edgelist".format(
             hsd.graph_name, params.metric, params.scale, params.hop)
-        tsne_vect_path = "../tsne_results/{}/HSD_{}_scale{}_hop{}_tsne{}.csv".format(
+        tsne_vect_path = "../tsne_vectors/{}/HSD_{}_scale{}_hop{}_tsne{}.csv".format(
             hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
-        tsne_figure_path = "../figures/{}/HSD_{}_scale{}_hop{}_tsne{}.png".format(
+        tsne_figure_path = "../tsne_figures/{}/HSD_{}_scale{}_hop{}_tsne{}.png".format(
             hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
 
     # 直接读取之前已经计算好的距离
@@ -71,19 +76,20 @@ def run(hsd, label_dict: dict, n_class: int, params):
         if str.lower(params.multi_scales) == "no":
             scale = util.recommend_scale(hsd.wavelet.e)
             print("scale: ", scale)
-            hsd.scale = 1.0
+            hsd.scale = scale
             # dist_mat = hsd.parallel_calculate_distance()
             dist_mat = hsd.calculate_structural_distance()
         elif str.lower(params.multi_scales) == "yes":
-            dist_mat = hsd.parallel_multi_scales_wavelet(n_scales=100, reuse=False)
+            dist_mat = hsd.single_multi_scales_wavelet(n_scales=100, reuse=True)
+            #dist_mat = hsd.parallel_multi_scales_wavelet(n_scales=100, reuse=True)
         else:
             raise ValueError("Multi-scales mode should be yes/no.")
 
     # 过滤，只保留重要的边，缩小重建图的规模
-    util.filter_distance_matrix(dist_mat, nodes=hsd.nodes, save_path="", ratio=0.05)
+    util.filter_distance_matrix(dist_mat, nodes=hsd.nodes, save_path=dist_file_path, ratio=0.2)
 
-    labels = [label_dict[node] for node in hsd.nodes]
     result_args = {
+        "date": datetime.datetime.now() - datetime.timedelta(hours=8),
         "multi-scales": params.multi_scales,
         "scale": hsd.scale,
         "hop": hsd.hop,
@@ -91,6 +97,8 @@ def run(hsd, label_dict: dict, n_class: int, params):
         "dim": params.dim,
         "sparse": params.sparse
     }
+
+    labels = [label_dict[node] for node in hsd.nodes]
 
     if hsd.graph_name in ["varied_graph"]:
         h, c, v, s = cluster_evaluate(dist_mat, labels, n_class, metric="precomputed")
@@ -138,26 +146,22 @@ def run(hsd, label_dict: dict, n_class: int, params):
         rw.save_vectors(nodes=hsd.nodes, vectors=embeddings,
                         path="../embeddings/{}_{}_{}.csv".format(method, hsd.graph_name, hsd.metric))
 
-        if hsd.graph_name in ['europe', 'usa']:
+        if hsd.graph_name not in ['barbell', 'mkarate']:
             lr_res = LR_evaluate(embeddings, labels, cv=params.cv, test_size=params.test_size,
-                                  random_state=params.random)
+                                 random_state=params.random)
             lr_res.update(result_args)
             rw.save_results(lr_res, "../results/lr/HSD{}_{}.txt".format(str.upper(method), graph_name))
 
             knn_res = KNN_evaluate(embeddings, labels, cv=params.cv, n_neighbor=params.neighbors,
-                                  random_state=params.random)
+                                   random_state=params.random)
             knn_res.update(result_args)
             rw.save_results(knn_res, "../results/knn/HSD{}_{}.txt".format(str.upper(method), graph_name))
 
         tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=50.0, n_iter=2000,
                         perplexity=params.tsne, random_state=params.random).fit_transform(embeddings)
 
-        rw.save_vectors(hsd.nodes, tsne_res, path="../tsne_results/{}/HSD_{}_{}_tsne{}.csv".format(
-            graph_name, str.upper(method), hsd.metric, params.tsne))
-        plot_embeddings(hsd.nodes, tsne_res, labels, n_class,
-                        save_path="../figures/{}/HSD_{}_{}_tsne{}.png".format(
-                            hsd.graph_name, method, hsd.metric, params.tsne))
-
+        rw.save_vectors(hsd.nodes, tsne_res, path=tsne_vect_path)
+        plot_embeddings(hsd.nodes, tsne_res, labels, n_class, save_path=tsne_figure_path)
 
 def test_graph(sparsed_graph: nx.Graph):
     """
@@ -171,7 +175,6 @@ def test_graph(sparsed_graph: nx.Graph):
 
     average_degree = sum([d for _, d in nx.degree(sparsed_graph)]) / nx.number_of_nodes(sparsed_graph)
     print("Average degree: {}".format(average_degree))
-
 
 def exec(graph, labels, n_class, mode, perp=10):
     """
@@ -206,9 +209,10 @@ def exec(graph, labels, n_class, mode, perp=10):
 
     return res
 
-
 if __name__ == '__main__':
     params = HSDParameterParser()
+
+    params.graph = "bio_dmela"
     tab_printer(params)
 
     graph_name = params.graph
@@ -217,6 +221,7 @@ if __name__ == '__main__':
     elif graph_name in ["varied_graph"]:
         from collections import defaultdict
         from tqdm import tqdm
+
         res = defaultdict(list)
         for _ in tqdm(range(25)):
             graph, label_dict, n_class = load_data(graph_name)
@@ -241,7 +246,23 @@ if __name__ == '__main__':
 
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
                 metric=params.metric, n_workers=params.workers)
+
     start = time.time()
+    #scale = util.recommend_scale(model.wavelet.e)
+    #print(f"scale: {scale}")
+    #params.scale = scale
+    #with open(f"../coeff/{graph_name}/scale{scale}.csv", mode="w+", encoding="utf-8") as fout:
+    #    for node_idx, node in tqdm(enumerate(model.wavelet.nodes)):
+     #       coeff = model.wavelet._calculate_node_coefficients(node_idx, scale)
+     #       fout.write(f"{node}: {','.join(list(map(str, coeff)))}\n")
+     #       fout.flush()
+    #model.calculate_multi_scales_coeff_sum(100)
+    run(model, label_dict, n_class, params)
+    params = HSDParameterParser()
+    graph_name = "bio_grid_human"
+    params.graph = graph_name
+    graph, label_dict, n_class = load_data(graph_name, label_name=None)
+    model = HSD(graph, graph_name, scale=1.0, hop=params.hop,
+                metric=params.metric, n_workers=params.workers)
     run(model, label_dict, n_class, params)
     print("time: ", time.time() - start)
-
