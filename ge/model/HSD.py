@@ -57,10 +57,44 @@ class HSD:
         self.node_layers = read_hierarchical_representation(self.graph_name, layer_cnt=3)
         print("HSD model init done.")
 
+    def initWaveletCoeffByReducedCoeff(self, reduced_coeff: dict):
+        # 需要复用之前已经计算好的小波系数，直接从文件里读取精简后的小波系数
+        # 若在dict里未出现，则说明小波系数的规模数量级太小，默认为0
+        # 为了解耦，IO操作均在本函数外执行
+        if self.wavelet_coeff is not None:
+            print("Original wavelet coefficient matrix already exists, rewrite...")
+        self.wavelet_coeff = np.zeros(shape=(self.n_nodes, self.n_nodes), dtype=np.float)
+        for node, neighbors in reduced_coeff.items():
+            idx = self.node2idx[node]
+            for neighbor, coeff_value in neighbors.items():
+                idx2 = self.node2idx[neighbor]
+                self.wavelet_coeff[idx, idx2] = coeff_value
 
-    def calculate_structural_distance(self, metric=None,):
+    def get_reduced_wavelet_coefficient(self, hop=3, threshold=1e-4) -> dict:
+        # 由于在图中，只有近邻节点上小波系数的数量级才比较可观，绝大部分都是0，所以没必要全都存储。
+        # 只需要根据层级结构，获取近邻之间
+        if not self.node_layers or not self.wavelet_coeff:
+            self.initialize(multi=False)
+        print("Start filter & get reduced wavelet coefficients.")
+        reduced_coeff = defaultdict(dict)
+        for idx, node in enumerate(self.nodes):
+            neighborhoods = self.node_layers[node]
+            for kth_hop in range(hop):
+                kth_hop_neighbors = neighborhoods.get(kth_hop, [])
+                if len(kth_hop_neighbors) == 0:
+                    break
+                for neighbor in kth_hop_neighbors:
+                    idx2 = self.node2idx[neighbor]
+                    coeff_value = self.wavelet_coeff[idx, idx2]
+                    if coeff_value < threshold:
+                        continue
+                    reduced_coeff[node][neighbor] = coeff_value
+        self.reduced_wavelet_coeff = reduced_coeff
+        return reduced_coeff
+
+    def calculate_structural_distance(self, metric=None, ):
         # 单线程 两两计算节点之间的结构距离
-        if not metric: # 优先使用临时指定的metric
+        if not metric:  # 优先使用临时指定的metric
             metric = self.metric
 
         if self.wavelet_coeff is None or self.node_layers is None:
