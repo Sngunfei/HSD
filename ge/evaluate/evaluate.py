@@ -98,8 +98,6 @@ def KNN_evaluate(embeddings, labels, metric="minkowski", cv=5, n_neighbor=10, ra
     res['method'] = 'KNN'
     res['cv'] = cv
     res['n_neighbor'] = n_neighbor
-
-    print()
     return res
 
 

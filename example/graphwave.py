@@ -40,7 +40,7 @@ def run(model, label_dict, n_class, params=None):
         embeddings.append(embedding_vector)
 
     save_vectors_dict(embedding_dict,
-                      path=f"../embeddings/graphwave_{model.graph_name}.csv")
+                      path=f"../embeddings/{model.graph_name}/graphwave_scale{params.scale}.csv")
 
     if model.graph_name in ["varied_graph"]:
         h, c, v, s = cluster_evaluate(embeddings, labels, n_class)

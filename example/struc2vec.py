@@ -52,7 +52,7 @@ def run(model, label_dict, n_class, params):
 
     df = pd.DataFrame(data=embeddings, index=nodes, columns=None, dtype=float)
     # file_name: struc2vec_mkarate_walklength_numwalks.csv
-    df.to_csv("../embeddings/struc2vec_{}_length{}_num{}.csv".format(
+    df.to_csv("../embeddings/{}/struc2vec_length{}_num{}.csv".format(
         model.graph_name, model.walk_length, model.walk_num), header=False, float_format="%.8f")
 
     tsne_res = TSNE(n_components=2, metric="euclidean", learning_rate=5.0, n_iter=2000,
