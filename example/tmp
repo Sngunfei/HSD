@@ -1,0 +1,70 @@
+G:\anaconda\envs\ge\python.exe G:/pyworkspace/graph_embedding/example/HSD.py
++------------------+----------------+
+|    Parameter     |     Value      |
++==================+================+
+| Cv               | 5              |
++------------------+----------------+
+| Dim              | 64             |
++------------------+----------------+
+| Embedding method | LE             |
++------------------+----------------+
+| Graph            | bio_grid_human |
++------------------+----------------+
+| Hop              | 3              |
++------------------+----------------+
+| Metric           | wasserstein    |
++------------------+----------------+
+| Multi scales     | no             |
++------------------+----------------+
+| Neighbors        | 10             |
++------------------+----------------+
+| Random           | 42             |
++------------------+----------------+
+| Reuse            | no             |
++------------------+----------------+
+| Scale            | 1              |
++------------------+----------------+
+| Sparse           | 0.900          |
++------------------+----------------+
+| Test size        | 0.300          |
++------------------+----------------+
+| Tsne             | 30             |
++------------------+----------------+
+| Workers          | 3              |
++------------------+----------------+
+load graph data done.
+initialize GraphWave model done.
+100%|¨€¨€¨€¨€¨€¨€¨€¨€¨€¨€| 9436/9436 [00:27<00:00, 341.75it/s]
+load hierarhy done. number of nodes: 9436
+HSD model init done.
+scale:  0.03135251038562669
+9436it [3:29:32,  1.33s/it]
+------------------------------ KNN evaluate results --------------------------------
+accuracy:  0.7272149215769393
+balanced accuracy:  0.7271980230479732
+micro precision:  0.7272149215769393
+micro recall:  0.7272149215769393
+macro f1:  0.7273048310953812
+micro f1:  0.7272149215769393
+report:
+               precision    recall  f1-score   support
+
+           0  0.8732394 0.8866525 0.8798949      1888
+           1  0.6779314 0.7016428 0.6895833      1887
+           2  0.5680643 0.5241123 0.5452040      1887
+           3  0.6200682 0.6746158 0.6461929      1887
+           4  0.9040632 0.8489666 0.8756491      1887
+
+    accuracy                      0.7272149      9436
+   macro avg  0.7286733 0.7271980 0.7273048      9436
+weighted avg  0.7286886 0.7272149 0.7273210      9436
+
+
+Traceback (most recent call last):
+  File "G:/pyworkspace/graph_embedding/example/HSD.py", line 234, in <module>
+    run(model, label_dict, n_class, params)
+  File "G:/pyworkspace/graph_embedding/example/HSD.py", line 99, in run
+    knn_res.update(result_args)
+NameError: name 'result_args' is not defined
+
+Process finished with exit code 1

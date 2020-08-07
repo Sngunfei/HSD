@@ -43,7 +43,7 @@ def run(hsd, label_dict: dict, n_class: int, params):
     params.scale = scale
     hsd.scale = scale
     if str.lower(params.multi_scales) == "yes":  # 多尺度
-        hsd.initialize(multi=True)
+        #hsd.initialize(multi=True)
         # 结构距离存储路径
         dist_file_path = "../distance/{}/HSD_multi_{}_hop{}.edgelist".format(
             hsd.graph_name, params.metric, params.hop)
@@ -54,7 +54,7 @@ def run(hsd, label_dict: dict, n_class: int, params):
         tsne_figure_path = "../tsne_figures/{}/HSD_multi_{}_hop{}_tsne{}.png".format(
             hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
     else:  # 单尺度
-        hsd.initialize(multi=False)
+        #hsd.initialize(multi=False)
         dist_file_path = "../distance/{}/HSD_{}_scale{}_hop{}.edgelist".format(
             hsd.graph_name, params.metric, params.scale, params.hop)
         tsne_vect_path = "../tsne_vectors/{}/HSD_{}_scale{}_hop{}_tsne{}.csv".format(
@@ -80,8 +80,9 @@ def run(hsd, label_dict: dict, n_class: int, params):
             # dist_mat = hsd.parallel_calculate_distance()
             dist_mat = hsd.calculate_structural_distance()
         elif str.lower(params.multi_scales) == "yes":
-            dist_mat = hsd.single_multi_scales_wavelet(n_scales=100, reuse=True)
-            #dist_mat = hsd.parallel_multi_scales_wavelet(n_scales=100, reuse=True)
+            #hsd.calculate_multi_scales_coeff_sum(n_scales=200)
+            dist_mat = hsd.single_multi_scales_wavelet(n_scales=200, reuse=True)
+            #dist_mat = hsd.parallel_multi_scales_wavelet(n_scales=200, reuse=False)
         else:
             raise ValueError("Multi-scales mode should be yes/no.")
 
@@ -210,44 +211,16 @@ def exec(graph, labels, n_class, mode, perp=10):
     return res
 
 if __name__ == '__main__':
+    start = time.time()
     params = HSDParameterParser()
-
     params.graph = "bio_dmela"
     tab_printer(params)
-
     graph_name = params.graph
-    if graph_name in ["europe", "usa"]:
-        graph, label_dict, n_class = load_data(graph_name, label_name="SIR")
-    elif graph_name in ["varied_graph"]:
-        from collections import defaultdict
-        from tqdm import tqdm
-
-        res = defaultdict(list)
-        for _ in tqdm(range(25)):
-            graph, label_dict, n_class = load_data(graph_name)
-            print(nx.number_of_edges(graph))
-            graph = add_noise(graph, ratio=0.1)
-            print(nx.number_of_edges(graph))
-            model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
-                        metric=params.metric, n_workers=params.workers)
-            h, c, v, s, acc, macro, micro = run(model, label_dict, n_class, params)
-            res["h"].append(h)
-            res["c"].append(c)
-            res["v"].append(v)
-            res["s"].append(s)
-            res["acc"].append(acc)
-            res["macro"].append(macro)
-            res["micro"].append(micro)
-        for k, v in res.items():
-            print(k, v, np.mean(v), "\n")
-        assert False
-    else:
-        graph, label_dict, n_class = load_data(graph_name, label_name=None)
-
+    graph, label_dict, n_class = load_data(graph_name, label_name=None)
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop,
                 metric=params.metric, n_workers=params.workers)
-
-    start = time.time()
+    #model.calculate_multi_scales_coeff_sum(n_scales=200)
+    run(model, label_dict, n_class, params)
     #scale = util.recommend_scale(model.wavelet.e)
     #print(f"scale: {scale}")
     #params.scale = scale
@@ -257,12 +230,13 @@ if __name__ == '__main__':
      #       fout.write(f"{node}: {','.join(list(map(str, coeff)))}\n")
      #       fout.flush()
     #model.calculate_multi_scales_coeff_sum(100)
-    run(model, label_dict, n_class, params)
+    #run(model, label_dict, n_class, params)
     params = HSDParameterParser()
     graph_name = "bio_grid_human"
     params.graph = graph_name
     graph, label_dict, n_class = load_data(graph_name, label_name=None)
     model = HSD(graph, graph_name, scale=1.0, hop=params.hop,
                 metric=params.metric, n_workers=params.workers)
+    model.calculate_multi_scales_coeff_sum(n_scales=200)
     run(model, label_dict, n_class, params)
     print("time: ", time.time() - start)

@@ -76,17 +76,17 @@ class RecursiveExtractor:
     def single_recursion(self, i):
         features_from_previous_round = self.features[i].shape[1]
         new_features = np.zeros((len(self.nodes), features_from_previous_round*self.multiplier))
-        print("features_from_previous_round", features_from_previous_round)
+        #print("features_from_previous_round", features_from_previous_round)
         for idx, node in enumerate(self.nodes):
             selected_nodes = self.sub_graph_container[idx]
             indices = [self.node2idx[t] for t in selected_nodes]
             main_features = self.features[i][indices,:]
-            print(len(self.features[i]), self.features[i])
-            print("features key, ", self.features.keys())
-            print("main features, ", i, node, indices, selected_nodes, len(main_features))
+            #print(len(self.features[i]), self.features[i])
+            #print("features key, ", self.features.keys())
+            #print("main features, ", i, node, indices, selected_nodes, len(main_features))
             new_features[idx,:] = reduce(lambda x, y: x + y,
                                 [self.aggregator(main_features[:, j]) for j in range(0, features_from_previous_round)])
-        print("new features, ", i, new_features)
+        #print("new features, ", i, new_features)
         return new_features
 
 

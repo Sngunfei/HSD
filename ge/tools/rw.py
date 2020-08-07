@@ -9,13 +9,14 @@ import numpy as np
 import pandas as pd
 from configparser import ConfigParser
 
-config = ConfigParser()
-config.read('../../ge.conf', encoding="utf-8")
-Root_Path = config['project']['root_path']
-
 
 def get_file_paths(params) -> dict:
     # 统一管理文件存储路径，格式化
+
+    config = ConfigParser()
+    config.read('../../ge.conf', encoding="utf-8")
+    Root_Path = config['project']['root_path']
+
     path_list = ['embeddings', 'distance', 'tsne_vectors', 'tsne_figures', 'wavelet_coeff',
                  'graph', 'label', 'hierarchy', 'results']
     paths = {}

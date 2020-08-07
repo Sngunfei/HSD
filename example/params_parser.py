@@ -49,7 +49,7 @@ def HSDParameterParser():
     parser.add_argument("--scale", type=float, default=1.0,
                         help='Heat-coefficent, i.e, the scale, default is 2.')
 
-    parser.add_argument("--metric", type=str, default="wasserstein",
+    parser.add_argument("--metric", type=str, default="hellinger",
                         help='Distance metric: wasserstein, hellinger, default is wasserstein.')
 
     parser.add_argument("--hop", type=int, default=3,
@@ -73,7 +73,7 @@ def HSDParameterParser():
     parser.add_argument('--workers', type=int, default=3,
                         help="Number of process workers.")
 
-    parser.add_argument('--multi_scales', type=str, default='no',
+    parser.add_argument('--multi_scales', type=str, default='yes',
                         help="Employ multi scales analysis, default is No.")
 
     parser.add_argument('--embedding_method', type=str, default='LLE',
@@ -179,7 +179,7 @@ def RolxParameterParser():
 
     parser = argparse.ArgumentParser(description="Run RolX.")
 
-    parser.add_argument("--graph", type=str, default="bio_dmela",
+    parser.add_argument("--graph", type=str, default="bio_grid_human",
                         help="Network graph name: barbell, mkarate, europe, usa")
 
     parser.add_argument("--recursive-features-output",
@@ -201,7 +201,7 @@ def RolxParameterParser():
     # Recursive feature extraction parameters.
     # -----------------------------------------------------------------------
 
-    parser.add_argument("--recursive-iterations", type=int, default=5,
+    parser.add_argument("--recursive-iterations", type=int, default=10,
                         help="Number of recursions.")
 
     parser.add_argument("--aggregator", nargs="?", default="simple",
@@ -223,7 +223,7 @@ def RolxParameterParser():
     parser.add_argument("--batch-size", type=int, default=32,
                         help="Number of edges in batch. Default is 128.")
 
-    parser.add_argument("--epochs", type=int, default=20,
+    parser.add_argument("--epochs", type=int, default=30,
                         help="Number of epochs. Default is 50.")
 
     parser.add_argument("--initial-learning-rate", type=float, default=0.01,

@@ -227,7 +227,7 @@ class HSD:
 
         return self.dist_mat
 
-    def calculate_multi_scales_coeff_sum(self, n_scales):
+    def calculate_multi_scales_coeff_sum(self, n_scales: int):
         self.initialize(multi=True)
         eigenvalues = self.wavelet.e
         print("min eigenvalues: {}, max eigenvalues: {}".format(min(eigenvalues), max(eigenvalues)))
@@ -235,8 +235,8 @@ class HSD:
         print("start calculate multi scales wavelet.")
         vectors = defaultdict(list)
         for _, scale in tqdm(enumerate(scales)):
-            #coeffs = self.wavelet.calculate_wavelet_coeff_chebyshev(scale, order=10)
-            coeffs = self.wavelet.calculate_wavelet_coeff(scale)
+            coeffs = self.wavelet.calculate_wavelet_coeff_chebyshev(scale, order=20)
+            #coeffs = self.wavelet.calculate_wavelet_coeff(scale)
             for idx, node in enumerate(self.nodes):
                 p = [coeffs[idx, idx]]
                 for k_hop in range(1, self.hop):
@@ -252,8 +252,8 @@ class HSD:
                     p.append(1.0 - sum(p))
                 vectors[node].extend(p)
             del coeffs
-        save_vectors_dict(vectors, path="../coeff/precise_{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales))
-        print("done")
+        save_vectors_dict(vectors, path="../coeff/{}_hop{}_scales{}.csv".format(self.graph_name, self.hop, n_scales))
+        print("done.")
         return vectors
 
     def parallel_calculate_coeff_sum(self, n_scales) -> dict:
@@ -311,6 +311,7 @@ class HSD:
             print(f"reuse multi-scale wavelt coeff. number of scales {(len(vectors))}.")
         if vectors is None:
             print("start calculate multi-scale wavelet coeff.")
+            #vectors = self.calculate_multi_scales_coeff_sum()
             vectors = self.parallel_calculate_coeff_sum(n_scales)
 
         dist_mat = np.zeros((self.n_nodes, self.n_nodes), dtype=np.float)

@@ -102,19 +102,19 @@ if __name__ == '__main__':
     start = time.time()
 
     params = Node2vecParameterParser()
-    params.graph = "bio_dmela"
-    tab_printer(params)
-    graph_name = params.graph
-    graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
-    graph = add_inverse_edges(graph)  # node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
-    model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,
-                     p=params.p, q=params.q, workers=params.workers, iter=params.iter)
-    run(model, label_dict, n_class, params)
+   #params.graph = "bio_dmela"
+    #tab_printer(params)
+    #graph_name = params.graph
+    #graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
+    #graph = add_inverse_edges(graph)  # node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
+    #model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,
+    #                 p=params.p, q=params.q, workers=params.workers, iter=params.iter)
+    #run(model, label_dict, n_class, params)
 
     params.graph = "bio_grid_human"
     tab_printer(params)
     graph_name = params.graph
-    graph, label_dict, n_class = load_data(graph_name, label_name=None, directed=True)
+    graph, label_dict, n_class = load_data(graph_name, directed=True)
     graph = add_inverse_edges(graph)  # node2vec 计算转移概率时和出边有关，先加载有向图，然后再添加反向边。
     model = Node2Vec(graph, graph_name, dim=params.dim, walk_length=params.walk_length, walk_num=params.walk_num,
                      p=params.p, q=params.q, workers=params.workers, iter=params.iter)
