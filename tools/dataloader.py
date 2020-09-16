@@ -1,13 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 """
-加载数据
+load graph data
 """
 
 import networkx as nx
 
 
-def load_data(graph_name, label_name=None, distance=False, directed=False) -> (nx.Graph, dict, int):
+def load_data(graphName, labelName=None, distance=False, directed=False) -> (nx.Graph, dict, int):
     """
     Loda graph data by dataset name.
     :param graph_name: graph name, e.g. mkarate
