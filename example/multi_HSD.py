@@ -26,26 +26,25 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def run(hsd, label_dict: dict, n_class: int, params):
+def run(model, labels: dict, n_class: int):
     if params.graph == "bio_dmela":
         scale = util.recommend_scale(hsd.wavelet.e)
     else:
         scale = 1
     params.scale = scale
-    hsd.scale = scale
-
-    #hsd.initialize(multi=False)
-    dist_file_path = "../distance/{}/{}_scale{}_hop{}.edgelist".format(
-        hsd.graph_name, params.metric, params.scale, params.hop)
-    tsne_vect_path = "../tsne_vectors/{}/{}_scale{}_hop{}_tsne{}.csv".format(
-        hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
-    tsne_figure_path = "../tsne_figures/{}/{}_scale{}_hop{}_tsne{}.png".format(
-        hsd.graph_name, hsd.metric, hsd.scale, hsd.hop, params.tsne)
+    model.scale = scale
+    #hsd.initialize(multi=True)
+    # 结构距离存储路径
+    distance_path = "../distance/{}/multi_{}_hop{}.edgelist".format(hsd.graph_name, params.metric, params.hop)
+    # tsne得到的2维向量存储路径
+    tsne_vector_path = "../tsne_vectors/{}/multi_{}_hop{}_tsne{}.csv".format(hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
+    # tsne得到的图片存储路径
+    tsne_figure_path = "../tsne_figures/{}/multi_{}_hop{}_tsne{}.png".format(hsd.graph_name, hsd.metric, hsd.hop, params.tsne)
 
     # 直接读取之前已经计算好的距离
-    if params.reuse == "yes" and os.path.exists(path=dist_file_path):
-        dist_info = rw.read_distance(dist_file_path, hsd.n_nodes)
-        dist_mat = np.zeros((hsd.n_nodes, hsd.n_nodes), dtype=np.float)
+    if params.reuse == "yes" and os.path.exists(path=distance_path):
+        dist_info = rw.read_distance(distance_path, model.n_nodes)
+        dist_mat = np.zeros((model.n_nodes, model.n_nodes), dtype=np.float)
         for idx, node in enumerate(hsd.nodes):
             node = int(node)
             for idx2 in range(idx + 1, hsd.n_nodes):
@@ -82,8 +81,7 @@ def run(hsd, label_dict: dict, n_class: int, params):
     labels = [label_dict[node] for node in hsd.nodes]
 
     if hsd.graph_name not in ["mkarate", "barbell"]:
-        knn_res = KNN_evaluate(dist_mat, labels, metric="precomputed", cv=params.cv,
-                               n_neighbor=params.neighbors)
+        knn_res = KNN_evaluate(dist_mat, labels, metric="precomputed", cv=params.cv, n_neighbor=params.neighbors)
         knn_res.update(result_args)
         rw.save_results(knn_res, "../output/knn/HSD_{}.txt".format(hsd.graph_name))
 
@@ -102,6 +100,5 @@ if __name__ == '__main__':
     graph_name = params.graph
     graph, label_dict, n_class = load_data(graph_name, label_name=None)
     model = HSD(graph, graph_name, scale=params.scale, hop=params.hop, metric=params.metric, n_workers=params.workers)
-
-    run(model, label_dict, n_class, params)
-    print("cost time: ", time.time() - start)
+    run(model, label_dict, n_class)
+    print("time: ", time.time() - start)
