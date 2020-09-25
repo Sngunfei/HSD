@@ -7,23 +7,20 @@ load graph data
 import networkx as nx
 
 
-def load_data(graphName, labelName=None, distance=False, directed=False) -> (nx.Graph, dict, int):
+def load_data(graphName, directed=False) -> (nx.Graph, dict):
     """
     Loda graph data by dataset name.
-    :param graph_name: graph name, e.g. mkarate
-    :param label_name: label name, e.g. mkarate_origin
-    :param distance:
+    :param graphName: graph name, e.g. mkarate
     :param directed: bool, if True, return directed graph.
     :return: graph, node labels, number of node classes.
     """
 
-    edge_path = "../data/graph/{}.edgelist".format(graph_name)
-    label_path = "../data/label/{}.label".format(graph_name)
-    label_dict, n_class = read_label(label_path)
+    edge_path = "../data/graph/{}.edgelist".format(graphName)
+    label_path = "../data/label/{}.label".format(graphName)
+    label_dict = read_label(label_path)
     graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph if directed else nx.Graph,
                              edgetype=float, data=[('weight', float)])
-    print("load graph data done.")
-    return graph, label_dict, n_class
+    return graph, label_dict
 
 
 def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="no", directed=False):
@@ -54,24 +51,23 @@ def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="n
     return graph, label_dict, n_class
 
 
-def read_label(path) -> (dict, int):
+def read_label(path) -> dict:
     """
     read graph node labels.
     :param path: label file path.
     :return: return dict-type, {node:label}, number of class.
     """
     try:
-        n_label = set()
         with open(path, mode="r", encoding="utf-8") as fin:
             label_dict = dict()
             while True:
-                line = fin.readline()
+                line = fin.readline().strip()
                 if not line:
                     break
-                node, label = line.strip().split(" ")
+                node, label = line.split(" ")
+                # node本身标号用str表示，为了和矩阵中的idx区分开来，防止混淆。
                 label_dict[node] = int(label)
-                n_label.add(label)
-        return label_dict, len(n_label)
+        return label_dict
     except FileNotFoundError:
         print("Warning: Label file: {} not found.".format(path))
-        return None, 0
+        return {}

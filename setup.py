@@ -1,13 +1,14 @@
 from setuptools import setup
 
 setup(
-    name='GraphEmbedding',
+    name='HSD',
     version='0.1',
-    description='Techniques for Structurally Graph Embedding.',
+    description='Implementation of Hierarchical Structral Distance',
     author='Song Yunfei',
     author_email='syfnico@foxmail.com',
-    packages=['ge'],
-    install_requires=['torch', 'numpy', 'gensim', 'networkx', 'tqdm', 'joblib', 'matplotlib', 'scikit-learn',
-                      'scipy', 'tensorflow', 'keras', 'pandas', 'fastdtw', 'pyecharts', 'pygsp', 'texttable'
+    packages=['model'],
+    url="https://github.com/Sngunfei/HSD",
+    install_requires=['torch', 'numpy', 'networkx', 'tqdm', 'joblib', 'matplotlib', 'scikit-learn',
+                      'scipy', 'pandas', 'pyecharts', 'pygsp', 'texttable'
                       ]
 )

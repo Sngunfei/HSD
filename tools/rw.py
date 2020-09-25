@@ -10,56 +10,6 @@ import pandas as pd
 from configparser import ConfigParser
 
 
-def get_file_paths(params) -> dict:
-    # 统一管理文件存储路径，格式化
-
-    config = ConfigParser()
-    config.read('../../ge.conf', encoding="utf-8")
-    Root_Path = config['project']['root_path']
-
-    path_list = ['embeddings', 'distance', 'tsne_vectors', 'tsne_figures', 'wavelet_coeff',
-                 'graph', 'label', 'hierarchy', 'output']
-    paths = {}
-
-    # 图数据
-    paths['graph'] = f"data\\graph\\{params.graph}.edgelist"
-    paths['label'] = f"data\\label\\{params.graph}.label"
-    paths['hierarchy'] = f"data\\hierarchy\\{params.graph}.hie"
-
-    # 各算法参数通过路径表示
-    feature_path = ""
-    if params.prog == "HSD":
-        if params.multi == "no":
-            feature_path = f"HSD_{params.metric}_scale{params.scale}_hop{params.hop}"
-        elif params.multi == "yes":
-            feature_path = f"HSD_multi_{params.metric}_hop{params.hop}"
-    elif params.prog == "struc2vec":
-        feature_path = f"struc2vec_length{params.walk_length}_num{params.walk_num}"
-    elif params.prog == "node2vec":
-        feature_path = f"node2vec_length{params.walk_length}_num{params.walk_num}"
-    elif params.prog == "graphwave":
-        feature_path = f"graphwave_scale{params.scale}"
-    elif params.prog == "rolx":
-        pass
-
-    if feature_path == "":
-        raise ValueError("无效参数")
-
-    # 嵌入结果
-    paths['embeddings'] = f"embeddings\\{params.graph}\\{feature_path}.csv"
-
-    tsne_path = f"{feature_path}_tsne{params.tsne}"
-    # 可视化
-    paths['tsne_figures'] = f"tsne_figures\\{params.graph}\\{tsne_path}.png"
-    paths['tsne_vectors'] = f"tsne_vectors\\{params.graph}\\{tsne_path}.csv"
-
-    # 分类结果
-    paths['results_knn'] = f"output\\knn\\{params.prog}_{params.graph}.txt"
-    paths['results_lr'] = f"output\\lr\\{params.prog}_{params.graph}.txt"
-
-    return paths
-
-
 def save_vectors(nodes: list, vectors: list, path: str):
     """
     save vectors into csv file.

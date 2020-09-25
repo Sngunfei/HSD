@@ -4,6 +4,7 @@ import math
 import networkx as nx
 import numpy as np
 from tools import rw
+from scipy import sparse
 
 
 def build_node_idx_map(graph) -> (dict, dict):
@@ -108,25 +109,21 @@ def recommend_scale(eignvalues: list) -> float:
     return scale
 
 
+# normalized laplacian
+def normalize_laplacian(adj):
+    n, _ = adj.shape
+    posinv = np.vectorize(lambda x: float(1.0) / np.sqrt(x) if x > 1e-10 else 0.0)
+    diag = sparse.diags(np.array(posinv(adj.sum(0))).reshape([-1, ]), 0)
+    lap = sparse.eye(n) - diag.dot(adj.dot(diag))
+    return lap
+
+
+# calculate the scale range discussed in GraphWave
 def scale_boundary(e1, eN, eta=0.85, gamma=0.95):
-    """
-    根据graphwave给出的方法计算推荐的小波尺度。
-    """
     t = np.sqrt(e1 * eN)
     sMax = - np.log(eta) / t
     sMin = - np.log(gamma) / t
     return sMin, sMax
-
-
-def classify_nodes_by_degree(graph):
-    nodes_degree = {}
-    for node, degree in nx.degree(graph):
-        nodes_degree[node] = degree
-    res = sorted(nodes_degree.items(), key=lambda x:x[1])
-    fout = open("../../data/usa_degree.label", mode="w+", encoding="utf-8")
-    for node, degree in res:
-        fout.write("{} {}\n".format(node, degree))
-    fout.close()
 
 
 def compare_labels_difference():

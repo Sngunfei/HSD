@@ -3,45 +3,44 @@
 from functools import cmp_to_key
 
 def reindex(filePath):
-    edges = []
-    sets = set()
+    edges = set()
     with open(filePath, mode="r", encoding="utf-8") as fin:
         while True:
             line = fin.readline()
             if not line:
                 break
-            line = line.strip().split(" ")
-            node1, node2 = int(line[0]), int(line[1])
-            node1, node2 = min(node1, node2), max(node1, node2)
-            if f"{node1}#{node2}" in sets:
-                continue
-            edges.append([node1, node2])
-            sets.add(f"{node1}#{node2}")
+            node1, node2 = map(int, line.strip().split(" "))
+            edge = (min(node1, node2), max(node1, node2))
+            edges.add(edge)
+
+    edges = list(edges)
     print(f"number of edges:{len(edges)}")
 
     def cmp(edge1, edge2):
         if edge1[0] == edge2[0]:
             return edge1[1] - edge2[1]
         return edge1[0] - edge2[0]
-
     edges = sorted(edges, key=cmp_to_key(cmp))
-    if edges[0][0] == 0:
-        for idx, edge in enumerate(edges):
-            edges[idx] = "{},{}\n".format(edge[0], edge[1])
-    elif edges[0][0] == 1: # 以1为起点，统一归成0
-        for idx, edge in enumerate(edges):
-            edges[idx] = "{},{}\n".format(edge[0]-1, edge[1]-1)
-    else:
-        print(edges[0])
-        raise ValueError
+
+    node_idx = 0
+    node2idx = {}
+    for edge in edges:
+        node1, node2 = edge[0], edge[1]
+        if node1 not in node2idx:
+            node2idx[node1] = node_idx
+            node_idx += 1
+        if node2 not in node2idx:
+            node2idx[node2] = node_idx
+            node_idx += 1
 
     with open(filePath.replace("edgelist", "csv"), mode="w+", encoding="utf-8") as fout:
         fout.write("node1,node2\n")
-        fout.writelines(edges)
+        for edge in edges:
+            fout.write("{} {}\n".format(node2idx[edge[0]], node2idx[edge[1]]))
 
     print("done.")
 
 if __name__ == '__main__':
-    files = ["../data/graph/bio_dmela.edgelist"]
+    files = ["../data/graph/bio_grid_human.edgelist"]
     for filePath in files:
         reindex(filePath)

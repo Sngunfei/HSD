@@ -7,124 +7,118 @@ PRD：对图的层级划分不应该内嵌到具体的模型中，而是抽象�
 
 import copy
 import os
-
 import networkx as nx
 from tqdm import tqdm
 
-Path_Format = "../data/hierarchy/{}.hie"
 
-def get_hierarchical_representation(graph: nx.DiGraph, layer_cnt=5):
-    """
-    无向图是特殊的有向图，如果要对无向图进行构建，只需要传参的时候DiGraph(g)即可
-    :param graph:
-    :param layer_cnt: 分为几个层级，节点本身也算一层
-    :return:
-    """
-    nodes = nx.nodes(graph)
+PathTemplate = "data/hierarchy/{}.hie"
+MaxHop = 5
+
+
+def get_hierarchical_representation(graph: nx.Graph, maxHop):
     hierarchy = {}
-    for node in tqdm(nodes):
-        rings = [[node]]
-        queue = [node]  # 利用队列进行层级遍历
-        visited = []  # 记录已经查过的，按最短路径划分层次
-        for layer in range(layer_cnt):
-            capacity = len(queue)
-            if capacity == 0:
-                break
-            for _ in range(capacity):
-                neighbor = queue.pop(0)
-                if neighbor in visited:
-                    continue
-                visited.append(neighbor)
-                for next_layer_neighbor in nx.neighbors(graph, neighbor):
-                    if next_layer_neighbor in visited:
-                        continue
-                    queue.append(next_layer_neighbor)
-            rings.append(copy.deepcopy(queue))
-        hierarchy[node] = rings
+    for node in nx.nodes(graph):
+        hierarchy[node] = get_node_hierarchical_structure(graph, node, maxHop)
     return hierarchy
 
-def get_node_hierarchical_structure(graph: nx.DiGraph, node, layer_cnt=5):
+
+def get_node_hierarchical_structure(graph: nx.Graph, node: str, hop: int):
     """
-    构建node在graph中层级结构表示
-    :param graph:
-    :param node:
-    :param layer_cnt:
-    :return:
+    explore hierarchical neighborhoods of node
     """
-    rings = [[node]]
-    queue = [node]  # 利用队列进行层级遍历
-    visited = set()  # 记录已经查过的，按最短路径划分层次
-    visited.add(node)
-    for _ in range(layer_cnt):
-        capacity = len(queue)
-        if capacity == 0:
+    layers = [[node]]
+    curLayer = {node}
+    visited = {node}
+    for _ in range(hop):
+        if len(curLayer) == 0:
             break
-        for _ in range(capacity):
-            neighbor = queue.pop(0)
-            for next_layer_neighbor in nx.neighbors(graph, neighbor):
-                if next_layer_neighbor in visited:
-                    continue
-                queue.append(next_layer_neighbor)
-                visited.add(next_layer_neighbor)
-        rings.append(copy.deepcopy(queue))
-    return rings
+        nextLayer = set()
+        for neighbor in curLayer:
+            for next_hop_neighbor in nx.neighbors(graph, neighbor):
+                if next_hop_neighbor not in visited:
+                    nextLayer.add(next_hop_neighbor)
+                    visited.add(next_hop_neighbor)
+        curLayer = nextLayer
+        layers.append(list(nextLayer))
+    return layers
 
 
-def save_hierarchical_representation(graph_name: str, graph):
+def save_hierarchical_representation(graphName: str, graph: nx.Graph):
     """
-    将层级结构存到文件里，以备后续重复使用，因为高层级包含低层级，所以直接存高层级的
-    layer_cnt = 10
-    :param graph_name:
-    :param graph:
-    :return:
+    explore & save hierarchy of graph
+    hierarchy file format:
+
+    node#neighbor,...,neighbor#neighbor,...,neighbor#
+    .
+    .
+    .
+
+    where `#` denote increasing hop
     """
-    nodes = nx.nodes(graph)
-    layer_cnt = 5
-    file_path = Path_Format.format(graph_name)
+    file_path = PathTemplate.format(graphName)
     with open(file_path, encoding="utf-8", mode="w+") as fout:
-        # 每个节点占一行，行首node为自己，同时也为第一层
-        # 然后每一层之间的节点，由#分隔，层内节点由逗号分隔
+        nodes = nx.nodes(graph)
         for node in tqdm(nodes):
             record = ""
-            rings = get_node_hierarchical_structure(graph, node, layer_cnt)
-            for layer_nodes in rings:
-                if len(layer_nodes) == 0:
+            layers = get_node_hierarchical_structure(graph, node, MaxHop)
+            for level in layers:
+                if len(level) == 0:
                     break
-                for idx, neighbor in enumerate(layer_nodes):
-                    if idx == len(layer_nodes) - 1:
+                for idx, neighbor in enumerate(level):
+                    if idx == len(level) - 1:
                         record += str(neighbor) + '#'
                     else:
                         record += str(neighbor) + ','
-            print(f"{node}: {record}")
             fout.write(record + '\n')
             fout.flush()
-    print("Save hierarchical representation done!\n")
+
+    print(f"save {graphName} hierarchical representation done\n")
 
 
-def read_hierarchical_representation(graph_name: str, layer_cnt=5) -> dict:
-    path = Path_Format.format(graph_name)
-    hierarchy = {}
+def read_hierarchical_representation(graphName: str, maxHop=3) -> dict:
+    path = PathTemplate.format(graphName)
     if not os.path.exists(path):
-        return hierarchy
+        raise FileNotFoundError(f"graph:{graphName}, hierarchy file not exist")
+
+    hierarchy = {}
     with open(path, mode="r", encoding="utf-8") as fin:
         while True:
             line = fin.readline().strip()
             if not line:
                 break
-            rings = {}
-            for idx, ring in enumerate(line.split("#")):
-                if idx >= layer_cnt:
+            layers = []
+            for idx, level in enumerate(line.split("#")):
+                if idx >= maxHop:
                     break
-                neighbors = ring.split(",")
-                rings[idx] = neighbors
-            hierarchy[rings[0][0]] = rings
-    print(f"load hierarhy done. number of nodes: {len(hierarchy)}")
+                neighbors = level.strip().split(",")
+                layers.append(neighbors)
+
+            hierarchy[layers[0][0]] = layers
+
+    print(f"load {graphName} hierarchy done. number of nodes: {len(hierarchy)}")
     return hierarchy
 
+
 if __name__ == '__main__':
-    graphs = ["bio_dmela"]#, "bio_grid_human"]
-    for graph_name in graphs:
-        # res = read_hierarchical_representation(graph_name, layer_cnt=5)
-        graph = nx.read_edgelist(path=f"../../data/graph/{graph_name}.edgelist", create_using=nx.Graph,
+    graphs = ["bio_dmela_new", "bio_grid_human_new"]
+    for graphName in graphs:
+        graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
                                  edgetype=float, data=[('weight', float)])
-        save_hierarchical_representation(graph_name, graph)
+        #save_hierarchical_representation(graphName, graph)
+        hierarchy = read_hierarchical_representation(graphName, 5)
+        node = "0"
+        layers = hierarchy[node]
+        print([f"layer_{i}, neigbors:{len(level)}" for i, level in enumerate(layers)])
+
+        queue = [node]
+        visited = {node}
+        for idx in range(5):
+            cap = len(queue)
+            for _ in range(cap):
+                cur = queue.pop(0)
+                neighbors = nx.neighbors(graph, cur)
+                for neigh in neighbors:
+                    if neigh not in visited:
+                        visited.add(neigh)
+                        queue.append(neigh)
+            print(f"layer_{idx+1}, neigbors:{len(queue)}")

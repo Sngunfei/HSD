@@ -14,7 +14,7 @@ import math
 
 
 class SIR:
-    def __init__(self, graph, p=1.0, r=None, t=25, random_state=42):
+    def __init__(self, graph, p=1.0, t=25, random_state=42):
         """
         :param g:
         :param p: infect probability
@@ -24,11 +24,6 @@ class SIR:
 
         self.G = graph
         self.p = p
-        if r is None:
-            self.r = 1.0 / self._calculate_average_degree()
-        else:
-            self.r = r
-
         self.t = t
         self.random_state = random_state
         self.idx2node, self.node2idx = build_node_idx_map(graph)
@@ -59,23 +54,20 @@ class SIR:
         :param origin: original infected node
         :return:
         """
-        infected = set() # infected set
-        infected.add((origin, 1.0))
-        recoverd = set() # recovered set
+        cur_infected = [origin]
+        all_infected = {origin}
+        influence = 0.0
+        for iteration in range(self.t):
+            if len(cur_infected) == 0:
+                break
+            for _ in range(len(cur_infected)):
+                cur = cur_infected.pop(0)
+                influence += math.e ** (-0.5 * iteration)
 
-        for iteration in range(1, self.t):
-            current_infectd = copy.deepcopy(infected)
-            for _node, _weight in current_infectd:
-                for neighbor in nx.neighbors(self.G, _node):
-                    if (neighbor not in recoverd) and (neighbor not in infected) and random.random() <= self.p:
-                        infected.add((neighbor, math.e ** (-0.5 * iteration))) # decay 重要性随着范围的扩大而降低
-
-                if random.random() <= self.r:
-                    recoverd.add((_node, _weight))
-                    infected.remove((_node, _weight))
-
-        # structural influence
-        influence = sum([weight for _, weight in infected]) + sum([weight for _, weight in recoverd])
+                for neighbor in nx.neighbors(self.G, cur):
+                    if neighbor not in all_infected:
+                        cur_infected.append(neighbor) # decay 重要性随着范围的扩大而降低
+                        all_infected.add(neighbor)
         return influence
 
 
@@ -98,14 +90,14 @@ class SIR:
         return labels
 
 
-def split_nodes(graphName, graph, n_class, infect_prob, recover_prob=None, t=5, save_path=None):
+def split_nodes(graphName, graph, n_class, infect_prob, t=5, save_path=None):
     import time
     startTime = time.time()
     #print("Graph radius: {}".format(nx.radius(graph)))
     #print("Graph diameter: {}".format(nx.diameter(graph)))
     #print(f"number of components: {nx.number_connected_components(graph)}")
 
-    model = SIR(graph, p=infect_prob, r=recover_prob, t=t)
+    model = SIR(graph, p=infect_prob, t=t)
     model.start()
     labels = model.label_nodes(n_class)
 
@@ -135,13 +127,13 @@ def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p, recover_p) -> dict:
 
 if __name__ == '__main__':
     #name = "mkarate"
-    graphName = "bio_dmela_new"
+    #graphName = "bio_dmela_new"
     #graphName = "house"
-    #graphName = "bio_grid_human"
-    save_path = f"../data/{graphName}.label"
+    graphName = "bio_grid_human_new"
+    save_path = f"../data/label/{graphName}.label"
     graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
                             edgetype=float, data=[('weight', float)])
-    split_nodes(graphName, graph, n_class=5, infect_prob=1.0, recover_prob=0.0, t=10, save_path=save_path)
+    split_nodes(graphName, graph, n_class=5, infect_prob=1.0, t=10, save_path=save_path)
     #ExecWithTimer(split_nodes, name=name, graph=graph, n_class=5,
     #              infect_prob=1.0, recover_prob=0.2, t=5, save_path=save_path)
 
