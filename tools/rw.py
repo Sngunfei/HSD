@@ -31,14 +31,14 @@ def save_vectors_dict(vectors: dict, path: str):
     save_vectors(ns, vs, path)
 
 
-def read_vectors(path: str):
+def read_vectors(path: str) -> dict:
     """
     read embedding vectors from csv file.
     :param path:
     :return:
     """
     if not os.path.exists(path):
-        return None
+        raise FileNotFoundError
     df = pd.read_csv(path, header=None)
     row, col = df.shape
     embedding_dict = {}

@@ -46,6 +46,8 @@ class MultiHSD(HSD):
         node_idx = self.node2idx[node]
         for hop, level in enumerate(neighborhoods):
             for neighbor in level:
+                if neighbor == '':
+                    continue
                 layers_sum[hop] += wavelets[node_idx, self.node2idx[neighbor]]
         return layers_sum
 

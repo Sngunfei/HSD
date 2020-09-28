@@ -33,14 +33,14 @@ def reindex(filePath):
             node2idx[node2] = node_idx
             node_idx += 1
 
-    with open(filePath.replace("edgelist", "csv"), mode="w+", encoding="utf-8") as fout:
-        fout.write("node1,node2\n")
+    with open(filePath.replace(".edgelist", "_reindex.edgelist"), mode="w+", encoding="utf-8") as fout:
+        #fout.write("node1,node2\n")
         for edge in edges:
             fout.write("{} {}\n".format(node2idx[edge[0]], node2idx[edge[1]]))
 
     print("done.")
 
 if __name__ == '__main__':
-    files = ["../data/graph/bio_grid_human.edgelist"]
+    files = ["../data/graph/europe.edgelist", "../data/graph/usa.edgelist"]
     for filePath in files:
         reindex(filePath)

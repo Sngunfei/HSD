@@ -14,11 +14,9 @@ import math
 
 
 class SIR:
-    def __init__(self, graph, p=1.0, t=25, random_state=42):
+    def __init__(self, graph: nx.Graph, p=1.0, t=25, random_state=42):
         """
-        :param g:
         :param p: infect probability
-        :param r: recover probability, default：1 / (average degree)
         :param t: spread time
         """
 
@@ -38,11 +36,7 @@ class SIR:
 
 
     def start(self):
-        """
-        Susceptible - Infected - Recover Model
-        :return:
-        """
-        for _ in tqdm(range(1)): # 运行多次取平均传染能力
+        for _ in tqdm(range(1)):
             for idx, node in tqdm(self.idx2node.items()):
                 self.influence[node] += self._diffuse_from_node(node)
 
@@ -51,8 +45,6 @@ class SIR:
         """
         从原始节点出发，向外传染，如果仅仅统计感染个数，则无法很好的区分不同阶邻居，所以需要带衰减的感染
         weight = e^(-0.5 * t)
-        :param origin: original infected node
-        :return:
         """
         cur_infected = [origin]
         all_infected = {origin}
@@ -66,7 +58,7 @@ class SIR:
 
                 for neighbor in nx.neighbors(self.G, cur):
                     if neighbor not in all_infected:
-                        cur_infected.append(neighbor) # decay 重要性随着范围的扩大而降低
+                        cur_infected.append(neighbor)
                         all_infected.add(neighbor)
         return influence
 
@@ -74,8 +66,6 @@ class SIR:
     def label_nodes(self, n_class):
         """
         Split all nodes into different groups using structural influence.
-        :param n_class: number of class
-        :return:
         """
         scores = sorted(self.influence.items(), key=lambda x: x[1])
         interval = len(scores) / n_class
@@ -90,7 +80,7 @@ class SIR:
         return labels
 
 
-def split_nodes(graphName, graph, n_class, infect_prob, t=5, save_path=None):
+def split_nodes(graph, n_class, infect_prob, t=5, save_path=None):
     import time
     startTime = time.time()
     #print("Graph radius: {}".format(nx.radius(graph)))
@@ -103,22 +93,14 @@ def split_nodes(graphName, graph, n_class, infect_prob, t=5, save_path=None):
 
     if save_path:
         with open(save_path, mode="w+", encoding="utf8") as fout:
-            for node, label in labels.items():
+            for node, label in sorted(labels.items(), key=lambda x:int(x[0])):
                 fout.write("{} {} \n".format(node, label))
     print("cost time:", time.time() - startTime)
     return labels
 
 
-def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p, recover_p) -> dict:
-    """
-    快速得到一张图的SIR标签信息。
-    :param g:
-    :param n:
-    :param t:
-    :param infect_p:
-    :param recover_p:
-    :return:
-    """
+def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p: float, recover_p: float) -> dict:
+    # 快速得到一张图的SIR标签信息
     sir = SIR(g, infect_p, recover_p, t,)
     sir.start()
     labels = sir.label_nodes(n_class=n)
@@ -129,11 +111,11 @@ if __name__ == '__main__':
     #name = "mkarate"
     #graphName = "bio_dmela_new"
     #graphName = "house"
-    graphName = "bio_grid_human_new"
+    graphName = "usa"
     save_path = f"../data/label/{graphName}.label"
     graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
                             edgetype=float, data=[('weight', float)])
-    split_nodes(graphName, graph, n_class=5, infect_prob=1.0, t=10, save_path=save_path)
+    split_nodes(graph, n_class=5, infect_prob=1.0, t=15, save_path=save_path)
     #ExecWithTimer(split_nodes, name=name, graph=graph, n_class=5,
     #              infect_prob=1.0, recover_prob=0.2, t=5, save_path=save_path)
 

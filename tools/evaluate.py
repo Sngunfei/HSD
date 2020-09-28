@@ -50,9 +50,9 @@ def LR_evaluate(data, labels, cv=5):
     """
     Evaluate embedding effect using Logistic Regression. Mode = One vs Rest (OVR)
     """
-
-    lrc = LogisticRegression(solver="saga", penalty='l2', max_iter=1000, multi_class='ovr')
-    test_scores = cross_val_score(lrc, data, y=labels, cv=cv)
+    data, labels = sktools.shuffle(data, labels)
+    lr = LogisticRegression(solver="lbfgs", penalty='l2', max_iter=1000, multi_class='ovr')
+    test_scores = cross_val_score(lr, data, y=labels, cv=cv)
     print(f"LR: test scores={test_scores}, mean_score={np.mean(test_scores)}\n")
     return np.mean(test_scores)
 
@@ -61,6 +61,7 @@ def KNN_evaluate(data, labels, metric="minkowski", cv=5, n_neighbor=10):
     """
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     """
+    data, labels = sktools.shuffle(data, labels)
     knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric)
     test_scores = cross_val_score(knn, data, y=labels, cv=cv, scoring="accuracy")
     print(f"KNN: test scores:{test_scores}, mean_score={np.mean(test_scores)}\n")
@@ -112,29 +113,3 @@ def spectral_cluster_evaluate(data, labels, n_cluster, affinity="rbf"):
     s2 = metrics.silhouette_score(embeddings, preds, metric=metric)
 
     print(f"homogenetiy: {h}, completeness: {c}, v_measure: {v}, silhouette_score label: {s1}, silhouette_score pred: {s2}\n")
-
-
-if __name__ == '__main__':
-    from tools import rw, dataloader
-
-    labels_dict = dataloader.read_label("../data/label/bio_dmela_new.label")
-    # for d in range(1, 17):
-    #     embeddings_dict = rw.read_vectors(f"../output/rolx_bio_grid_human_{d}.csv")
-    #     embeddings, labels = [], []
-    #     for node, vector in embeddings_dict.items():
-    #         embeddings.append(vector)
-    #         labels.append(labels_dict[node])
-    #     print(f"dimension: {d}, ")
-    #     KNN_evaluate(embeddings, labels, cv=5, n_neighbor=10)
-
-    for d in range(2, 17):
-        embeddings_dict = rw.read_vectors(f"../output/rolx_bio_dmela_{d}.csv")
-        embeddings, labels = [], []
-        for node, vector in embeddings_dict.items():
-            embeddings.append(vector)
-            labels.append(labels_dict[node])
-        sktools.shuffle(embeddings, labels, random_state=42)
-        print(f"dimension: {d}, ")
-        #KNN_evaluate(embeddings, labels, cv=5, n_neighbor=10)
-        spectral_cluster_evaluate(embeddings, labels, 5, affinity="rbf")
-
