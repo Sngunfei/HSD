@@ -8,7 +8,7 @@ import numpy as np
 
 np.set_printoptions(suppress=True)
 import pandas as pd
-from tools.rw import save_vectors_dict
+from tools import save_vectors_dict
 
 def cumulate_wavelet_coeffs(coeff_path, max_hop, target_hop) -> dict:
     """
@@ -42,8 +42,8 @@ def cumulate_wavelet_coeffs(coeff_path, max_hop, target_hop) -> dict:
 
 # 开题PPT里需要一张多尺度的小波系数变化图
 def plotMultiScalesCoeff():
-    from model.GraphWave import GraphWave
-    from tools.hierarchy import get_hierarchical_representation
+    from model import GraphWave
+    from tools import get_hierarchical_representation
     import networkx as nx
     import matplotlib.pyplot as plt
 

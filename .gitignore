@@ -109,6 +109,6 @@ hierarchy/
 distance/
 coeff/
 
-score.txt
-score_grid.txt
+*.txt
 output/
+test.py

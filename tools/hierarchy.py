@@ -11,7 +11,7 @@ import networkx as nx
 from tqdm import tqdm
 
 
-PathTemplate = "data/hierarchy/{}.hie"
+PathTemplate = "data/hierarchy/{}.layers"
 MaxHop = 5
 
 
@@ -100,25 +100,8 @@ def read_hierarchical_representation(graphName: str, maxHop=3) -> dict:
 
 
 if __name__ == '__main__':
-    graphs = ["bio_dmela_new", "bio_grid_human_new"]
+    graphs = ["barbell", "mkarate", "europe", "usa"]
     for graphName in graphs:
-        graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
+        graph = nx.read_edgelist(path=f"data/graph/{graphName}.edgelist", create_using=nx.Graph,
                                  edgetype=float, data=[('weight', float)])
-        #save_hierarchical_representation(graphName, graph)
-        hierarchy = read_hierarchical_representation(graphName, 5)
-        node = "0"
-        layers = hierarchy[node]
-        print([f"layer_{i}, neigbors:{len(level)}" for i, level in enumerate(layers)])
-
-        queue = [node]
-        visited = {node}
-        for idx in range(5):
-            cap = len(queue)
-            for _ in range(cap):
-                cur = queue.pop(0)
-                neighbors = nx.neighbors(graph, cur)
-                for neigh in neighbors:
-                    if neigh not in visited:
-                        visited.add(neigh)
-                        queue.append(neigh)
-            print(f"layer_{idx+1}, neigbors:{len(queue)}")
+        save_hierarchical_representation(graphName, graph)

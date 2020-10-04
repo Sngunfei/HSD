@@ -116,6 +116,3 @@ def save_edgelist(path: str, edgelist: list):
                 edge_str = f"{edge[0]} {edge[1]} {edge[2]}"
             fout.write(f"{edge_str}\n")
 
-
-if __name__ == '__main__':
-    print()

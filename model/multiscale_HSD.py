@@ -8,7 +8,7 @@ import pygsp
 import multiprocessing
 from collections import defaultdict
 from tqdm import tqdm
-from .HSD import HSD
+from model import HSD
 from tools import hierarchy
 
 

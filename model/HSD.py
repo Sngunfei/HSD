@@ -2,17 +2,14 @@
 
 # Hierarchically Structural Distance model
 
-import math
 import multiprocessing
-from collections import defaultdict
 import numpy as np
 import networkx as nx
 import pygsp
 from tqdm import tqdm
-from tools.hierarchy import read_hierarchical_representation
-from tools import metrics, util
-from tools.rw import save_vectors_dict, read_vectors
-
+from tools import read_hierarchical_representation
+from tools import metrics
+from tools import util
 
 class HSD(object):
 

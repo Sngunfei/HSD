@@ -4,12 +4,10 @@
 Susceptible - Infected - Recover Model.
 """
 
-import copy
-import random
 from collections import defaultdict
 import networkx as nx
 from tqdm import tqdm
-from tools.util import build_node_idx_map
+from tools import build_node_idx_map
 import math
 
 
@@ -52,7 +50,8 @@ class SIR:
         for iteration in range(self.t):
             if len(cur_infected) == 0:
                 break
-            for _ in range(len(cur_infected)):
+            n = len(cur_infected)
+            for _ in range(n):
                 cur = cur_infected.pop(0)
                 influence += math.e ** (-0.5 * iteration)
 
@@ -92,9 +91,9 @@ def split_nodes(graph, n_class, infect_prob, t=5, save_path=None):
     labels = model.label_nodes(n_class)
 
     if save_path:
-        with open(save_path, mode="w+", encoding="utf8") as fout:
+        with open(save_path, mode="w+", encoding="utf-8") as fout:
             for node, label in sorted(labels.items(), key=lambda x:int(x[0])):
-                fout.write("{} {} \n".format(node, label))
+                fout.write("{} {}\n".format(node, label))
     print("cost time:", time.time() - startTime)
     return labels
 
@@ -109,34 +108,9 @@ def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p: float, recover_p: floa
 
 if __name__ == '__main__':
     #name = "mkarate"
-    #graphName = "bio_dmela_new"
-    #graphName = "house"
     graphName = "usa"
+    #graphName = "usa"
     save_path = f"../data/label/{graphName}.label"
     graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
                             edgetype=float, data=[('weight', float)])
-    split_nodes(graph, n_class=5, infect_prob=1.0, t=15, save_path=save_path)
-    #ExecWithTimer(split_nodes, name=name, graph=graph, n_class=5,
-    #              infect_prob=1.0, recover_prob=0.2, t=5, save_path=save_path)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    split_nodes(graph, n_class=5, infect_prob=1.0, t=5, save_path=save_path)

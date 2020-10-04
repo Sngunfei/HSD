@@ -2,10 +2,9 @@
 
 # Dynamic Graph Embedding based on HSD
 
-import numpy as np
 import networkx as nx
 import copy
-from .multiscale_HSD import MultiHSD
+from model import MultiHSD
 
 
 class DynamicHSD(MultiHSD):
