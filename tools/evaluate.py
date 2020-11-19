@@ -4,17 +4,18 @@
 Evluate the performance of embedding via different methods.
 """
 
-from sklearn.cluster import AgglomerativeClustering
-from sklearn import metrics
-from sklearn.model_selection import train_test_split, cross_val_predict, GridSearchCV, cross_validate, cross_val_score
-from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, precision_score, recall_score
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn import utils as sktools
-import numpy as np
-from sklearn.cluster import SpectralClustering
 import math
 
+import numpy as np
+from sklearn import metrics
+from sklearn import utils as sktools
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import SpectralClustering
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, precision_score, \
+    recall_score
+from sklearn.model_selection import cross_val_score
+from sklearn.neighbors import KNeighborsClassifier
 
 def cluster_evaluate(embeddings, labels, n_class, metric="euclidean"):
     """
@@ -62,7 +63,7 @@ def KNN_evaluate(data, labels, metric="minkowski", cv=5, n_neighbor=10):
     基于节点的相似度进行KNN分类，在嵌入之前进行，为了验证通过层次化相似度的优良特性。
     """
     data, labels = sktools.shuffle(data, labels)
-    knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric)
+    knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric, p=2)
     test_scores = cross_val_score(knn, data, y=labels, cv=cv, scoring="accuracy")
     print(f"KNN: test scores:{test_scores}, mean_score={np.mean(test_scores)}\n")
     return np.mean(test_scores)

@@ -1,11 +1,12 @@
 # -*- coding:utf-8 -*-
 
 import math
+
 import networkx as nx
 import numpy as np
-from tools import rw
 from scipy import sparse
 
+from tools import rw
 
 def build_node_idx_map(graph) -> (dict, dict):
     """
@@ -96,8 +97,7 @@ def sparse_graph(graph: nx.Graph, threshold=None, percentile=None) -> nx.Graph:
     sparsed_graph.remove_edges_from(del_edges)
     return sparsed_graph
 
-
-def recommend_scale(eignvalues: list) -> float:
+def recommend_scale_range(eignvalues: list) -> (float, float):
     eignvalues = sorted(eignvalues)
     e1, en = eignvalues[0], eignvalues[-1]
     for e in eignvalues:
@@ -105,8 +105,7 @@ def recommend_scale(eignvalues: list) -> float:
             e1 = e
             break
     scale_min, scale_max = scale_boundary(e1, en)
-    scale = (scale_min + scale_max) / 2
-    return scale
+    return scale_min, scale_max
 
 
 # normalized laplacian

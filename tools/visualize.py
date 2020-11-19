@@ -10,31 +10,27 @@ import matplotlib
 import matplotlib.cm as cmx
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
-import networkx as nx
-from sklearn.manifold import TSNE
 
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.family'] = ['sans-serif']
 plt.rcParams['font.sans-serif'] = ['SimHei']
 
 
-def plot_embeddings(nodes, embeddings, labels, n_class=10, node_text=False, save_path=None):
+def plot_embeddings(embeddings, labels, save_path=None):
     """
-    :param nodes:
     :param embeddings: 2-dimensional vectors
     :param labels:
-    :param n_class:
-    :param node_text:
+    :param save_path:
     :return:
     """
     matplotlib.use("TkAgg")
     markers = ['o', '*', 'x', '<', '1', 'D', '>', '^', "v", 'p', '2', '3', '4', 'X', '.']
     cm = plt.get_cmap("nipy_spectral")
-    cNorm  = colors.Normalize(vmin=0, vmax=n_class-1)
+    cNorm = colors.Normalize(vmin=0, vmax=34)
     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
 
     class_dict = defaultdict(list)
-    for idx, node in enumerate(nodes):
+    for idx in range(len(labels)):
         class_dict[int(labels[idx])].append(idx)
 
     info = sorted(class_dict.items(), key=lambda item:item[0])
@@ -43,44 +39,13 @@ def plot_embeddings(nodes, embeddings, labels, n_class=10, node_text=False, save
                     marker=markers[_class % len(markers)],
                     c=[scalarMap.to_rgba(_class)], label=_class)
 
-    if node_text:
-        for idx, (x, y) in enumerate(embeddings):
-            plt.text(x, y, nodes[idx])
-
-    #plt.legend()
+    plt.legend()
     plt.xticks([])
     plt.yticks([])
     if save_path:
         plt.savefig(save_path)
         print("Save TSNE result figure.")
-    #plt.show()
-
-
-def plot_embedding2D(node_pos, node_colors=None, di_graph=None, labels=None):
-    node_num, embedding_dimension = node_pos.shape
-    if embedding_dimension > 2:
-        print("Embedding dimension greater than 2, use tSNE to reduce it to 2")
-        model = TSNE(n_components=2)
-        node_pos = model.fit_transform(node_pos)
-
-    if di_graph is None:
-        # plot using plt scatter
-        plt.scatter(node_pos[:, 0], node_pos[:, 1], c=node_colors)
-    else:
-        # plot using networkx with edge structure
-        pos = {}
-        for i in range(node_num):
-            pos[i] = node_pos[i, :]
-        if node_colors is not None:
-            nx.draw_networkx_nodes(di_graph, pos,
-                                   node_color=node_colors,
-                                   width=0.1, node_size=100,
-                                   arrows=False, alpha=0.8,
-                                   font_size=5, labels=labels)
-        else:
-            nx.draw_networkx(di_graph, pos, node_color=node_colors,
-                             width=0.1, node_size=300, arrows=False,
-                             alpha=0.8, font_size=12, labels=labels)
+    plt.show()
 
 
 """

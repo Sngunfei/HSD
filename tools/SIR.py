@@ -4,12 +4,13 @@
 Susceptible - Infected - Recover Model.
 """
 
+import math
 from collections import defaultdict
+
 import networkx as nx
 from tqdm import tqdm
-from tools import build_node_idx_map
-import math
 
+from tools import build_node_idx_map
 
 class SIR:
     def __init__(self, graph: nx.Graph, p=1.0, t=25, random_state=42):
@@ -78,38 +79,27 @@ class SIR:
 
         return labels
 
-
-def split_nodes(graph, n_class, infect_prob, t=5, save_path=None):
-    import time
-    startTime = time.time()
-    #print("Graph radius: {}".format(nx.radius(graph)))
-    #print("Graph diameter: {}".format(nx.diameter(graph)))
-    #print(f"number of components: {nx.number_connected_components(graph)}")
-
+def split_nodes(graph, n_class, infect_prob, t=5, save_path=None) -> dict:
     model = SIR(graph, p=infect_prob, t=t)
     model.start()
     labels = model.label_nodes(n_class)
 
     if save_path:
         with open(save_path, mode="w+", encoding="utf-8") as fout:
-            for node, label in sorted(labels.items(), key=lambda x:int(x[0])):
+            for node, label in sorted(labels.items(), key=lambda x: int(x[0])):
                 fout.write("{} {}\n".format(node, label))
-    print("cost time:", time.time() - startTime)
     return labels
 
-
-def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p: float, recover_p: float) -> dict:
+def get_SIR_labels(g: nx.Graph, n: int, t: int, infect_p: float) -> dict:
     # 快速得到一张图的SIR标签信息
-    sir = SIR(g, infect_p, recover_p, t,)
+    sir = SIR(g, infect_p, t, )
     sir.start()
     labels = sir.label_nodes(n_class=n)
     return labels
 
 
 if __name__ == '__main__':
-    #name = "mkarate"
-    graphName = "usa"
-    #graphName = "usa"
+    graphName = "cora"
     save_path = f"../data/label/{graphName}.label"
     graph = nx.read_edgelist(path=f"../data/graph/{graphName}.edgelist", create_using=nx.Graph,
                             edgetype=float, data=[('weight', float)])

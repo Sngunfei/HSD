@@ -3,12 +3,14 @@
 # Hierarchically Structural Distance model
 
 import multiprocessing
-import numpy as np
+
 import networkx as nx
+import numpy as np
 import pygsp
 from tqdm import tqdm
-from tools import read_hierarchical_representation
+
 from tools import metrics
+from tools import read_hierarchical_representation
 from tools import util
 
 class HSD(object):
@@ -33,21 +35,21 @@ class HSD(object):
         self.eigenvalues = None
         self.eigenvectors = None
 
-        self.nodes = nx.nodes(graph)
+        self.nodes = list(nx.nodes(graph))
         self.n_node = len(self.nodes)
         self.idx2node, self.node2idx = util.build_node_idx_map(graph)
         self.wavelets = None
-        self.hierarchy = dict()
-        self.wavelets_hierarchy = dict()
+        self.hierarchy = None
+        self.wavelets_hierarchy = None
         self.distMat = None
-
 
     # init HSD model
     def init(self):
         self.hierarchy = read_hierarchical_representation(self.graphName, self.hop)
         self.wavelets = self.calculate_wavelets(self.scale)
-        print("HSD model initialize done")
 
+    def construct_hierarchy(self):
+        self.hierarchy = read_hierarchical_representation(self.graphName, self.hop)
 
     # caculate wavelet coefficients
     # approx: if True then use chebshev polynomials
@@ -92,21 +94,6 @@ class HSD(object):
         return res
 
 
-    # 需要复用之前已经计算好的小波系数，直接从文件里读取精简后的小波系数
-    # 若在dict里未出现，则说明小波系数的规模数量级太小，默认为0
-    # 为了解耦，IO操作均在本函数外执行
-    def initWaveletCoeffByReducedCoeff(self, reduced_coeff: dict) -> np.ndarray:
-        wavelets = np.zeros(shape=(self.n_node, self.n_node), dtype=np.float)
-        for node, neighbors in reduced_coeff.items():
-            idx1 = self.node2idx[node]
-            for neighbor, coeff_value in neighbors.items():
-                idx2 = self.node2idx[neighbor]
-                wavelets[idx1, idx2] = wavelets[idx2, idx1] = coeff_value
-
-        self.wavelets = wavelets
-        return self.wavelets
-
-
     # calculate HSD using a single thread
     def calculate_HSD(self):
         if not self.hierarchy or not self.wavelets:
@@ -139,25 +126,24 @@ class HSD(object):
 
     # calculate HSD parallelly
     def parallel_calculate_HSD(self, n_workers=3):
-        if not self.hierarchy or not self.wavelets:
+        if self.hierarchy is None or self.wavelets is None:
             raise ValueError("graph hierarchy is None or Wavelet not computed")
-        print("start parallelly calculate structural distance, n_workers={}\n".format(n_workers))
 
         distMat = np.zeros((self.n_node, self.n_node), dtype=float)
         pool = multiprocessing.Pool(n_workers)
-        results = []
+        states = {}
         for idx in range(self.n_node):
-            res = pool.apply_async(self._calculate_worker, args=(self, idx))
-            results.append(res)
-
+            res = pool.apply_async(HSD._calculate_worker, args=(self, idx))
+            states[idx] = res
         pool.close()
         pool.join()
+
+        results = []
         for idx in range(self.n_node):
-            results[idx] = results[idx].get()
-        print("parallelly calculate structural distance done. \n")
+            results.append(states[idx].get())
 
         for idx1, dists in enumerate(results):
-            for idx2 in range(idx1+1, self.n_node):
+            for idx2 in range(idx1 + 1, self.n_node):
                 distMat[idx1, idx2] = distMat[idx2, idx1] = dists[idx2]
 
         self.distMat = distMat
@@ -166,10 +152,10 @@ class HSD(object):
 
     def _calculate_worker(self, startIndex: int) -> np.ndarray:
         dists = np.zeros(self.n_node)
-        node = self.idx2node[startIndex]
+        node = self.nodes[startIndex]
         layers = self.hierarchy[node]
         for idx in range(startIndex + 1, self.n_node):
-            other = self.idx2node[idx]
+            other = self.nodes[idx]
             _layers = self.hierarchy[other]
             d = 0.0
             for hop in range(self.hop):

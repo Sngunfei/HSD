@@ -11,9 +11,9 @@ Distance metric functions:
 """
 
 import math
+
 import numpy as np
 from scipy import stats
-
 
 def align_probablity_distribution(p, q, normalized=False):
     """
@@ -166,7 +166,7 @@ def calculate_distance(p, q, metric):
     if metric not in supported_metrics:
         raise NotImplementedError("{} metric is not implemented.".format(metric))
 
-    #p, q = align_probablity_distribution(p, q)
+    p, q = align_probablity_distribution(p, q)
     if len(p) == 0 and len(q) == 0:
         return 0.0
 

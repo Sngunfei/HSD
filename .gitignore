@@ -108,6 +108,7 @@ venv.bak/
 hierarchy/
 distance/
 coeff/
+score/
 
 *.txt
 output/

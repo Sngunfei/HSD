@@ -54,20 +54,15 @@ def load_data_from_distance(graph_name, label_name, metric, hop, scale, multi="n
 def read_label(path) -> dict:
     """
     read graph node labels.
-    :param path: label file path.
-    :return: return dict-type, {node:label}, number of class.
+    format:
+        str(node): int(label)
     """
-    try:
-        with open(path, mode="r", encoding="utf-8") as fin:
-            label_dict = dict()
-            while True:
-                line = fin.readline().strip()
-                if not line:
-                    break
-                node, label = line.split(" ")
-                # node本身标号用str表示，为了和矩阵中的idx区分开来，防止混淆。
-                label_dict[node] = int(label)
-        return label_dict
-    except FileNotFoundError:
-        print("Warning: Label file: {} not found.".format(path))
-        return {}
+    with open(path, mode="r", encoding="utf-8") as fin:
+        label_dict = dict()
+        while True:
+            line = fin.readline().strip()
+            if not line:
+                break
+            node, label = line.split(" ")
+            label_dict[node] = int(label)
+    return label_dict

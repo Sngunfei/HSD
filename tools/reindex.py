@@ -13,6 +13,8 @@ def reindex(filePath):
             edge = (min(node1, node2), max(node1, node2))
             if edge[0] == edge[1]:
                 continue
+            if edge in edges:
+                print(edge)
             edges.add(edge)
 
     edges = list(edges)
@@ -45,21 +47,19 @@ def reindex(filePath):
 
     print("done.")
 
-
 if __name__ == '__main__':
-    # files = ["../data/graph/mkarate.edgelist"]
-    # for filePath in files:
-    #     reindex(filePath)
-    labels = {}
-    with open("../data/label/mkarate.label", mode="r", encoding="utf-8") as fin:
-        while True:
-            line = fin.readline().strip()
-            if not line:
-                break
-            node, label = line.split(" ")
-            labels[int(node) - 1] = label
-
-    with open("../data/label/mkarate_new.label", mode="w+", encoding="utf-8") as fout:
-        for node, label in labels.items():
-            fout.write("{} {}\n".format(node, label))
-
+    files = ["../data/graph/cora.edgelist"]
+    for filePath in files:
+        reindex(filePath)
+    # labels = {}
+    # with open("../data/label/mkarate.label", mode="r", encoding="utf-8") as fin:
+    #     while True:
+    #         line = fin.readline().strip()
+    #         if not line:
+    #             break
+    #         node, label = line.split(" ")
+    #         labels[int(node) - 1] = label
+    #
+    # with open("../data/label/mkarate_new.label", mode="w+", encoding="utf-8") as fout:
+    #     for node, label in labels.items():
+    #         fout.write("{} {}\n".format(node, label))

@@ -1,31 +1,57 @@
 # -*- encoding: utf-8 -*-
 
-from model import MultiHSD
-from tools import evaluate, dataloader, rw, metrics
 import networkx as nx
 import numpy as np
 
+from model import MultiHSD, HSD
+from tools import evaluate, dataloader, rw, util
 
-def base_HSD_Test():
-    pass
-
-
-def multi_HSD_Test(graphName, hop=3, n_scales=200):
-    graph = nx.read_edgelist(f"data/graph/{graphName}.edgelist", create_using=nx.Graph,edgetype=float, data=[('weight', float)])
+def base_HSD_Test(graphName, hop=3, metric="wasserstein"):
+    graph = nx.read_edgelist(f"data/graph/{graphName}.edgelist", create_using=nx.Graph, edgetype=float,
+                             data=[('weight', float)])
     label_dict = dataloader.read_label(f"data/label/{graphName}.label")
+
+    model = HSD(graph, graphName, 0, hop, metric)
+    model.construct_hierarchy()
+
+    labels = []
+    for idx, node in enumerate(model.nodes):
+        labels.append(label_dict[node])
+
+    model.eigenvalues, model.eigenvectors = np.linalg.eigh(model.laplacian)
+    scale_min, scale_max = util.recommend_scale_range(list(model.eigenvalues))
+
+    score_max, scale_opt = 0, 0
+    for scale in np.linspace(scale_min, scale_max, num=5, dtype=np.float):
+        model.scale = scale
+        model.calculate_wavelets(model.scale, approx=True)
+        dists = model.parallel_calculate_HSD(n_workers=10)
+        knn_score = evaluate.KNN_evaluate(dists, labels, metric="precomputed", cv=10, n_neighbor=20)
+        if knn_score > score_max:
+            score_max = knn_score
+            scale_opt = scale
+    print(f"max score: {score_max}, optimal scale: {scale_opt}\n")
+    return score_max, scale_opt
+
+def multi_HSD_Test(graphName, hop=3, n_scales=200, cv=5, n_neighbor=10):
+    graph = nx.read_edgelist(f"data/graph/{graphName}.edgelist", create_using=nx.Graph, edgetype=float,
+                             data=[('weight', float)])
+    PageRank_label_dict = dataloader.read_label(f"data/label/{graphName}_PageRank.label")
+    SIR_label_dict = dataloader.read_label(f"data/label/{graphName}.label")
 
     model = MultiHSD(graph, graphName, hop, n_scales)
     model.init()
     embedding_dict = model.parallel_embed(n_workers=10)
 
-    #rw.save_vectors_dict(embedding_dict, f"output/multi_HSD_{graphName}_{n_scales}.csv")
-
-    embeddings, labels = [], []
+    embeddings, SIR_labels, PageRank_labels = [], [], []
     for node, vector in embedding_dict.items():
         embeddings.append(vector)
-        labels.append(label_dict[node])
-    knn_score = evaluate.KNN_evaluate(embeddings, labels)
-    lr_score = evaluate.LR_evaluate(embeddings, labels)
+        SIR_labels.append(SIR_label_dict[node])
+        PageRank_labels.append(PageRank_label_dict[node])
+    SIR_val = evaluate.KNN_evaluate(embeddings, SIR_labels, cv=cv, n_neighbor=n_neighbor)
+    PageRank_val = evaluate.KNN_evaluate(embeddings, PageRank_labels, cv=cv, n_neighbor=n_neighbor)
+    return SIR_val, PageRank_val
+    #lr_score = evaluate.LR_evaluate(embeddings, labels)
 
     # hellinger distance
     # dists = np.zeros((model.n_node, model.n_node), dtype=np.float)
@@ -40,41 +66,56 @@ def multi_HSD_Test(graphName, hop=3, n_scales=200):
     # print("hellinger")
     # knn_score = evaluate.KNN_evaluate(dists, labels, metric="precomputed")
 
-    return knn_score, lr_score
+    #return knn_score, lr_score
 
 
 def dynamic_HSD_Test():
     pass
 
-
 def evaluate_embeddings():
-    method = "rolx"
-    graphName = "usa"
+    method = "multi-HSD"
+    graphName = "europe"
     candidates = list(range(1, 17))
-    candidates.extend([32, 64, 128, 256, 512, 1024])
+    candidates.extend([32, 64, 128])  #, 256, 512, 1024])
+    SIR_val = 0.0
+    PageRank_val = 0.0
     for dimension in candidates:
         embedding_dict = rw.read_vectors(f"output/{method}_{graphName}_{dimension}.csv")
-        label_dict = dataloader.read_label(f"data/label/{graphName}.label")
-
-        embeddings, labels = [], []
+        SIR_label_dict = dataloader.read_label(f"data/label/{graphName}.label")
+        PageRank_label_dict = dataloader.read_label(f"data/label/{graphName}_PageRank.label")
+        embeddings, SIR_labels = [], []
+        PageRank_labels = []
         for node, vector in embedding_dict.items():
             embeddings.append(vector)
-            labels.append(label_dict[node])
+            SIR_labels.append(SIR_label_dict[node])
+            PageRank_labels.append(PageRank_label_dict[node])
         print(f"{method}, {graphName}, dimension: {dimension}")
-        evaluate.KNN_evaluate(embeddings, labels)
-        evaluate.LR_evaluate(embeddings, labels)
+        SIR_val = max(SIR_val, evaluate.KNN_evaluate(embeddings, SIR_labels, cv=10, n_neighbor=20))
+        PageRank_val = max(PageRank_val, evaluate.KNN_evaluate(embeddings, PageRank_labels, cv=10, n_neighbor=20))
 
+        #evaluate.LR_evaluate(embeddings, labels)
+    print(f"max score, SIR:{SIR_val}, PageRank:{PageRank_val}\n")
+
+def func():
+    a = [1, 2, 3]
+    b = np.empty((1, 3), dtype=np.int)
+    print(b)
+    b[0] = a
+    print(b)
 
 if __name__ == '__main__':
-    taus = [i * 10 for i in range(1, 31)]
-    graphs = ["bio_dmela", "bio_grid_human", "usa"]
+    func()
+    assert False
+
+    taus = [50]
+    graphs = ["europe"]
     for name in graphs:
         print(name)
         for t in taus:
             with open(f"{name}_score.txt", mode="a+", encoding="utf-8") as fout:
-                for _ in range(10):
+                for _ in range(1):
                     print(f"graph:{name}, n_scales:{t}\n")
-                    c1, c2 = multi_HSD_Test(name, n_scales=t)
-                    fout.write(f"n_scales: {t}, knn score: {c1}, lr_score: {c2}\n")
+                    SIR_v, PageRank_v = multi_HSD_Test(name, n_scales=t, hop=4, cv=5, n_neighbor=20)
+                    fout.write(f"n_scales: {t}, SIR score: {SIR_v}, PageRank score: {PageRank_v}\n")
                     fout.flush()
-    #evaluate_embeddings()
+    evaluate_embeddings()
