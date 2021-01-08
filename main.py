@@ -96,17 +96,8 @@ def evaluate_embeddings():
         #evaluate.LR_evaluate(embeddings, labels)
     print(f"max score, SIR:{SIR_val}, PageRank:{PageRank_val}\n")
 
-def func():
-    a = [1, 2, 3]
-    b = np.empty((1, 3), dtype=np.int)
-    print(b)
-    b[0] = a
-    print(b)
 
 if __name__ == '__main__':
-    func()
-    assert False
-
     taus = [50]
     graphs = ["europe"]
     for name in graphs:

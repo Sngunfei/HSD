@@ -1,24 +1,27 @@
 # -*- encoding: utf-8 -*-
 
-"""
-load graph data
-"""
-
 import networkx as nx
+from tools import const
 
+# 如果没有label_type，标注为“default”
+def load_data(graph_name: str, label_type: str) -> (nx.Graph, dict):
+    if const.System == "Windows":
+        edge_path = const.WindowsRootPath + "\data\graph\{}.edgelist".format(graph_name)
+        if label_type == "default":
+            label_path = const.WindowsRootPath + "\data\label\{}.label".format(graph_name)
+        else:
+            label_path = const.WindowsRootPath + "\data\label\{}_{}.label".format(graph_name, label_type)
+    elif const.System == "Linux":
+        edge_path = const.LinuxRootPath + "/data/graph/{}.edgelist".format(graph_name)
+        if label_type == "default":
+            label_path = const.LinuxRootPath + "/data/label/{}.label".format(graph_name)
+        else:
+            label_path = const.LinuxRootPath + "/data/label/{}_{}.label".format(graph_name, label_type)
+    else:
+        raise EnvironmentError("only support Windows and Linux")
 
-def load_data(graphName, directed=False) -> (nx.Graph, dict):
-    """
-    Loda graph data by dataset name.
-    :param graphName: graph name, e.g. mkarate
-    :param directed: bool, if True, return directed graph.
-    :return: graph, node labels, number of node classes.
-    """
-
-    edge_path = "../data/graph/{}.edgelist".format(graphName)
-    label_path = "../data/label/{}.label".format(graphName)
     label_dict = read_label(label_path)
-    graph = nx.read_edgelist(path=edge_path, create_using=nx.DiGraph if directed else nx.Graph,
+    graph = nx.read_edgelist(path=edge_path, create_using=nx.Graph, nodetype=str,
                              edgetype=float, data=[('weight', float)])
     return graph, label_dict
 

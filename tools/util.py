@@ -157,3 +157,33 @@ def filter_distance_matrix(dist_mat: np.ndarray, nodes: list, save_path: str, ra
             edgelist.append((node1, node2, distance))
 
     return filter_edgelist(edgelist, save_path, ratio)
+
+
+# 将具有相同key的dict，取其value，放在列表的相同位置上对齐。
+# 必须有完全相同的键，个数也必须相同。
+def merge_dicts_to_lists(*args) -> list:
+    n_input = len(args)
+    if n_input == 0:
+        return []
+    dicts = []
+    for obj in args:
+        if not isinstance(obj, dict):
+            raise TypeError("must be dict type")
+        dicts.append(obj)
+
+    lists = [[] for _ in range(n_input)]
+    keys = dicts[0].keys()
+    for k in keys:
+        for idx, dic in enumerate(dicts):
+            if k not in dic:
+                raise KeyError(f"key:{k} not in dict: {dic}")
+            v = dic[k]
+            lists[idx].append(v)
+
+    for idx in range(n_input):
+        if len(lists[idx]) != len(dicts[idx]):
+            raise ValueError("size of list and dict not equal")
+
+    return lists
+
+

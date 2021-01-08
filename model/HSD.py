@@ -7,6 +7,7 @@ import multiprocessing
 import networkx as nx
 import numpy as np
 import pygsp
+from scipy.stats import wasserstein_distance
 from tqdm import tqdm
 
 from tools import metrics
@@ -29,106 +30,92 @@ class HSD(object):
         self.scale = scale
         self.hop = hop
         self.metric = metric
-        self.adjacent = nx.adjacency_matrix(graph).todense()
-        self.laplacian = nx.laplacian_matrix(graph).todense()
-
-        self.eigenvalues = None
-        self.eigenvectors = None
+        self.A = nx.adjacency_matrix(graph).todense()
+        self.L = nx.laplacian_matrix(graph).todense()
+        #self.L = nx.normalized_laplacian_matrix(graph).todense()
 
         self.nodes = list(nx.nodes(graph))
         self.n_node = len(self.nodes)
         self.idx2node, self.node2idx = util.build_node_idx_map(graph)
-        self.wavelets = None
         self.hierarchy = None
-        self.wavelets_hierarchy = None
-        self.distMat = None
 
     # init HSD model
     def init(self):
-        self.hierarchy = read_hierarchical_representation(self.graphName, self.hop)
-        self.wavelets = self.calculate_wavelets(self.scale)
-
-    def construct_hierarchy(self):
         self.hierarchy = read_hierarchical_representation(self.graphName, self.hop)
 
     # caculate wavelet coefficients
     # approx: if True then use chebshev polynomials
     def calculate_wavelets(self, scale, approx=True) -> np.ndarray:
         if approx:
-            G = pygsp.graphs.Graph(self.adjacent)
+            G = pygsp.graphs.Graph(self.A)
             G.estimate_lmax()
             heat_filter = pygsp.filters.Heat(G, tau=[scale * G._lmax])
             chebyshev = pygsp.filters.approximations.compute_cheby_coeff(heat_filter, m=50)
-            wavelets = []
+            wavelets = np.empty(shape=(self.n_node, self.n_node))
             for idx in range(self.n_node):
                 impulse = np.zeros(self.n_node, dtype=np.float)
                 impulse[idx] = 1.0
                 coeff = pygsp.filters.approximations.cheby_op(G, chebyshev, impulse)
-                wavelets.append(coeff)
+                wavelets[idx, :] = coeff
         else:
-            self.eigenvalues, self.eigenvectors = np.linalg.eigh(self.laplacian)
-            wavelets = np.dot(np.dot(self.eigenvectors, np.diag(np.exp(-1 * scale * self.eigenvalues))),
-                                 np.transpose(self.eigenvectors))
+            eigenvalues, eigenvectors = np.linalg.eigh(self.L)
+            wavelets = np.dot(np.dot(eigenvectors, np.diag(np.exp(-1 * scale * eigenvalues))),
+                                 np.transpose(eigenvectors))
 
         threshold = np.vectorize(lambda x: x if x > 1e-4 * 1.0 / self.n_node else 0)
-        processed_wavelets = threshold(wavelets)
-        self.wavelets = processed_wavelets
-        return processed_wavelets
+        wavelets = threshold(wavelets)
+        return wavelets
 
 
-    def get_hierarchical_wavelet_coefficients(self) -> dict:
-        if not self.hierarchy or not self.wavelets:
-            raise ValueError("graph hierarchy is None or Wavelets not computed")
-
-        res = dict()
+    # 得到系数的分层表示
+    def get_hierarchical_coeffcients(self, wavelets) -> dict:
+        coeffs_dict = dict()
         for idx, node in enumerate(self.nodes):
-            layers = self.hierarchy[node]
+            neighbor_layers = self.hierarchy[node]
             coeffs = []
-            for layer in layers:
+            for neighbor_set in neighbor_layers:
                 tmp = []
-                for neighbor in layer:
+                for neighbor in neighbor_set:
                     idx2 = self.node2idx[neighbor]
-                    tmp.append(self.wavelets[idx, idx2])
+                    tmp.append(wavelets[idx, idx2])
                 coeffs.append(tmp)
-            res[node] = coeffs
-        return res
+            coeffs_dict[node] = coeffs
+        return coeffs_dict
+
+
+    # 作为baseline，统计节点各hop邻居的个数，组成向量
+    def get_nodes_hierarchical_degree(self) -> dict:
+        hierarchical_degrees = dict()
+        for node, layers in self.hierarchy.items():
+            hop_degree = [len(level) for level in layers]
+            if len(hop_degree) < self.hop:
+                hop_degree = hop_degree + [0] * (self.hop - len(hop_degree))
+            hierarchical_degrees[node] = hop_degree
+        return hierarchical_degrees
 
 
     # calculate HSD using a single thread
-    def calculate_HSD(self):
-        if not self.hierarchy or not self.wavelets:
-            raise ValueError("graph hierarchy is None or Wavelets not computed")
+    def calculate_structural_distance(self, scale, approx=False):
+        wavelets = self.calculate_wavelets(scale, approx)
+        coeffs_dict = self.get_hierarchical_coeffcients(wavelets)
 
-        distMat = np.zeros((self.n_node, self.n_node), dtype=float)
+        dist_mat = np.zeros((self.n_node, self.n_node), dtype=float)
         for idx1, node1 in tqdm(enumerate(self.nodes)):
             for idx2 in range(idx1 + 1, self.n_node):
                 node2 = self.nodes[idx2]
-                layers1, layers2 = self.hierarchy[node1], self.hierarchy[node2]
+                coeffs_layers1, coeffs_layers2 = coeffs_dict[node1], coeffs_dict[node2]
                 distance = 0.0
-                for hop in range(self.hop):
-                    layer_1, layer_2 = layers1[hop], layers2[hop]
-                    p, q = [], []
-                    for neighbor in layer_1:
-                        if neighbor != '':
-                            p.append(self.wavelets[idx1, self.node2idx[neighbor]])
+                for hop in range(self.hop+1):
+                    # coeffs doesn't have to share same length
+                    coeffs1, coeffs2 = coeffs_layers1[hop], coeffs_layers2[hop]
+                    distance += wasserstein_distance(coeffs1, coeffs2)
+                dist_mat[idx1, idx2] = dist_mat[idx2, idx1] = distance
 
-                    for neighbor in layer_2:
-                        if neighbor != '':
-                            q.append(self.wavelets[idx2, self.node2idx[neighbor]])
-
-                    distance += metrics.calculate_distance(p, q, self.metric)
-
-                distMat[idx1, idx2] = distMat[idx2, idx1] = distance
-
-        self.distMat = distMat
-        return self.distMat
+        return dist_mat
 
 
     # calculate HSD parallelly
     def parallel_calculate_HSD(self, n_workers=3):
-        if self.hierarchy is None or self.wavelets is None:
-            raise ValueError("graph hierarchy is None or Wavelet not computed")
-
         distMat = np.zeros((self.n_node, self.n_node), dtype=float)
         pool = multiprocessing.Pool(n_workers)
         states = {}

@@ -53,10 +53,3 @@ class DynamicHSD(MultiHSD):
         subGraph = nx.Graph()
         subGraph.add_edges_from(edges)
         return subGraph
-
-
-    def subgraph_HSD(self, nodes: set, subgraph: nx.Graph):
-        sub_model = MultiHSD(subgraph, "temp_subgraph", hop=self.hop, metric=self.metric)
-        wavelets_hierarhcy = sub_model.get_hierarchical_wavelet_coefficients()
-        #self.wavelets_hierarchy.update(wavelets_hierarhcy)
-

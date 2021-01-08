@@ -27,7 +27,7 @@ def cluster_evaluate(embeddings, labels, n_class, metric="euclidean"):
             (3) silhouette score, a measure of intra-cluster distance vs. inter-cluster distance.
 
         Supervised setting: We assess the performance of learned embeddings for node classifcation.
-        Using 10-fold cross validation, we predict the structural role (label) of each node in the test set
+        Using 10-fold cross validation, we predict the structural role (label) of each node in the tests set
         based on its 4-nearest neighbors in the training set as determined by the embedding space.
         The reported score is then the average accuracy and F1-score over 25 trials.
     """
@@ -54,7 +54,7 @@ def LR_evaluate(data, labels, cv=5):
     data, labels = sktools.shuffle(data, labels)
     lr = LogisticRegression(solver="lbfgs", penalty='l2', max_iter=1000, multi_class='ovr')
     test_scores = cross_val_score(lr, data, y=labels, cv=cv)
-    print(f"LR: test scores={test_scores}, mean_score={np.mean(test_scores)}\n")
+    print(f"LR: tests scores={test_scores}, mean_score={np.mean(test_scores)}\n")
     return np.mean(test_scores)
 
 
@@ -65,7 +65,7 @@ def KNN_evaluate(data, labels, metric="minkowski", cv=5, n_neighbor=10):
     data, labels = sktools.shuffle(data, labels)
     knn = KNeighborsClassifier(weights='uniform', algorithm="auto", n_neighbors=n_neighbor, metric=metric, p=2)
     test_scores = cross_val_score(knn, data, y=labels, cv=cv, scoring="accuracy")
-    print(f"KNN: test scores:{test_scores}, mean_score={np.mean(test_scores)}\n")
+    print(f"KNN: tests scores:{test_scores}, mean_score={np.mean(test_scores)}\n")
     return np.mean(test_scores)
 
 

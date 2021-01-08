@@ -6,33 +6,30 @@ PRD：对图的层级划分不应该内嵌到具体的模型中，而是抽象�
 """
 
 import os
+import platform
 
 import networkx as nx
 from tqdm import tqdm
 
-basedir = os.path.abspath(os.path.dirname(__file__))
 
-PathTemplate = "/home/data/users/master/2019/songyunfei/workspace/py/HSD/data/hierarchy/{}.layers"
-MaxHop = 5
+UnixPathTemplate = "/home/data/users/master/2019/songyunfei/workspace/py/HSD/data/hierarchy/{}.layers"
+WindowsPathTemplate = "G:\pyworkspace\HSD\data\hierarchy\{}.layers"
 
 
 def get_hierarchical_representation(graph: nx.Graph, maxHop):
     hierarchy = {}
     for node in nx.nodes(graph):
         hierarchy[node] = get_node_hierarchical_structure(graph, node, maxHop)
+
+    print(f"done, number of nodes: {len(hierarchy)}")
     return hierarchy
 
 
-def get_node_hierarchical_structure(graph: nx.Graph, node: str, hop: int):
-    """
-    explore hierarchical neighborhoods of node
-    """
+def get_node_hierarchical_structure(graph: nx.Graph, node: str, maxHop: int):
     layers = [[node]]
     curLayer = {node}
     visited = {node}
-    for _ in range(hop):
-        if len(curLayer) == 0:
-            break
+    for i in range(1, maxHop+1):
         nextLayer = set()
         for neighbor in curLayer:
             for next_hop_neighbor in nx.neighbors(graph, neighbor):
@@ -43,16 +40,13 @@ def get_node_hierarchical_structure(graph: nx.Graph, node: str, hop: int):
         layers.append(list(nextLayer))
     return layers
 
+
 def save_hierarchical_representation(graph: nx.Graph, file_path: str):
     """
     explore & save hierarchy of graph
     hierarchy file format:
-
-    node#neighbor,...,neighbor#neighbor,...,neighbor#
-    .
-    .
-    .
-
+        node#neighbor,...,neighbor#neighbor,...,neighbor#
+        ...
     where `#` denote increasing hop
     """
     with open(file_path, encoding="utf-8", mode="w+") as fout:
@@ -71,9 +65,16 @@ def save_hierarchical_representation(graph: nx.Graph, file_path: str):
             fout.write(record + '\n')
             fout.flush()
 
+
 def read_hierarchical_representation(graphName: str, maxHop=3) -> dict:
+    cur_system = platform.system()
+    if cur_system == "Windows":
+        PathTemplate = WindowsPathTemplate
+    else:
+        PathTemplate = UnixPathTemplate
     file_path = PathTemplate.format(graphName)
     return read_hierarchy(file_path, maxHop)
+
 
 def read_hierarchy(file_path: str, maxHop: int) -> dict:
     if not os.path.exists(file_path):
@@ -99,3 +100,10 @@ def read_hierarchy(file_path: str, maxHop: int) -> dict:
 
     print(f"done, number of nodes: {len(hierarchy)}")
     return hierarchy
+
+
+if __name__ == '__main__':
+    graph = "barbell"
+    G = nx.read_edgelist(f"../data/graph/{graph}.edgelist", create_using=nx.Graph,
+                         nodetype=str, edgetype=float, data=[("weight", float)])
+    save_hierarchical_representation(G, f"../data/hierarchy/{graph}.layers")
