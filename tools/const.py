@@ -6,8 +6,11 @@ PAGERANK = "PageRank"
 EIGEN_CENTRALITY = "EigenCentrality"
 
 System = platform.system()
-LinuxRootPath = "/home/data/users/master/2019/songyunfei/workspace/py/HSD"
+LinuxRootPath = "/home/master/2019/songyunfei/workspace/py/HSD"
 WindowsRootPath = "G:\pyworkspace\HSD"
+
+HierarchyLiunxPathTemplate = "/home/master/2019/songyunfei/workspace/py/HSD/data/hierarchy/{}.layers"
+HierarchyWindowsPathTemplate = "G:\pyworkspace\HSD\data\hierarchy\{}.layers"
 
 CLASS_INFO = {
     "mkarate": 34,

@@ -60,12 +60,16 @@ def read_label(path) -> dict:
     format:
         str(node): int(label)
     """
-    with open(path, mode="r", encoding="utf-8") as fin:
-        label_dict = dict()
-        while True:
-            line = fin.readline().strip()
-            if not line:
-                break
-            node, label = line.split(" ")
-            label_dict[node] = int(label)
-    return label_dict
+    label_dict = dict()
+    try:
+        with open(path, mode="r", encoding="utf-8") as fin:
+            while True:
+                line = fin.readline().strip()
+                if not line:
+                    break
+                node, label = line.split(" ")
+                label_dict[node] = int(label)
+    except FileNotFoundError as e:
+        print(f"Lable file not exist, path:{path}")
+    finally:
+        return label_dict

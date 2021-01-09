@@ -7,13 +7,10 @@ PRD：对图的层级划分不应该内嵌到具体的模型中，而是抽象�
 
 import os
 import platform
-
 import networkx as nx
 from tqdm import tqdm
 
-
-UnixPathTemplate = "/home/data/users/master/2019/songyunfei/workspace/py/HSD/data/hierarchy/{}.layers"
-WindowsPathTemplate = "G:\pyworkspace\HSD\data\hierarchy\{}.layers"
+from tools import const
 
 
 def get_hierarchical_representation(graph: nx.Graph, maxHop):
@@ -41,7 +38,7 @@ def get_node_hierarchical_structure(graph: nx.Graph, node: str, maxHop: int):
     return layers
 
 
-def save_hierarchical_representation(graph: nx.Graph, file_path: str):
+def save_hierarchical_representation(graph: nx.Graph, file_path: str, hop=7):
     """
     explore & save hierarchy of graph
     hierarchy file format:
@@ -53,7 +50,7 @@ def save_hierarchical_representation(graph: nx.Graph, file_path: str):
         nodes = nx.nodes(graph)
         for node in tqdm(nodes):
             record = ""
-            layers = get_node_hierarchical_structure(graph, node, 7)
+            layers = get_node_hierarchical_structure(graph, node, hop)
             for level in layers:
                 if len(level) == 0:
                     break
@@ -69,9 +66,9 @@ def save_hierarchical_representation(graph: nx.Graph, file_path: str):
 def read_hierarchical_representation(graphName: str, maxHop=3) -> dict:
     cur_system = platform.system()
     if cur_system == "Windows":
-        PathTemplate = WindowsPathTemplate
+        PathTemplate = const.HierarchyWindowsPathTemplate
     else:
-        PathTemplate = UnixPathTemplate
+        PathTemplate = const.HierarchyLiunxPathTemplate
     file_path = PathTemplate.format(graphName)
     return read_hierarchy(file_path, maxHop)
 
@@ -103,7 +100,7 @@ def read_hierarchy(file_path: str, maxHop: int) -> dict:
 
 
 if __name__ == '__main__':
-    graph = "barbell"
+    graph = "zxr_2"
     G = nx.read_edgelist(f"../data/graph/{graph}.edgelist", create_using=nx.Graph,
                          nodetype=str, edgetype=float, data=[("weight", float)])
-    save_hierarchical_representation(G, f"../data/hierarchy/{graph}.layers")
+    save_hierarchical_representation(G, f"../data/hierarchy/{graph}.layers", hop=5)

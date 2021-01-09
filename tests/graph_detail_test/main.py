@@ -55,7 +55,7 @@ def longest_shortest_path(G: nx.Graph):
 
 
 if __name__ == '__main__':
-    graph = nx.read_edgelist(f"../../data/graph/bio_dmela.edgelist", create_using=nx.Graph,
+    graph = nx.read_edgelist(f"../../data/graph/zxr_2.edgelist", create_using=nx.Graph,
                              nodetype=str, edgetype=float, data=[('weight', float)])
     graph_infos(graph)
     # node_length = []

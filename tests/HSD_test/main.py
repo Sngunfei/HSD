@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+import sys
+sys.path.append("/home/master/2019/songyunfei/workspace/py/HSD")
 from collections import defaultdict
 
 import matplotlib
@@ -21,22 +23,31 @@ from tools import evaluate
 from tools.rw import read_vectors
 
 
-def multi_HSD(graphName, hop, n_scales):
-    graph, label_dict = dataloader.load_data(graphName, "default")
+def embed(graph, hop, n_scales):
     model = MultiHSD(graph, graphName, hop, n_scales)
     model.init()
     embedding_dict = model.embed()
+    return embedding_dict
 
-    nodes, labels = [], []
+
+def save_vectors(nodes, vectors, path: str):
+    df = pd.DataFrame(data=vectors, index=nodes, columns=None, dtype=float)
+    df.to_csv(path, header=False, float_format="%.8f")
+
+
+def multi_HSD(graphName, hop, n_scales):
+    graph, _ = dataloader.load_data(graphName, "default")
+    labels = []
+    embedding_dict = embed(graph, hop, n_scales)
+    nodes = []
     vectors = np.empty(shape=(len(embedding_dict), len(embedding_dict['1'])))
     idx = 0
     for node, vector in embedding_dict.items():
         nodes.append(node)
-        labels.append(label_dict[node])
         vectors[idx] = vector
         idx += 1
-    #df = pd.DataFrame(data=vectors, index=nodes, columns=None, dtype=float)
-    #df.to_csv(f"{graphName}.csv", header=False, float_format="%.8f")
+
+    save_vectors(nodes, vectors, f"{graphName}.csv")
     return nodes, vectors, labels
 
 
@@ -97,6 +108,6 @@ def heat_diffusion_plot():
 if __name__ == '__main__':
 
     graphs = ['europe', 'usa', 'cora', 'bio_dmela', 'bio_grid_human']
-    graphName = "barbell"
-    nodes, vectors, labels = multi_HSD(graphName, hop=7, n_scales=100)
-    scatterplot(graphName, vectors, labels, nodes)
+    for graphName in ["zxr_2"]:
+        nodes, vectors, labels = multi_HSD(graphName, hop=3, n_scales=25)
+    #scatterplot(graphName, vectors, labels, nodes)

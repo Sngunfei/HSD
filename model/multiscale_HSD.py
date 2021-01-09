@@ -27,7 +27,7 @@ class MultiHSD(HSD):
         G = pygsp.graphs.Graph(self.A)
         G.estimate_lmax()
         # 如何取scales?
-        self.scales = np.exp(np.linspace(np.log(0.01), np.log(G._lmax*2), self.n_scales))
+        self.scales = np.exp(np.linspace(np.log(0.01), np.log(G._lmax*1.25), self.n_scales))
         self.hierarchy = hierarchy.read_hierarchical_representation(self.graphName, self.hop)
 
 
@@ -35,7 +35,7 @@ class MultiHSD(HSD):
     def embed(self) -> dict:
         embeddings = defaultdict(list)
         for scale in tqdm(self.scales):
-            wavelets = self.calculate_wavelets(scale, approx=False)
+            wavelets = self.calculate_wavelets(scale, approx=True)
             for node in self.nodes:
                 embeddings[node].extend(self.get_triple(wavelets, node))
                # embeddings[node].extend(self.get_layer_sum(wavelets, node))
